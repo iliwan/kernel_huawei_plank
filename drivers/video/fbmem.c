@@ -1018,7 +1018,9 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 				}
 			}
 
-			//fb_pan_display(info, &info->var);
+#ifndef CONFIG_FB_HI6220_CLCD
+			fb_pan_display(info, &info->var);
+#endif
 			fb_set_cmap(&info->cmap, info);
 			fb_var_to_videomode(&mode, &info->var);
 

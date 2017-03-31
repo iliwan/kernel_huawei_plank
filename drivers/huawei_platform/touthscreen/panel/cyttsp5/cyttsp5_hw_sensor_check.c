@@ -56,6 +56,8 @@ static struct cyttsp5_panel_info hw_panel_info[] = {
     {"Gemini","tma568",1,"lens"},
     {"mozart","CS448", 0,"ofilm"},
     {"mozart","CS448", 1,"truly"},
+    {"liszt","CS448", 1,"truly"},
+    {"liszt","CS448", 0,"mutto"},
 };
 
 enum parser_state {
@@ -462,6 +464,8 @@ void mmi_info_limit_print(struct cyttsp5_sensor_info_limit *mmi_info)
     TS_LOG_INFO("%s,  END.\n", __func__);
 }
 
+static struct cyttsp5_core_commands *cmd;
+
 static int cyttsp5_get_sensor_info(struct device *dev)
 {
     int retval = 0;
@@ -470,7 +474,7 @@ static int cyttsp5_get_sensor_info(struct device *dev)
     char config_file_name[100]={0};
     const char *product_name = cd->cpdata->product_name;
     const char *chip_name = cd->cpdata->chip_name;
-    u8 panel_id = cd->panel_id;
+    u8 panel_id = 0;
     char CIndex[2] = {0};
     int i=0;
     int length=0;
@@ -479,6 +483,21 @@ static int cyttsp5_get_sensor_info(struct device *dev)
     //get tx number & rx number by systeninfo.
     mmi_info_limit.tx_num = cd->sysinfo.sensing_conf_data.electrodes_y;
     mmi_info_limit.rx_num = cd->sysinfo.sensing_conf_data.electrodes_x;
+
+    cmd = cyttsp5_get_commands();
+    if (!cmd) {
+        retval = -EINVAL;
+        TS_LOG_ERR("%s Failed to cyttsp5_get_commands.\n",__func__);
+        goto out;
+    };
+
+    retval = cmd->nonhid_cmd->get_panel_id(dev, 1, &panel_id);
+    if (retval < 0) {
+        retval = -EINVAL;
+        TS_LOG_ERR("%s Failed to get panel id.\n",__func__);
+        goto out;
+    }
+    TS_LOG_INFO("%s, panel_id = %d\n", __func__, panel_id);
 
     TS_LOG_INFO("%s,tx_num = %d, rx_num = %d,hw_mmi_index = %d.\n", __func__,
                 mmi_info_limit.tx_num,mmi_info_limit.rx_num,hw_mmi_index);
@@ -913,9 +932,14 @@ static int cyttsp5_get_mutual_noise(struct device *dev)
         }
     }
 
+    //store noise value for debug
+    for (i = 0; i < length; i++) {
+        dad->data_buf[i] = max_raw[i] - min_raw[i];
+    }
+
     j =0;
     for (i = 0; i < length; i++) {
-        if(mut_noise.max[j] < (max_raw[i] - min_raw[i])) {
+        if(mut_noise.max[j] < dad->data_buf[i]) {
             TS_LOG_ERR( "%s mutual noise check  failed. raw[%d] is %d-%d, mut_noise.max[%d] is %d \n",__func__, i, min_raw[i], max_raw[i], j, mut_noise.max[j]);
             ret = -1;
             goto exit;
@@ -980,9 +1004,14 @@ static int cyttsp5_get_self_noise(struct device *dev)
         }
     }
 
+    //store noise value for debug
+    for (i = 0; i < length; i++) {
+        dad->data_buf[i] = max_raw[i] - min_raw[i];
+    }
+
     j =0;
     for (i = 0; i < length; i++) {
-        if(s_noise.max[j] < (max_raw[i] - min_raw[i])) {
+        if(s_noise.max[j] < dad->data_buf[i]) {
             TS_LOG_ERR( "%s self noise check  failed.  raw[%d] is %d-%d, s_noise.max[%d] is %d \n",__func__, i, min_raw[i], max_raw[i], j, s_noise.max[j]);
             ret = -1;
             goto exit;
@@ -1015,11 +1044,17 @@ static int cyttsp5_get_LocalPWC(struct device *dev)
     int length = tx_num * rx_num;
     int iDiff = CSV_RX_NUM-mmi_info_limit.rx_num;
     int j =0;
-    int iHeadNum = tx_num + 4-tx_num%4;
+	int tx_adjust_length = 0;
+	if(tx_num%4) {    //if tx_num not a multiple of  4
+	    tx_adjust_length = 4-tx_num%4;
+	} else {
+	    tx_adjust_length = 0;
+	}
+    int iHeadNum = tx_num + tx_adjust_length;
     struct cyttsp5_sensor_localPWC localPWC = mmi_info_limit.localPWC;
 
     //this command also read GlobalGIDAC
-    ret = cyttsp5_get_SensorData(dev,"0x00","0x24",length + (tx_num + 4-tx_num%4),
+    ret = cyttsp5_get_SensorData(dev,"0x00","0x24",length + (tx_num + tx_adjust_length),
                                     CYTTSP5_DATA_ONE_BYTE,0);
     if(ret < 0){
         TS_LOG_ERR("%s error.\n",__func__);
@@ -1056,9 +1091,14 @@ static int cyttsp5_get_GlobalGIDAC(struct device *dev)
     int tx_num = mmi_info_limit.tx_num;
 
     struct cyttsp5_sensor_idac idac =     mmi_info_limit.idac;
-
+    int tx_adjust_length = 0;
+    if(tx_num%4) {    //if tx_num not a multiple of  4
+        tx_adjust_length = 4-tx_num%4;
+    } else {
+        tx_adjust_length = 0;
+    }
     //the data length which will be readed must be a multiple of 4.
-    ret = cyttsp5_get_SensorData(dev,"0x00","0x24",tx_num + 4-tx_num%4,CYTTSP5_DATA_ONE_BYTE,0);
+    ret = cyttsp5_get_SensorData(dev,"0x00","0x24",tx_num + tx_adjust_length,CYTTSP5_DATA_ONE_BYTE,0);
     if(ret < 0){
         TS_LOG_ERR("%s error.\n",__func__);
         goto exit;
@@ -1521,6 +1561,12 @@ static int cyttsp5_proc_data_print(struct device *dev,int *data_buf,struct seq_f
     int length_long = mmi_info_limit.tx_num * mmi_info_limit.rx_num;
     int length_short = mmi_info_limit.tx_num + mmi_info_limit.rx_num;
     struct cyttsp5_device_access_data *dad  = cyttsp5_get_device_access_data(dev);
+    int tx_adjust_length = 0;
+    if(tx_num%4) {    //if tx_num not a multiple of  4
+        tx_adjust_length = 4-tx_num%4;
+    } else {
+        tx_adjust_length = 0;
+    }
 
     if(data_buf == NULL){
         TS_LOG_INFO("%s data_buf is NULL.\n",__func__);
@@ -1546,8 +1592,8 @@ static int cyttsp5_proc_data_print(struct device *dev,int *data_buf,struct seq_f
         break;
     case CYTTSP_MUTUAL_LOCALPWC:
         seq_printf(m, "Mutual LocalPWC Data:\n");
-        for (index = tx_num + 4-tx_num%4; index < length_long + tx_num + 4-tx_num%4; index++) {
-            if((index + 1 - (tx_num + 4-tx_num%4)) % rx_num == 0){
+        for (index = tx_num + tx_adjust_length; index < length_long + tx_num + tx_adjust_length; index++) {
+            if((index + 1 - (tx_num + tx_adjust_length)) % rx_num == 0){
                 seq_printf(m, "%4d\n", data_buf[index]);
             }else{
                 seq_printf(m, "%4d", data_buf[index]);
@@ -1557,12 +1603,12 @@ static int cyttsp5_proc_data_print(struct device *dev,int *data_buf,struct seq_f
         break;
     case CYTTSP_GLOBAL_IDAC:
         seq_printf(m, "Global iDAC Data:\n");
-        for (index = 0; index < tx_num + 4-tx_num%4; index++) {
+        for (index = 0; index < tx_num + tx_adjust_length; index++) {
             seq_printf(m, "%4d", data_buf[index]);
         }
         seq_printf(m, "\n");
         seq_printf(m, "Global iDAC Diff:\n");
-        for (index = 0; index < tx_num + 4-tx_num%4 -1; index++) {
+        for (index = 0; index < tx_num + tx_adjust_length -1; index++) {
             seq_printf(m, "%4d", data_buf[index] - data_buf[index + 1]);
         }
         seq_printf(m, "\n");
@@ -1859,6 +1905,7 @@ static int cyttsp5_rawdata_proc_show(struct seq_file *m, void *v)
     int check_count = 0;
 
     if(atomic_read(&mmi_test_status)){
+        TS_LOG_ERR("%s MMI TEST already has been called.\n",__func__);
         return -1;
     }
 

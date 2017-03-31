@@ -56,18 +56,26 @@ typedef enum tagNCM_IOCTL_CMD_TYPE_E
     NCM_IOCTL_REG_CONNECT_STUS_CHG_FUNC,     /* 0x11,注册网卡状态改变通知回调函数*/
     NCM_IOCTL_SET_PKT_STATICS,               /* 0x12,配置统计信息*/
     NCM_IOCTL_GET_FLOWCTRL_STATUS,           /* 0x13 查询NCM流控状态*/
+    /* END:   Modified by liumengcun, 2011-4-21 */
 
     NCM_IOCTL_GET_CUR_TX_MIN_NUM,              /* 0x14 获取当前发包个数阈值*/
     NCM_IOCTL_GET_CUR_TX_TIMEOUT,               /* 0x15 获取当前发包超时时间*/
     NCM_IOCTL_IPV6_DNS_NOTIF,              /*0x16 IPV6 DNS主动上报*/
+    /* END:   Modified by liumengcun, 2011-6-23 */
+    /* BEGIN: Modified by liumengcun, 2011-7-20 支持IPV6 DNS配置*/
     NCM_IOCTL_SET_IPV6_DNS,                     /* 0x16 配置IPV6 DNS*/
+    /* END:   Modified by liumengcun, 2011-7-20 */
+    /* BEGIN: Modified by liumengcun, 2011-8-10 MSP新需求*/
     NCM_IOCTL_CLEAR_IPV6_DNS,                     /* 0x17 清除IPV6 DNS在板端的缓存,param在此命令字没有意义，不填空指针即可*/
     NCM_IOCTL_GET_NCM_STATUS,                     /* 0x18 获取NCM网卡状态 enable:TRUE(1);disable:FALSE(0) */
+    /* END:   Modified by liumengcun, 2011-8-10 */
 
     NCM_IOCTL_SET_ACCUMULATION_TIME,
 
+    /* BEGIN: Modified by baoxianchun, 2012-5-17 GU PS 新需求*/
 	NCM_IOCTL_SET_RX_MIN_NUM,		/*配置收包个数阈值*/
 	NCM_IOCTL_SET_RX_TIMEOUT,			/*配置收包超时时间*/
+    /* END: Modified by baoxianchun, 2012-5-17 GU PS 新需求*/
 
     NCM_IOCTL_REG_NDIS_RESP_STATUS_FUNC   /* NDIS通道AT命令状态处理回调函数 */
 }NCM_IOCTL_CMD_TYPE_E;
@@ -143,12 +151,14 @@ typedef struct tagNCM_IOCTL_PKT_STATISTICS_S
     BSP_U32     u32CurrentRx;         /*接收速率*/
 } NCM_IOCTL_PKT_STATISTICS_S;
 
+/* BEGIN: Modified by liumengcun, 2011-7-20 IPV6 DNS配置结构,NCM_IOCTL_SET_IPV6_DNS对应参数结构*/
 #define BSP_NCM_IPV6_DNS_LEN     32
  typedef struct tagNCM_IPV6DNS_S  /* 0x16 配置IPV6 DNS*/
  {
      BSP_U8 * pu8Ipv6DnsInfo;/* 32字节，低16字节表示primaryDNS；高16字节表示SecondaryDNS。*/
      BSP_U32 u32Length;
  } NCM_IPV6DNS_S;
+/* END:   Modified by liumengcun, 2011-7-20 */
 
 typedef struct tagNCM_PKT_INFO_S
 {

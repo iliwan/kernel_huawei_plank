@@ -33,6 +33,7 @@ extern "C" {
 /**************精确接收相关的宏***********************/
 #define RRC_PHY_MAX_SEG_POS_INFO_NUM           (10)
 
+/*Start of Add by W50455*/
 #define PHY_RRC_MAX_REPORT_CANDIDATE_CELL_NUM  (32) /*Cell Search 上报时携带的最多小区个数*/
 
 

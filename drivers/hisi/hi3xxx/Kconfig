@@ -87,3 +87,9 @@ config HISI_DDR_DEBUG
 	default n
 	help
 	  Say 'Y' here if you want to support boost5v control enable.
+
+config ERP_STANDARD_ENABLED
+	bool "support ERP standard"
+	default n
+	help
+	  Say 'Y' here if you want to support ERP standard.

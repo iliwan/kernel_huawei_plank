@@ -281,7 +281,7 @@ int get_resource(struct otg_dev *dev)
 	/*
 	 * get registers base address
 	 */
-	np = of_find_compatible_node(NULL, NULL, "hisilicon,hi3635-usb-otg-ahbif");
+	np = of_find_compatible_node(NULL, NULL, "hisilicon,usb-otg-ahbif");
 	if (np) {
 		dev->usb_ahbif_base = of_iomap(np, 0);
 	}
@@ -688,8 +688,14 @@ int hisi_charger_type_notifier_unregister(struct notifier_block *nb)
 enum hisi_charger_type hisi_get_charger_type(void)
 {
 	struct otg_dev *dev_p = otg_dev_p;
-	enum hisi_charger_type type = dev_p->charger_type;
-	usb_dbg("charger type: %s\n", charger_type_string(type));
+        enum hisi_charger_type type = CHARGER_TYPE_NONE;
+
+        if(dev_p) {
+                type = dev_p->charger_type;
+        } else {
+                usb_err("Call hisi_get_charger_type, But Usb Driver Can't be init.\n");
+        }
+        usb_dbg("charger type: %s\n", charger_type_string(type));
 	return type;
 }
 
@@ -1298,7 +1304,7 @@ struct dev_pm_ops dwc_otg_dev_pm_ops = {
 
 #ifdef CONFIG_OF
 static const struct of_device_id dwc_otg_hi3635_mach[] = {
-	{ .compatible = "hisilicon,hi3635-usb-otg" },
+	{ .compatible = "hisilicon,usb-otg" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, dwc_otg_hi3635_mach);

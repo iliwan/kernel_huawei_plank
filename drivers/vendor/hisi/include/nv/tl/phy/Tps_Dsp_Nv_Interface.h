@@ -69,6 +69,7 @@ extern "C" {
  */
 
 
+/*begin: add by liuhuashan for DSP NV <2012-06-06>*/
 #define TDS_HL1_DSPNV_SUCC   (0)
 #define TDS_HL1_DSPNV_FAIL   (1)
 
@@ -324,6 +325,7 @@ typedef struct
     VOS_INT16 asRxAgcCalPower[TDS_RX_LEVEL_NUM_MAX];
 }TDS_NV_RX_AGC_CAL_POWER_STRU;
 
+/* BEGIN: Added by xueqiuyan, 2012/6/29   PN:tds_apc*/
 typedef struct
 {
     VOS_INT16 sHigh2MidThre;
@@ -332,6 +334,7 @@ typedef struct
     VOS_INT16 sLow2MidThre;
 }TDS_NV_RX_PA_LEVEL_THRE_STRU;
 
+/* END:   Added by xueqiuyan, 2012/6/29 */
 
 
 typedef struct

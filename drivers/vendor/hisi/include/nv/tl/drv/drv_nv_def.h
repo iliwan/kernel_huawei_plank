@@ -661,6 +661,7 @@ typedef struct
 /* end NV ID = 0xd135 */
 
 
+/* log2.0 2014-03-19 Begin:*/
 typedef struct
 {
     BSP_U32 ulSocpDelayWriteFlg;/* SOCP延迟写入功能启动标记 */
@@ -801,6 +802,10 @@ typedef struct
     BSP_U8  mod_sw[8];        /* 各个模块log功能控制开关 */
 }DRV_PM_OM_CFG_STRU;
 
+typedef struct
+{
+	BSP_U32 en_flag;
+}DRV_FEM_VIO_ALWAYS_ON;
 
 #ifdef __cplusplus
 #if __cplusplus

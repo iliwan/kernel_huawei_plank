@@ -10,3 +10,6 @@ config BQ2429X_CHARGER
 config BQ25892_CHARGER
 	bool "bq25892 charger"
 	default n
+config GRACE_SELECT_2A_1A_AC
+        bool "auto select 2A or 1A AC on GRACE"
+        default n

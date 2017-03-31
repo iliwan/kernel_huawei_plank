@@ -565,17 +565,18 @@ STATIC int32 get_wpa_cipher_suite(uint8 *ie, int32 ie_len, roam_wpa_cipher_suite
             HWIFI_WARNING("Invalid too short left len(%d),AKM parse failed ",left);
             return -EFAIL;
         }
-
         for (i = 0; i < count; i++)
         {
+            HWIFI_INFO("auth key management,type:%x",RSN_SELECTOR_GET(pos));
             if (RSN_SELECTOR_GET(pos) == WPA_AUTH_KEY_MGMT_UNSPEC_802_1X)
             {
                 data->auth_type |= HWIFI_8021X;
             }
-            else if(RSN_SELECTOR_GET(pos) != WPA_AUTH_KEY_MGMT_PSK_OVER_802_1X)
+            else if(RSN_SELECTOR_GET(pos) == WPA_AUTH_KEY_MGMT_PSK_OVER_802_1X)
             {
-                HWIFI_WARNING("Invalid not support auth key management.");
-                return -EFAIL;
+                HWIFI_INFO("auth key management is WPA_AUTH_KEY_MGMT_PSK_OVER_802_1X");
+            } else {
+                HWIFI_INFO("Invalid not support auth key management,type:%x",RSN_SELECTOR_GET(pos));
             }
             pos += WPA_SELECTOR_LEN;
             left -= WPA_SELECTOR_LEN;
@@ -694,19 +695,19 @@ STATIC int32 get_rsn_cipher_suite(uint8 *ie, int32 ie_len, roam_wpa_cipher_suite
             HWIFI_WARNING("Invalid too short left len(%d),AKM parse failed",left);
             return -EFAIL;
         }
-
         for (i = 0; i < count; i++)
         {
+            HWIFI_INFO("auth type,%x",RSN_SELECTOR_GET(pos));
             if (RSN_SELECTOR_GET(pos) == RSN_AUTH_KEY_MGMT_UNSPEC_802_1X)
             {
                 data->auth_type |= HWIFI_8021X;
             }
-            else if(RSN_SELECTOR_GET(pos) != RSN_AUTH_KEY_MGMT_PSK_OVER_802_1X)
+            else if(RSN_SELECTOR_GET(pos) == RSN_AUTH_KEY_MGMT_PSK_OVER_802_1X)
             {
-                HWIFI_WARNING("Invalid auth type!");
-                return -EFAIL;
+                HWIFI_INFO("auth type is RSN_AUTH_KEY_MGMT_PSK_OVER_802_1X!");
+            } else {
+                HWIFI_INFO("Invalid auth type,%x",RSN_SELECTOR_GET(pos));
             }
-
             pos += RSN_SELECTOR_LEN;
             left -= RSN_SELECTOR_LEN;
         }

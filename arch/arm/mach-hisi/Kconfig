@@ -20,78 +20,93 @@ config ARCH_HISI
 	select PINCTRL_SINGLE
 	select ARCH_HAS_OPP
 	select ARCH_HAS_PASR
-
 	help
-	  Support for Hislicon Hi36xx/Hi37xx/Hi6620 processor family
+	  Support for Hisilicon Hi36xx/Hi37xx/Hi6620 processor family
 
 config ARCH_KIRIN
 	bool "Hisilicon Kirin family"
 	help
-	  Support for Hislicon Kirin processor family
-	
+	  Support for Hisilicon Kirin processor family
 if ARCH_HISI
+choice
+	prompt "Hisilicon processor type"
 
-config ARCH_HI3630FPGA
-	bool "Hisilicon Development Board"
+config ARCH_HI3XXX
+	bool "Hisilicon HI3xxx processor Family"
 	default n
-
-	select ARM_CCI
-	select CPU_V7
-	select ARM_TIMER_SP804
 	help
-	  Say 'Y' here if you want to support the Hisilicon Development
-	  Board.
-
-config ARCH_HI3630EMULATOR
-	bool "Hisilicon Emulator Board"
-	default n
-
-	select ARM_CCI
-	select CPU_V7
-	select ARM_TIMER_SP804
-	help
-	  Say 'Y' here if you want to support the Hisilicon Development
-	  Board.
-
-config ARCH_HI3630
-	bool "Hisilicon UDP Board"
-	default n
-
-	select ARM_CCI
-	select CPU_V7
-	select ARM_TIMER_SP804
-	help
-	  Say 'Y' here if you want to support the Hisilicon Development
-	  Board.
-
-config ARCH_HI6620
-	bool "Hisilicon HI6620 OEM Development Board"
-	default n
-
-	select ARM_CCI
-	select CPU_V7
-	select ARM_TIMER_SP804
-	help
-	  Say 'Y' here if you want to support the Hisilicon HI6620 Development
+	  Say 'Y' here if you want to support the Hisilicon HI3XXX Development
 	  Board.
 
 config ARCH_HI6XXX
-	bool "Hisilicon HI6xxx Development Board"
+	bool "Hisilicon HI6xxx processor Family"
+	default n
+	select ARM_CCI
+	select CPU_V7
+	select ARM_TIMER_SP804
+	help
+	  Say 'Y' here if you want to support the Hisilicon HI6XXX Development
+	  Board.
+endchoice
+
+menu "HI3xxx Processor Family"
+	depends on ARCH_HI3XXX
+
+config ARCH_HI3630FPGA
+	bool "Hisilicon HI3630 FPGA Board"
 	default n
 
 	select ARM_CCI
 	select CPU_V7
 	select ARM_TIMER_SP804
 	help
-	  Say 'Y' here if you want to support the Hisilicon HI6210 Development
-	  Board.
-	
-menu "Hisilicon NoC Support"
-config HI6421_OCP
-	bool "Hisilicon chip over current protect"
+	  Say 'Y' here if you want to support the Hisilicon HI3630 FPGA
+	  Development Board.
+
+config ARCH_HI3630EMULATOR
+	bool "Hisilicon HI3630 Emulator Board"
 	default n
+
+	select ARM_CCI
+	select CPU_V7
+	select ARM_TIMER_SP804
 	help
-	  Say 'Y' here if you want to support the Hisilicon OCP.
+	  Say 'Y' here if you want to support the Hisilicon HI3630 EMULATOR
+	  Development Board.
+
+config ARCH_HI3630
+	bool "Hisilicon HI3630 ASIC Board"
+	default n
+
+	select ARM_CCI
+	select CPU_V7
+	select ARM_TIMER_SP804
+	help
+	  Say 'Y' here if you want to support the Hisilicon HI3630 ASIC
+	  Development Board.
+endmenu
+
+
+menu "HI6xxx Processor Family"
+	depends on ARCH_HI6XXX
+
+config ARCH_HI6620
+	bool "Hisilicon HI6620 ASIC Board"
+	default n
+
+	select ARM_CCI
+	select CPU_V7
+	select ARM_TIMER_SP804
+	help
+	  Say 'Y' here if you want to support the Hisilicon HI6620 ASIC
+	  Development Board.
+endmenu
+
+endif
+
+
+menu "Hisilicon NoC Support"
+
 endmenu
 
 config HI3630_LPM3_IPC
@@ -119,7 +134,6 @@ config HISI_REBOOT_TYPE
 	default n
 	help
 	  Hi3630 reboot type
-endif
 
 config HISI_UDP_BOARDID
 	bool "Hisilicon udp board id driver"
@@ -152,3 +166,8 @@ config HISI_BALONG_MODEM
 	default n
 	help
 	Hisilicon ap+modem config support.
+config HISI_LPM3_VIEWER
+	bool "Hisilicon lpm3 log viewer"
+	default n
+	help
+	Hi3630 lpm3 log viewer driver

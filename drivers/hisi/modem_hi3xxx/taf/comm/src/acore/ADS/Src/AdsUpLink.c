@@ -541,7 +541,6 @@ VOS_VOID ADS_UL_ConfigBD(VOS_UINT32 ulBdNum)
         pstIpfConfigUlParam->u16Attribute = (VOS_UINT16)ADS_UL_BUILD_BD_ATTRIBUTE(VOS_FALSE, IPF_MODE_FILTERANDTRANS, ADS_UL_GET_BD_FC_HEAD(ucInstanceIndex));
 
         /* 需要将数据写回DDR，IPF从DDR中读数据 */
-
 #ifdef CONFIG_ARM64
         ADS_CACHE_FLUSH_WITH_DEV(&dev, pstImmZcNode->data, pstIpfConfigUlParam->u16Len);
 #else
@@ -582,6 +581,7 @@ VOS_VOID ADS_UL_ConfigBD(VOS_UINT32 ulBdNum)
     /* 追踪上行发送数据 */
     ADS_MNTN_TraceSndUlData();
 
+    ADS_UL_EnableTxWakeLockTimeout(ADS_UL_TX_WAKE_LOCK_TMR_LEN);
     return;
 }
 
@@ -1421,10 +1421,10 @@ VOS_UINT32 ADS_UL_RcvTimerMsg(MsgBlock *pMsg)
 
     switch (pstTimerMsg->ulName)
     {
-        /* 处理ADS_UL_SEND_TIMER定时器超时 */
         case TI_ADS_UL_SEND:
-            /* 处理上行数据 */
+            ADS_UL_WakeLock();
             ADS_UL_ProcLinkData();
+            ADS_UL_WakeUnLock();
             break;
 
         case TI_ADS_DSFLOW_STATS_0:

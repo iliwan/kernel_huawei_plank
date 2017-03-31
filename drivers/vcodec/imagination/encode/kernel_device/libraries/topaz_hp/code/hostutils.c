@@ -1352,6 +1352,7 @@ _comm_CloseSocket(
 		}
 	}
 
+        PRINT("topazkm Context closed\n");
 
 	/* if nIndex == TOPAZHP_MAX_POSSIBLE_STREAMS then OpenSocket succeeded and SetupSocket failed (maybe incompatible firmware) */
 	if (nIndex != TOPAZHP_MAX_POSSIBLE_STREAMS)
@@ -1468,6 +1469,7 @@ COMMKM_OpenSocket(
 
 	SYSOSKM_CreateEventObject(&psSocket->isrEvent);
 	wbfifo_Clear(psSocket);
+        PRINT("topazkm Context created with codec %d\n", eCodec);
 	return IMG_ERR_OK;
 }
 

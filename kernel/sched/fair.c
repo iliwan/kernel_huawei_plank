@@ -1146,7 +1146,7 @@ static inline void update_cfs_shares(struct cfs_rq *cfs_rq)
  * We choose a half-life close to 1 scheduling period.
  * Note: The tables below are dependent on this value.
  */
-#define LOAD_AVG_PERIOD 32
+#define LOAD_AVG_PERIOD 16
 #define LOAD_AVG_MAX 47742 /* maximum possible load avg */
 #define LOAD_AVG_MAX_N 345 /* number of full periods to produce LOAD_MAX_AVG */
 
@@ -1245,7 +1245,7 @@ struct hmp_global_attr {
 	ssize_t (*to_sysfs_text)(char *buf, int buf_size);
 };
 
-#define HMP_DATA_SYSFS_MAX 9
+#define HMP_DATA_SYSFS_MAX 10
 
 struct hmp_data_struct {
 #ifdef CONFIG_HMP_FREQUENCY_INVARIANT_SCALE
@@ -3146,7 +3146,7 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 /* Used instead of source_load when we know the type == 0 */
 static unsigned long weighted_cpuload(const int cpu)
 {
-	return cpu_rq(cpu)->load.weight;
+	return cpu_rq(cpu)->cfs.runnable_load_avg;
 }
 
 /*
@@ -3191,9 +3191,10 @@ static unsigned long cpu_avg_load_per_task(int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
 	unsigned long nr_running = ACCESS_ONCE(rq->nr_running);
+	unsigned long load_avg = rq->cfs.runnable_load_avg;
 
 	if (nr_running)
-		return rq->load.weight / nr_running;
+		return load_avg / nr_running;
 
 	return 0;
 }
@@ -3862,6 +3863,31 @@ unsigned int hmp_up_prio = NICE_TO_PRIO(CONFIG_SCHED_HMP_PRIO_FILTER_VAL);
 unsigned int hmp_next_up_threshold = 4096;
 unsigned int hmp_next_down_threshold = 4096;
 
+#ifdef CONFIG_SCHED_HMP_BOOST
+static int hmp_boostpulse_duration = 1000000; /* microseconds */
+static u64 hmp_boostpulse_endtime;
+static int hmp_boost_val;
+static int hmp_boostpulse;
+static DEFINE_RAW_SPINLOCK(hmp_boost_lock);
+
+static inline int hmp_boost(void)
+{
+	u64 now = ktime_to_us(ktime_get());
+	int ret;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&hmp_boost_lock, flags);
+	if (hmp_boost_val || now < hmp_boostpulse_endtime)
+		ret = 1;
+	else
+		ret = 0;
+	raw_spin_unlock_irqrestore(&hmp_boost_lock, flags);
+
+	return ret;
+}
+
+#endif
+
 #ifdef CONFIG_SCHED_HMP_LITTLE_PACKING
 /*
  * Set the default packing threshold to try to keep little
@@ -4195,6 +4221,80 @@ static int hmp_packing_from_sysfs(int value)
 	return value;
 }
 #endif
+
+#ifdef CONFIG_SCHED_HMP_BOOST
+static int hmp_boostpulse_from_sysfs(int value)
+{
+	unsigned long flags;
+	u64 boostpulse_endtime = ktime_to_us(ktime_get()) + hmp_boostpulse_duration;
+
+	raw_spin_lock_irqsave(&hmp_boost_lock, flags);
+	if (boostpulse_endtime > hmp_boostpulse_endtime)
+		hmp_boostpulse_endtime = boostpulse_endtime;
+	raw_spin_unlock_irqrestore(&hmp_boost_lock, flags);
+
+	return 0;
+}
+
+static int hmp_boostpulse_duration_from_sysfs(int duration)
+{
+	if (duration < 0)
+		return -EINVAL;
+
+	hmp_boostpulse_duration = duration;
+
+	return 0;
+}
+
+static int hmp_boost_from_sysfs(int value)
+{
+	unsigned long flags;
+	int ret = 0;
+
+	raw_spin_lock_irqsave(&hmp_boost_lock, flags);
+	if (value == 1)
+		hmp_boost_val++;
+	else if (value == 0)
+		if (hmp_boost_val >= 1)
+			hmp_boost_val--;
+		else
+			ret = -EINVAL;
+	else
+		ret = -EINVAL;
+	raw_spin_unlock_irqrestore(&hmp_boost_lock, flags);
+
+	return ret;
+}
+
+int set_hmp_boost(int enable)
+{
+	return hmp_boost_from_sysfs(enable);
+}
+
+int set_hmp_boostpulse(int duration)
+{
+	unsigned long flags;
+	u64 boostpulse_endtime;
+
+	if (duration < 0)
+		return -EINVAL;
+
+	boostpulse_endtime = ktime_to_us(ktime_get()) + duration;
+
+	raw_spin_lock_irqsave(&hmp_boost_lock, flags);
+	if (boostpulse_endtime > hmp_boostpulse_endtime)
+		hmp_boostpulse_endtime = boostpulse_endtime;
+	raw_spin_unlock_irqrestore(&hmp_boost_lock, flags);
+
+	return 0;
+}
+
+int get_hmp_boost(void)
+{
+	return hmp_boost();
+}
+#endif
+
 static void hmp_attr_add(
 	const char *name,
 	int *value,
@@ -4223,6 +4323,65 @@ static void hmp_attr_add(
 	hmp_data.attributes[i] = &hmp_data.attr[i].attr;
 	hmp_data.attributes[i + 1] = NULL;
 }
+
+#ifdef CONFIG_SCHED_HMP_BOOST
+static ssize_t hmp_boost_store(struct kobject *a, struct attribute *attr,
+				const char *buf, size_t count)
+{
+	int temp;
+	ssize_t ret = count;
+	struct hmp_global_attr *hmp_attr =
+		container_of(attr, struct hmp_global_attr, attr);
+	char *str = vmalloc(count + 1);
+	if (str == NULL)
+		return -ENOMEM;
+	memcpy(str, buf, count);
+	str[count] = 0;
+	if (sscanf(str, "%d", &temp) < 1)
+		ret = -EINVAL;
+	else {
+		if (hmp_attr->from_sysfs != NULL) {
+			temp = hmp_attr->from_sysfs(temp);
+			if (temp < 0)
+				ret = -EINVAL;
+		} else {
+			*(hmp_attr->value) = temp;
+		}
+	}
+	vfree(str);
+	return ret;
+}
+
+#define HMP_ATTR_END_IDX	6
+static void hmp_boost_attr_add(
+	const char *name,
+	int *value,
+	int (*to_sysfs)(int),
+	int (*from_sysfs)(int),
+	ssize_t (*to_sysfs_text)(char *, int),
+	umode_t mode)
+{
+	int i = HMP_ATTR_END_IDX;
+	while (hmp_data.attributes[i] != NULL) {
+		i++;
+		if (i >= HMP_DATA_SYSFS_MAX)
+			return;
+	}
+	if (mode)
+		hmp_data.attr[i].attr.mode = mode;
+	else
+		hmp_data.attr[i].attr.mode = 0644;
+	hmp_data.attr[i].show = hmp_show;
+	hmp_data.attr[i].store = hmp_boost_store;
+	hmp_data.attr[i].attr.name = name;
+	hmp_data.attr[i].value = value;
+	hmp_data.attr[i].to_sysfs = to_sysfs;
+	hmp_data.attr[i].from_sysfs = from_sysfs;
+	hmp_data.attr[i].to_sysfs_text = to_sysfs_text;
+	hmp_data.attributes[i] = &hmp_data.attr[i].attr;
+	hmp_data.attributes[i + 1] = NULL;
+}
+#endif
 
 static int hmp_attr_init(void)
 {
@@ -4281,6 +4440,14 @@ static int hmp_attr_init(void)
 		hmp_theshold_from_sysfs,
 		NULL,
 		0);
+#ifdef CONFIG_SCHED_HMP_PRIO_FILTER
+	hmp_attr_add("up_prio",
+		&hmp_up_prio,
+		NULL,
+		NULL,
+		NULL,
+		0);
+#endif
 #ifdef CONFIG_HMP_VARIABLE_SCALE
 	/* by default load_avg_period_ms == LOAD_AVG_PERIOD
 	 * meaning no change
@@ -4317,6 +4484,28 @@ static int hmp_attr_init(void)
 		NULL,
 		0);
 #endif
+
+#ifdef CONFIG_SCHED_HMP_BOOST
+	hmp_boost_attr_add("boostpulse",
+		&hmp_boostpulse,
+		NULL,
+		hmp_boostpulse_from_sysfs,
+		NULL,
+		0);
+	hmp_boost_attr_add("boostpulse_duration",
+		&hmp_boostpulse_duration,
+		NULL,
+		hmp_boostpulse_duration_from_sysfs,
+		NULL,
+		0);
+	hmp_boost_attr_add("boost",
+		&hmp_boost_val,
+		NULL,
+		hmp_boost_from_sysfs,
+		NULL,
+		0);
+#endif
+
 	hmp_data.attr_group.name = "hmp";
 	hmp_data.attr_group.attrs = hmp_data.attributes;
 	ret = sysfs_create_group(kernel_kobj,
@@ -6612,10 +6801,10 @@ static int __do_active_load_balance_cpu_stop(void *data, bool check_sd_lb_flag)
 	rcu_read_unlock();
 	double_unlock_balance(busiest_rq, target_rq);
 out_unlock:
-	if (!check_sd_lb_flag)
-		put_task_struct(p);
 	busiest_rq->active_balance = 0;
 	raw_spin_unlock_irq(&busiest_rq->lock);
+	if (!check_sd_lb_flag)
+		put_task_struct(p);
 	return 0;
 }
 
@@ -7082,9 +7271,15 @@ static unsigned int hmp_up_migration(int cpu, int *target_cpu, struct sched_enti
 	if (p->prio >= hmp_up_prio)
 		return 0;
 #endif
-
+#ifdef CONFIG_SCHED_HMP_BOOST
+	if (!hmp_boost()) {
+		if (!hmp_task_eligible_for_up_migration(se))
+			return 0;
+	}
+#else
 	if (!hmp_task_eligible_for_up_migration(se))
 		return 0;
+#endif
 
 #ifdef CONFIG_ARCH_HI6XXX
 	sprintf(desc, "~~Up %d, %d, %s", hmp_slower_domain_load, *cur_freq, p->comm);
@@ -7099,6 +7294,7 @@ static unsigned int hmp_up_migration(int cpu, int *target_cpu, struct sched_enti
 		return 0;
 	}
 #endif
+
 
 	/* Let the task load settle before doing another up migration */
 	/* hack - always use clock from first online CPU */
@@ -7167,6 +7363,11 @@ static unsigned int hmp_down_migration(int cpu, struct sched_entity *se)
 	if (((now - se->avg.hmp_last_down_migration) >> 10)
 					< hmp_next_down_threshold)
 		return 0;
+
+#ifdef CONFIG_SCHED_HMP_BOOST
+	if (hmp_boost())
+		return 0;
+#endif
 
 	if (cpumask_intersects(&hmp_slower_domain(cpu)->cpus,
 					tsk_cpus_allowed(p))
@@ -7505,10 +7706,17 @@ static unsigned int hmp_idle_pull(int this_cpu)
 		/* check if heaviest eligible task on this
 		 * CPU is heavier than previous task
 		 */
+#ifdef CONFIG_SCHED_HMP_BOOST
+		if (curr && (hmp_boost() || hmp_task_eligible_for_up_migration(curr)) &&
+			curr->avg.load_avg_ratio > ratio &&
+			cpumask_test_cpu(this_cpu,
+					tsk_cpus_allowed(task_of(curr)))) {
+#else
 		if (curr && hmp_task_eligible_for_up_migration(curr) &&
 			curr->avg.load_avg_ratio > ratio &&
 			cpumask_test_cpu(this_cpu,
 					tsk_cpus_allowed(task_of(curr)))) {
+#endif
 			p = task_of(curr);
 			target = rq;
 			ratio = curr->avg.load_avg_ratio;

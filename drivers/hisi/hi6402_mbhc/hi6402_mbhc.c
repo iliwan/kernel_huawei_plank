@@ -27,7 +27,7 @@
 #include <sound/jack.h>
 #include <linux/switch.h>
 #include <linux/wakelock.h>
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #include <linux/input.h>
 #include <hi6402_algo_interface.h>
 
@@ -950,7 +950,11 @@ static int hi6402_mbhc_probe(struct platform_device *pdev)
 
 	hi6402_irq_mask_btn_irqs(pdata->p_irq);
 	hi6402_irq_clr_btn_irqs(pdata->p_irq);
-	
+
+	/* check jack at first time */
+	if (check_headset_pluged_in(pdata) && (0x19 == hi6402_irq_read(pdata->p_irq, HI6402_REG_HSDET_CTRL)))
+		hi6402_plug_in_detect(pdata);
+
 	/* enable hsdet */
 	hi6402_irq_write(pdata->p_irq, HI6402_REG_HSDET_CTRL, 0x19);
 	hi6402_irq_write(pdata->p_irq, HI6402_MBHC_VREF_REG, 0x8E);

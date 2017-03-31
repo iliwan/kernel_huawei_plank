@@ -168,7 +168,7 @@ struct link {
   VOS_INT32 timer_state;
   struct ipcp ipcp;
   struct pap  pap;
-  struct chap chap;                         /* Authentication using chap */
+  struct chap chap;                         /* Authentication using chap, added by liukai */
 
   VOS_UINT32 DropedPacketFromGgsn;
 

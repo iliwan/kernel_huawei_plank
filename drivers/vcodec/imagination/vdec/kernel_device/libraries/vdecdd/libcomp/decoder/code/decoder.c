@@ -7,40 +7,40 @@
  * ---------------------------------------------------------------------------
  *
  * Copyright (c) Imagination Technologies Ltd.
- * 
+ *
  * The contents of this file are subject to the MIT license as set out below.
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a 
- * copy of this software and associated documentation files (the "Software"), 
- * to deal in the Software without restriction, including without limitation 
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, 
- * and/or sell copies of the Software, and to permit persons to whom the 
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in 
+ *
+ * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN 
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
- * 
- * Alternatively, the contents of this file may be used under the terms of the 
+ *
+ * Alternatively, the contents of this file may be used under the terms of the
  * GNU General Public License Version 2 ("GPL")in which case the provisions of
- * GPL are applicable instead of those above. 
- * 
- * If you wish to allow use of your version of this file only under the terms 
- * of GPL, and not to allow others to use your version of this file under the 
- * terms of the MIT license, indicate your decision by deleting the provisions 
- * above and replace them with the notice and other provisions required by GPL 
- * as set out in the file called "GPLHEADER" included in this distribution. If 
- * you do not delete the provisions above, a recipient may use your version of 
+ * GPL are applicable instead of those above.
+ *
+ * If you wish to allow use of your version of this file only under the terms
+ * of GPL, and not to allow others to use your version of this file under the
+ * terms of the MIT license, indicate your decision by deleting the provisions
+ * above and replace them with the notice and other provisions required by GPL
+ * as set out in the file called "GPLHEADER" included in this distribution. If
+ * you do not delete the provisions above, a recipient may use your version of
  * this file under the terms of either the MIT license or GPL.
- * 
- * This License is also included in this distribution in the file called 
+ *
+ * This License is also included in this distribution in the file called
  * "MIT_COPYING".
  *
  *****************************************************************************/
@@ -1560,7 +1560,7 @@ decoder_PictureDecoded(
                 {
                     REPORT(REPORT_MODULE_DECODER, REPORT_ERR, "[USERSID=0x%08X] [TID 0x%08X] Failed to find decoded picture to attatch tag",
                         psDecStrCtx->sConfig.ui32UserStrId, psDecodedPict->ui32TransactionId);
-                }               
+                }
             }
             else
             {
@@ -1790,6 +1790,7 @@ static IMG_RESULT decoder_WrapBitStrSegments(
         VDEC_BZERO(psDecPictSeg);
 
         psDecPictSeg->psBitStrSeg = psBitStrSeg;
+        psDecPictSeg->bInternalSeg = IMG_FALSE;
         LST_add(psDecPictSegList,psDecPictSeg);
 
         psBitStrSeg = LST_next(psBitStrSeg);
@@ -1805,6 +1806,12 @@ static IMG_VOID decoder_CleanBitStrSegments(
 
     while(IMG_NULL != (psDecPictSeg = LST_removeHead(psDecPictSegList)))
     {
+        if (psDecPictSeg->bInternalSeg)
+        {
+            IMG_ASSERT(psDecPictSeg->psBitStrSeg);
+            IMG_FREE(psDecPictSeg->psBitStrSeg);
+            psDecPictSeg->psBitStrSeg = IMG_NULL;
+        }
         IMG_FREE(psDecPictSeg);
     }
 }
@@ -2099,7 +2106,7 @@ decoder_PictureDecode(
     // This particular core might have gone into APM, so make sure we resume before proceeding.
     if(psDecCoreCtx->bAPM)
     {
-        DMANKM_ResumeDevice(psDecCoreCtx->psDecCtx->hDevHandle);
+        DMANKM_ResumeDevice(psDecCoreCtx->psDecCtx->hDevHandle, IMG_TRUE);
         psDecCoreCtx->bAPM = IMG_FALSE;
     }
 
@@ -4390,6 +4397,12 @@ decoder_StreamDestroy(
             psDecPictSeg = LST_removeHead(&psDecStrUnit->psDecPict->sDecPictSegList);
             while(psDecPictSeg)
             {
+                if (psDecPictSeg->bInternalSeg)
+                {
+                    IMG_ASSERT(psDecPictSeg->psBitStrSeg);
+                    IMG_FREE(psDecPictSeg->psBitStrSeg);
+                    psDecPictSeg->psBitStrSeg = IMG_NULL;
+                }
                 IMG_FREE(psDecPictSeg);
                 psDecPictSeg = IMG_NULL;
 
@@ -5042,23 +5055,27 @@ DECODER_CheckSupport(
                     psStrConfig->ui32UserStrId);
                 psUnsupported->ui32StrOutputConfig |= VDECDD_UNSUPPORTED_OUTPUTCONFIG_ROTATION_WITH_SCALING;
             }
-            if((psOutputConfig->eRotMode != VDEC_ROTATE_0) &&
-                ( (psOutputConfig->sPixelInfo.eChromaFormatIdc != psComSequHdrInfo->sPixelInfo.eChromaFormatIdc) ||
-                (psOutputConfig->sPixelInfo.ui32BitDepthY != psComSequHdrInfo->sPixelInfo.ui32BitDepthY) ||
-                (psOutputConfig->sPixelInfo.ui32BitDepthC != psComSequHdrInfo->sPixelInfo.ui32BitDepthC)))
+
+            if(psComSequHdrInfo)
             {
-                REPORT(REPORT_MODULE_DECODER, REPORT_ERR,
-                    "[USERSID=0x%08X] UNSUPPORTED[HW]: ROTATION AND DOWNSAMPLING",
-                    psStrConfig->ui32UserStrId);
-                psUnsupported->ui32StrOutputConfig |= VDECDD_UNSUPPORTED_OUTPUTCONFIG_DOWNSAMPLING_WITH_ROTATION;
-            }
-            if((psOutputConfig->eRotMode != VDEC_ROTATE_0) &&
-                (psOutputConfig->sPixelInfo.eMemoryPacking != psComSequHdrInfo->sPixelInfo.eMemoryPacking))
-            {
-                REPORT(REPORT_MODULE_DECODER, REPORT_ERR,
-                    "[USERSID=0x%08X] UNSUPPORTED[HW]: ROTATION WITH 10 BIT PACKED FORMAT",
-                    psStrConfig->ui32UserStrId);
-                psUnsupported->ui32StrOutputConfig |= VDECDD_UNSUPPORTED_OUTPUTCONFIG_ROTATION_WITH_10BIT_PACKED;
+                if((psOutputConfig->eRotMode != VDEC_ROTATE_0) &&
+                    ( (psOutputConfig->sPixelInfo.eChromaFormatIdc != psComSequHdrInfo->sPixelInfo.eChromaFormatIdc) ||
+                    (psOutputConfig->sPixelInfo.ui32BitDepthY != psComSequHdrInfo->sPixelInfo.ui32BitDepthY) ||
+                    (psOutputConfig->sPixelInfo.ui32BitDepthC != psComSequHdrInfo->sPixelInfo.ui32BitDepthC)))
+                {
+                    REPORT(REPORT_MODULE_DECODER, REPORT_ERR,
+                        "[USERSID=0x%08X] UNSUPPORTED[HW]: ROTATION AND DOWNSAMPLING",
+                        psStrConfig->ui32UserStrId);
+                    psUnsupported->ui32StrOutputConfig |= VDECDD_UNSUPPORTED_OUTPUTCONFIG_DOWNSAMPLING_WITH_ROTATION;
+                }
+                if((psOutputConfig->eRotMode != VDEC_ROTATE_0) &&
+                    (psOutputConfig->sPixelInfo.eMemoryPacking != psComSequHdrInfo->sPixelInfo.eMemoryPacking))
+                {
+                    REPORT(REPORT_MODULE_DECODER, REPORT_ERR,
+                        "[USERSID=0x%08X] UNSUPPORTED[HW]: ROTATION WITH 10 BIT PACKED FORMAT",
+                        psStrConfig->ui32UserStrId);
+                    psUnsupported->ui32StrOutputConfig |= VDECDD_UNSUPPORTED_OUTPUTCONFIG_ROTATION_WITH_10BIT_PACKED;
+                }
             }
 
             if(psComSequHdrInfo)
@@ -5106,17 +5123,20 @@ DECODER_CheckSupport(
                 psUnsupported->ui32StrOutputConfig |= VDECDD_UNSUPPORTED_OUTPUTCONFIG_PIXFORMAT;
             }
 
-            if (psComSequHdrInfo->sPixelInfo.eChromaFormatIdc != PIXEL_FORMAT_MONO &&
-               (psOutputConfig->sPixelInfo.ui32BitDepthC > psCoreProps->asVidStdProps[psStrConfig->eVidStd].ui32MaxChromaBitDepth ||
-                psOutputConfig->sPixelInfo.ui32BitDepthC < 8 || psOutputConfig->sPixelInfo.ui32BitDepthC == 9))
+            if(psComSequHdrInfo)
             {
-                REPORT(REPORT_MODULE_DECODER, REPORT_ERR,
-                        "[USERSID=0x%08X] UNSUPPORTED[HW]: DISPLAY PICTURE CHROMA BIT DEPTH %d [RANGE: 8->%d for %s]",
-                        psStrConfig->ui32UserStrId,
-                        psOutputConfig->sPixelInfo.ui32BitDepthC,
-                        psCoreProps->asVidStdProps[psStrConfig->eVidStd].ui32MaxChromaBitDepth,
-                        gapszVidStd[psStrConfig->eVidStd]);
-                psUnsupported->ui32StrOutputConfig |= VDECDD_UNSUPPORTED_OUTPUTCONFIG_PIXFORMAT;
+                if (psComSequHdrInfo->sPixelInfo.eChromaFormatIdc != PIXEL_FORMAT_MONO &&
+                (psOutputConfig->sPixelInfo.ui32BitDepthC > psCoreProps->asVidStdProps[psStrConfig->eVidStd].ui32MaxChromaBitDepth ||
+                    psOutputConfig->sPixelInfo.ui32BitDepthC < 8 || psOutputConfig->sPixelInfo.ui32BitDepthC == 9))
+                {
+                    REPORT(REPORT_MODULE_DECODER, REPORT_ERR,
+                            "[USERSID=0x%08X] UNSUPPORTED[HW]: DISPLAY PICTURE CHROMA BIT DEPTH %d [RANGE: 8->%d for %s]",
+                            psStrConfig->ui32UserStrId,
+                            psOutputConfig->sPixelInfo.ui32BitDepthC,
+                            psCoreProps->asVidStdProps[psStrConfig->eVidStd].ui32MaxChromaBitDepth,
+                            gapszVidStd[psStrConfig->eVidStd]);
+                    psUnsupported->ui32StrOutputConfig |= VDECDD_UNSUPPORTED_OUTPUTCONFIG_PIXFORMAT;
+                }
             }
 
             // Validate display configuration against existing stream configuration.
@@ -5742,7 +5762,7 @@ DECODER_StreamCreate(
             MAX_CONCURRENT_STREAMS);
         return IMG_ERROR_DEVICE_UNAVAILABLE;
     }
-    
+
     sInsecureMemPool.eMemPoolId = psDecCtx->eInsecurePool;
     sInsecureMemPool.eMemPoolType = VXDIO_MEMPOOL_INSECURE;
 
@@ -6269,8 +6289,8 @@ IMG_RESULT DECODER_Deinitialise(
         {
             if(psDecCoreCtx->bAPM)
             {
-                // Do a resume to shut down properly
-                DMANKM_ResumeDevice(psDecCoreCtx->psDecCtx->hDevHandle);
+                // Do a resume to shut down properly. Do not lock, it has been already locked previously
+                DMANKM_ResumeDevice(psDecCoreCtx->psDecCtx->hDevHandle, IMG_FALSE);
                 psDecCoreCtx->bAPM = IMG_FALSE;
 
             }
@@ -6339,7 +6359,7 @@ IMG_RESULT DECODER_Replay(
         {
             if(psDecCoreCtx->bAPM)
             {
-                DMANKM_ResumeDevice(psDecCoreCtx->psDecCtx->hDevHandle);
+                DMANKM_ResumeDevice(psDecCoreCtx->psDecCtx->hDevHandle, IMG_TRUE);
                 psDecCoreCtx->bAPM = IMG_FALSE;
             }
 
@@ -6693,7 +6713,7 @@ DECODER_CoreReplay(
             {
                 if(psDecCoreCtx->bAPM)
                 {
-                    DMANKM_ResumeDevice(psDecCoreCtx->psDecCtx->hDevHandle);
+                    DMANKM_ResumeDevice(psDecCoreCtx->psDecCtx->hDevHandle,  IMG_TRUE);
                     psDecCoreCtx->bAPM = IMG_FALSE;
                 }
                 ui32Result = HWCTRL_CoreReplay(psDecCoreCtx->hHwCtx);

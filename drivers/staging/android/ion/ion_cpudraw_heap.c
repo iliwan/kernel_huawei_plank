@@ -287,6 +287,19 @@ static struct ion_heap_ops cpudraw_heap_ops = {
 	.buffer_zero = ion_cpudraw_heap_buffer_zero,
 };
 
+#if defined(CONFIG_ARCH_HI3630)
+static __kernel_ulong_t ion_cpudraw_heap_free_memory(struct ion_heap *heap)
+{
+	struct ion_cpudraw_heap *cpudraw_heap =
+		container_of(heap, struct ion_cpudraw_heap, heap);
+	__kernel_ulong_t free_memory = 0;
+
+	free_memory = (cpudraw_heap->size - ion_get_used_memory(heap)) / PAGE_SIZE;
+
+	return free_memory;
+}
+#endif
+
 struct ion_heap *ion_cpudraw_heap_create(struct ion_platform_heap *heap_data)
 {
 	struct ion_cpudraw_heap *cpudraw_heap;
@@ -329,6 +342,10 @@ struct ion_heap *ion_cpudraw_heap_create(struct ion_platform_heap *heap_data)
 		     -1);
 	cpudraw_heap->heap.ops = &cpudraw_heap_ops;
 	cpudraw_heap->heap.type = ION_HEAP_TYPE_CPUDRAW;
+
+#if defined(CONFIG_ARCH_HI3630)
+	cpudraw_heap->heap.free_memory = ion_cpudraw_heap_free_memory;
+#endif
 
 	return &cpudraw_heap->heap;
 }

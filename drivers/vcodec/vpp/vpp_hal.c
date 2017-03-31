@@ -219,8 +219,6 @@ void  hal_set_intf_csc_coef(HAL_LAYER_E enLayer, HAL_CSCCOEF_S stCscCoef)
     VHDCSCP3.u32 = 0x0;
     VHDCSCP4.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -280,8 +278,6 @@ void hal_set_pd_defthd(HAL_LAYER_E enLayer)
     unsigned int u32PccThd[4]    = {16,32,64,128};
     unsigned int u32ItDiffThd[4] = {4,8,16,32};
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -323,8 +319,6 @@ void  hal_enable_layer(HAL_LAYER_E enLayer, unsigned int bEnable)
     U_VHDCTRL VHDCTRL;
     VHDCTRL.u32 = 0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     logd("enLayer = %d, bEnable = %d\n", enLayer, bEnable);
 
     switch(enLayer)
@@ -365,7 +359,6 @@ void hal_set_layer_addr(HAL_LAYER_E enLayer,unsigned char  u8Chan,
     VHDNCADDR.u32 = 0x0;
     VHDSTRIDE.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -414,8 +407,6 @@ void  hal_set_layer_data_fmt(HAL_LAYER_E enLayer,
 {
     U_VHDCTRL VHDCTRL;
     VHDCTRL.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -468,8 +459,6 @@ void  hal_set_regupNoRatio(HAL_LAYER_E enLayer)
     U_VHDUPD VHDUPD;
     VHDUPD.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -497,7 +486,11 @@ void  hal_set_read_mode(HAL_LAYER_E enLayer,
     U_VHDCTRL VHDCTRL;
     VHDCTRL.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
+    if ( enLayer != HAL_LAYER_VIDEO1 )
+    {
+        loge("enLayer is invalid\n");
+        return ;
+    }
 
     /* VHD read data mode */
     if(enLayer == HAL_LAYER_VIDEO1)
@@ -520,7 +513,11 @@ void hal_set_layer_bkg(HAL_LAYER_E enLayer,HAL_BKCOLOR_S stBkg)
     U_VHDBK VHDBK;
     VHDBK.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
+    if ( enLayer != HAL_LAYER_VIDEO1 )
+    {
+        loge("enLayer is invalid\n");
+        return ;
+    }
 
     if(enLayer == HAL_LAYER_VIDEO1)
     {
@@ -544,7 +541,11 @@ void hal_set_field_order(HAL_LAYER_E enLayer, VPP_VHD_FOD_E uFieldOrder)
     U_VHDCTRL VHDCTRL;
     VHDCTRL.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
+    if ( enLayer != HAL_LAYER_VIDEO1 )
+    {
+        loge("enLayer is invalid\n");
+        return ;
+    }
 
     if(enLayer == HAL_LAYER_VIDEO1)
     {
@@ -569,8 +570,6 @@ void  hal_set_coef_addr(HAL_LAYER_E enLayer,
     U_VHDVCOEFAD VHDVCOEFAD;
     VHDHCOEFAD.u32 = 0x0;
     VHDVCOEFAD.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -607,7 +606,11 @@ void hal_set_wbc_wr_mode(HAL_LAYER_E enLayer, unsigned int u32Data)
 {
     U_VHDWBC1STRD VHDWBC1STRD;
 
-    BUG_ON( HAL_LAYER_WBC1 != enLayer );
+    if ( HAL_LAYER_WBC1 != enLayer )
+    {
+        loge("enLayer is invalid\n");
+        return ;
+    }
 
     if (enLayer == HAL_LAYER_WBC1)
     {
@@ -630,8 +633,6 @@ void  hal_set_layer_para_upd(HAL_LAYER_E enLayer,
 {
     U_VOPARAUP VOPARAUP;
     VOPARAUP.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     VOPARAUP.u32 = reg_read(&(pVoReg->VOPARAUP.u32));
 
@@ -673,8 +674,6 @@ void  hal_set_zme_enable(HAL_LAYER_E enLayer,
     U_VHDVSP VHDVSP;
     VHDHSP.u32 = 0x0;
     VHDVSP.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -770,8 +769,6 @@ void hal_set_regup(HAL_LAYER_E enLayer)
     U_VHDUPD VHDUPD;
     VHDUPD.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -800,8 +797,6 @@ void hal_set_zme_fir_enable(HAL_LAYER_E enLayer, HAL_ZMEMODE_E enMode, unsigned 
     U_VHDVSP VHDVSP;
     VHDHSP.u32 = 0x0;
     VHDVSP.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -858,8 +853,6 @@ void  hal_set_mid_enable(HAL_LAYER_E enLayer,
     VHDHSP.u32 = 0x0;
     VHDVSP.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -910,8 +903,6 @@ void hal_set_hfir_order(HAL_LAYER_E enLayer, unsigned int uHfirOrder)
     U_VHDHSP VHDHSP;
     VHDHSP.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -936,8 +927,6 @@ void hal_set_zme_vertap(HAL_LAYER_E enLayer, HAL_ZMEMODE_E enMode, unsigned int 
 {
     U_VHDVSP VHDVSP;
     VHDVSP.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     if (  (enMode == HAL_ZMEMODE_HORL) || (enMode == HAL_ZMEMODE_HOR) \
        || (enMode == HAL_ZMEMODE_HORC))
@@ -982,8 +971,6 @@ void hal_set_zme_ver_type(HAL_LAYER_E enLayer, unsigned int uVerType,unsigned in
     U_VHDHSP_K3V3        VHDHSP_K3V3;
     VHDHSP_K3V3.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -1024,8 +1011,6 @@ void hal_set_zme_core(HAL_LAYER_E enLayer, unsigned int vsc_core)
     U_VHDHSP_K3V3        VHDHSP_K3V3;
     VHDHSP_K3V3.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -1064,8 +1049,6 @@ void  hal_set_zme_phase(HAL_LAYER_E enLayer,
     VSDHLOFFSET.u32 = 0x0;
     VSDHCOFFSET.u32 = 0x0;
     VSDVOFFSET.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -1123,8 +1106,6 @@ void hal_set_zme_reso(HAL_LAYER_E enLayer, HAL_RECT_S stZmeReso)
     VSDZMEIRESO.u32 = 0x0;
     VSDZMEORESO.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -1160,8 +1141,6 @@ void hal_die_addr(HAL_LAYER_E enLayer, unsigned int uDieAddr)
     U_VHDDIEADDR VHDDIEADDR;
     VHDDIEADDR.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -1184,8 +1163,6 @@ void hal_set_die_enable(HAL_LAYER_E enLayer, unsigned int bDieLumEn, unsigned in
 {
     U_VHDDIECTRL VHDDIECTRL;
     VHDDIECTRL.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -1215,8 +1192,6 @@ void hal_set_die_outsel(HAL_LAYER_E enLayer, unsigned int bOutSel)
     U_VHDDIECTRL VHDDIECTRL;
     VHDDIECTRL.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -1241,8 +1216,6 @@ void hal_set_die_chm_outsel(HAL_LAYER_E enLayer, unsigned int bOutSel)
 {
     U_VHDDIECTRL VHDDIECTRL;
     VHDDIECTRL.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -1269,7 +1242,6 @@ void hal_set_die_chm_mode(HAL_LAYER_E enLayer, unsigned int bChmMode)
     U_VHDDIECTRL VHDDIECTRL;
     VHDDIECTRL.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -1295,8 +1267,6 @@ void hal_set_die_stp_rst(HAL_LAYER_E enLayer, unsigned int bRstEn)
     U_VHDDIECTRL VHDDIECTRL;
     VHDDIECTRL.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -1321,8 +1291,6 @@ void hal_set_die_stp_update(HAL_LAYER_E enLayer, unsigned int bUpdateEn)
 {
     U_VHDDIECTRL VHDDIECTRL;
     VHDDIECTRL.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -1359,8 +1327,6 @@ void hal_set_die_dir_inten(HAL_LAYER_E enLayer, unsigned int dData)
     U_VHDDIEINTEN VHDDIEINTEN;
     VHDDIEINTEN.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -1387,8 +1353,6 @@ void hal_set_die_ver_dir_inten(HAL_LAYER_E enLayer, unsigned int dData)
     U_VHDDIEINTEN VHDDIEINTEN;
     VHDDIEINTEN.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -1414,8 +1378,6 @@ void hal_set_die_ver_min_inten(HAL_LAYER_E enLayer, short s16Data)
     U_VHDDIEINTEN VHDDIEINTEN;
     VHDDIEINTEN.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -1440,8 +1402,6 @@ void hal_set_die_scale(HAL_LAYER_E enLayer, unsigned char u8Data)
 {
     U_VHDDIESCALE VHDDIESCALE;
     VHDDIESCALE.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -1470,8 +1430,6 @@ void hal_set_die_ck_gain(HAL_LAYER_E enLayer, unsigned char u8CkId, unsigned int
     U_VHDDIECHECK2 VHDDIECHECK2;
     VHDDIECHECK1.u32 = 0x0;
     VHDDIECHECK2.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -1513,8 +1471,6 @@ void hal_set_die_ck_gn_range(HAL_LAYER_E enLayer, unsigned char u8CkId, unsigned
     VHDDIECHECK1.u32 = 0x0;
     VHDDIECHECK2.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -1554,8 +1510,6 @@ void hal_set_die_ck_max_range(HAL_LAYER_E enLayer, unsigned char u8CkId, unsigne
     U_VHDDIECHECK2 VHDDIECHECK2;
     VHDDIECHECK1.u32 = 0x0;
     VHDDIECHECK2.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -1600,8 +1554,6 @@ void hal_set_die_dir_mult(HAL_LAYER_E enLayer, unsigned int u32Dir, unsigned int
     VHDDIEDIR4_7.u32 = 0x0;
     VHDDIEDIR8_11.u32 = 0x0;
     VHDDIEDIR12_14.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -1720,8 +1672,6 @@ void hal_set_die_ck_enh(HAL_LAYER_E enLayer, unsigned int u32Enh)
     U_VHDDIEINTEN VHDDIEINTEN;
     VHDDIEINTEN.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -1746,8 +1696,6 @@ void hal_set_die_mf_max(HAL_LAYER_E enLayer, unsigned int u32LumMd, unsigned int
 {
     U_VHDDIELMA2 VHDDIELMA2;
     VHDDIELMA2.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -1777,8 +1725,6 @@ void hal_set_die_def_thd(HAL_LAYER_E enLayer)
     unsigned char u8QThd[3]    = {16,48,96};
     unsigned char u8ReqThd[4]  = {0,32,96,255};
     unsigned char u8DirThd[15] = {40,24,32,27,18,15,12,11,9,8,7,6,5,5,3};
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -1845,8 +1791,6 @@ void hal_set_die_luma_mode(HAL_LAYER_E enLayer, unsigned int bLumaMode)
     U_VHDDIECTRL VHDDIECTRL;
     VHDDIECTRL.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -1904,8 +1848,6 @@ void hal_set_die_luma_req_tab(HAL_LAYER_E enLayer, unsigned char * up8Thd)
     U_VHDDIELMA1 VHDDIELMA1;
     VHDDIELMA1.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -1934,8 +1876,6 @@ void hal_set_die_scaleRatio(HAL_LAYER_E enLayer, unsigned int u32Ratio)
     U_VHDDIELMA0 VHDDIELMA0;
     VHDDIELMA0.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -1960,8 +1900,6 @@ void hal_set_die_win_size(HAL_LAYER_E enLayer, unsigned int u32Size)
 {
     U_VHDDIELMA2 VHDDIELMA2;
     VHDDIELMA2.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -1988,8 +1926,6 @@ void hal_set_die_sce_max(HAL_LAYER_E enLayer, unsigned int u32Sel)
     U_VHDDIELMA2 VHDDIELMA2;
     VHDDIELMA2.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -2015,8 +1951,6 @@ void hal_set_die_qrst_max(HAL_LAYER_E enLayer, unsigned int u32Sel)
     U_VHDDIELMA2 VHDDIELMA2;
     VHDDIELMA2.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -2041,8 +1975,6 @@ void hal_set_die_st_enable(HAL_LAYER_E enLayer, VPP_DIE_STMD_E enMd, unsigned in
 {
     U_VHDDIELMA2 VHDDIELMA2;
     VHDDIELMA2.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -2099,8 +2031,6 @@ void hal_set_die_st_addr(HAL_LAYER_E enLayer, VPP_DIE_STMD_E enMd, unsigned int 
     VHDDIESTMADDR.u32 = 0x0;
     VHDDIESTNADDR.u32 = 0x0;
     VHDDIESTSQTRADDR.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -2161,7 +2091,11 @@ void hal_set_die_addr(HAL_LAYER_E enLayer, VPP_DIE_STMD_E enMd, unsigned int *pu
     unsigned int u32_n_addr = 0;
     unsigned int ii = 0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
+    if ( enLayer != HAL_LAYER_VIDEO1 )
+    {
+        loge("enLayer is invalid\n");
+        return ;
+    }
 
     if (nRepeat == 0)
     {
@@ -2205,8 +2139,6 @@ void hal_set_die_chm_ccr_enable(HAL_LAYER_E enLayer, unsigned int u32En)
     U_VHDCCRSCLR0 VHDCCRSCLR0;
     VHDCCRSCLR0.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -2232,8 +2164,6 @@ void hal_set_die_chm_ma_offset(HAL_LAYER_E enLayer, unsigned int u32Off)
     U_VHDCCRSCLR0 VHDCCRSCLR0;
     VHDCCRSCLR0.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -2258,8 +2188,6 @@ void hal_set_die_xchm_max(HAL_LAYER_E enLayer, unsigned int u32Max)
 {
     U_VHDCCRSCLR1 VHDCCRSCLR1;
     VHDCCRSCLR1.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -2287,8 +2215,6 @@ void hal_set_die_ccr_detect(HAL_LAYER_E enLayer, unsigned int u32Thd, unsigned i
     U_VHDCCRSCLR1 VHDCCRSCLR1;
     VHDCCRSCLR0.u32 = 0x0;
     VHDCCRSCLR1.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -2322,8 +2248,6 @@ void hal_set_die_similar(HAL_LAYER_E enLayer, unsigned int u32Thd, unsigned int 
     U_VHDCCRSCLR1 VHDCCRSCLR1;
     VHDCCRSCLR1.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -2350,7 +2274,11 @@ void hal_set_die_st_mode(HAL_LAYER_E enLayer, unsigned int enMd)
     U_VHDDIELMA2 VHDDIELMA2;
     VHDDIELMA2.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
+    if ( enLayer != HAL_LAYER_VIDEO1 )
+    {
+        loge("enLayer is invalid\n");
+        return ;
+    }
 
     switch(enMd)
     {
@@ -2419,8 +2347,6 @@ void hal_set_pd_dir_mch(HAL_LAYER_E enLayer, unsigned int u32Data)
     U_VHDPDCTRL VHDPDCTRL;
     VHDPDCTRL.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -2445,8 +2371,6 @@ void hal_set_pd_chm_dir_mch(HAL_LAYER_E enLayer, unsigned int u32Data)
 {
     U_VHDPDCTRL VHDPDCTRL;
     VHDPDCTRL.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -2474,8 +2398,6 @@ void hal_set_pd_blk_pos(HAL_LAYER_E enLayer, unsigned int u32Mode, unsigned int 
     U_VHDPDBLKPOS1 VHDPDBLKPOS1;
     VHDPDBLKPOS0.u32 = 0x0;
     VHDPDBLKPOS1.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     u32PosX = (u32PosX == 0)?1:u32PosX;
     u32PosY = (u32PosY == 0)?1:u32PosY;
@@ -2520,8 +2442,6 @@ void hal_set_pd_stl_blk_thd(HAL_LAYER_E enLayer, unsigned int u32Data)
     U_VHDPDBLKTHD VHDPDBLKTHD;
     VHDPDBLKTHD.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -2546,8 +2466,6 @@ void hal_set_pd_diff_thd(HAL_LAYER_E enLayer, unsigned int u32Data)
 {
     U_VHDPDBLKTHD VHDPDBLKTHD;
     VHDPDBLKTHD.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -2639,8 +2557,6 @@ void hal_set_pd_coring_tkr(HAL_LAYER_E enLayer, unsigned int u32Data)
     U_VHDPDPCCCORING VHDPDPCCCORING;
     VHDPDPCCCORING.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -2665,8 +2581,6 @@ void hal_set_pd_coring_blk(HAL_LAYER_E enLayer, unsigned int u32Data)
 {
     U_VHDPDPCCCORING VHDPDPCCCORING;
     VHDPDPCCCORING.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -2693,8 +2607,6 @@ void hal_set_pd_coring_norm(HAL_LAYER_E enLayer, unsigned int u32Data)
     U_VHDPDPCCCORING VHDPDPCCCORING;
     VHDPDPCCCORING.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -2720,8 +2632,6 @@ void hal_set_pd_pcc_hthd(HAL_LAYER_E enLayer, unsigned int u32Data)
     U_VHDPDPCCHTHD VHDPDPCCHTHD;
     VHDPDPCCHTHD.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -2746,8 +2656,6 @@ void hal_set_pd_pcc_vthd(HAL_LAYER_E enLayer, unsigned int * u32Data)
 {
     U_VHDPDPCCVTHD VHDPDPCCVTHD;
     VHDPDPCCVTHD.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -2777,8 +2685,6 @@ void hal_set_pd_smt_enable(HAL_LAYER_E enLayer, unsigned int u32Data)
     U_VHDPDCTRL VHDPDCTRL;
     VHDPDCTRL.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -2804,8 +2710,6 @@ void hal_set_pd_smt_thd(HAL_LAYER_E enLayer, unsigned int u32Data)
     U_VHDPDCTRL VHDPDCTRL;
     VHDPDCTRL.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -2830,8 +2734,6 @@ void hal_set_pd_it_diff_thd(HAL_LAYER_E enLayer, unsigned int * u32Data)
 {
     U_VHDPDITDIFFVTHD VHDPDITDIFFVTHD;
     VHDPDITDIFFVTHD.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -2861,8 +2763,6 @@ void hal_set_pd_lasi_thd(HAL_LAYER_E enLayer, unsigned int u32Data)
     U_VHDPDLASITHD VHDPDLASITHD;
     VHDPDLASITHD.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -2887,8 +2787,6 @@ void hal_set_pd_edge_thd(HAL_LAYER_E enLayer, unsigned int u32Data)
 {
     U_VHDPDLASITHD VHDPDLASITHD;
     VHDPDLASITHD.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -2915,7 +2813,11 @@ void hal_set_wbc_enable(HAL_LAYER_E enLayer, unsigned int bEnable)
     U_VHDCTRL VHDCTRL;
     VHDCTRL.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_WBC1 );
+    if ( enLayer != HAL_LAYER_WBC1 )
+    {
+        loge("enLayer is invalid\n");
+        return ;
+    }
 
     if (enLayer == HAL_LAYER_WBC1)
     {
@@ -2936,7 +2838,11 @@ void hal_set_wbc_addr(HAL_LAYER_E enLayer, unsigned int u32Addr)
     U_VHDWBC1ADDR VHDWBC1ADDR;
     VHDWBC1ADDR.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_WBC1 );
+    if ( enLayer != HAL_LAYER_WBC1 )
+    {
+        loge("enLayer is invalid\n");
+        return ;
+    }
 
     if (enLayer == HAL_LAYER_WBC1)
     {
@@ -2957,7 +2863,11 @@ void hal_set_wbc_stride(HAL_LAYER_E enLayer, unsigned short u16Str)
     U_VHDWBC1STRD VHDWBC1STRD;
     VHDWBC1STRD.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_WBC1 );
+    if ( enLayer != HAL_LAYER_WBC1 )
+    {
+        loge("enLayer is invalid\n");
+        return ;
+    }
 
     if (enLayer == HAL_LAYER_WBC1)
 
@@ -2991,7 +2901,11 @@ void hal_set_wbc_out_intf(HAL_LAYER_E enLayer, HAL_DATARMODE_E enRdMode)
     U_VHDCTRL VHDCTRL;
     VHDCTRL.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_WBC1 );
+    if ( enLayer != HAL_LAYER_WBC1 )
+    {
+        loge("enLayer is invalid\n");
+        return ;
+    }
 
     if (enLayer == HAL_LAYER_WBC1)
     {
@@ -3023,7 +2937,11 @@ void hal_set_wbc_spd(HAL_LAYER_E enLayer, unsigned int u16ReqSpd)
     U_VHDWBC1STRD VHDWBC1STRD;
     VHDWBC1STRD.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_WBC1 );
+    if ( enLayer != HAL_LAYER_WBC1 )
+    {
+        loge("enLayer is invalid\n");
+        return ;
+    }
 
     if(u16ReqSpd >= 1024)
     {
@@ -3051,7 +2969,11 @@ void hal_set_wbc_out_fmt(HAL_LAYER_E enLayer, VPP_INTFDATAFMT_E stIntfFmt)
     U_VHDWBC1STRD VHDWBC1STRD;
     VHDWBC1STRD.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_WBC1 );
+    if ( enLayer != HAL_LAYER_WBC1 )
+    {
+        loge("enLayer is invalid\n");
+        return ;
+    }
 
     if (enLayer == HAL_LAYER_WBC1)
     {
@@ -3108,7 +3030,11 @@ void hal_set_ver_ratio(HAL_LAYER_E enLayer, unsigned int uRatio)
     U_VHDVSR VHDVSR;
     VHDVSR.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
+    if ( enLayer != HAL_LAYER_VIDEO1 )
+    {
+        loge("enLayer is invalid\n");
+        return ;
+    }
 
     if(HAL_LAYER_VIDEO1 == enLayer)
     {
@@ -3129,7 +3055,11 @@ void hal_set_hor_ratio(HAL_LAYER_E enLayer, unsigned int uRatio)
     U_VHDHSP VHDHSP;
     VHDHSP.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
+    if ( enLayer != HAL_LAYER_VIDEO1 )
+    {
+        loge("enLayer is invalid\n");
+        return ;
+    }
 
     if(HAL_LAYER_VIDEO1 == enLayer)
     {
@@ -3149,8 +3079,6 @@ void hal_set_ifir_mode(HAL_LAYER_E enLayer, HAL_IFIRMODE_E enMode)
 {
     U_VHDCTRL VHDCTRL;
     VHDCTRL.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -3181,8 +3109,6 @@ void hal_set_ifir_coef(HAL_LAYER_E enLayer, int * s32Coef)
     VHDIFIRCOEF23.u32 = 0x0;
     VHDIFIRCOEF45.u32 = 0x0;
     VHDIFIRCOEF67.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -3449,8 +3375,6 @@ void hal_set_time_out(HAL_LAYER_E enLayer, unsigned char u8TData)
     U_VHDCTRL VHDCTRL;
     VHDCTRL.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     if(u8TData >= 16)
     {
         loge("Timeout data out of legal range\n");
@@ -3486,8 +3410,6 @@ void hal_set_acc_thd(HAL_LAYER_E enLayer, HAL_ACCTHD_S stAccThd)
     U_VHDACCTHD2 VHDACCTHD2;
     VHDACCTHD1.u32 = 0x0;
     VHDACCTHD2.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -3532,8 +3454,6 @@ void hal_set_acc_tab(HAL_LAYER_E enLayer, unsigned int *upTable)
     memset(VHDACCML, 0, sizeof(U_VHDACCMLN)*3);
     memset(VHDACCMH, 0, sizeof(U_VHDACCMHN)*3);
 
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -3596,8 +3516,6 @@ void hal_set_acc_ctrl(HAL_LAYER_E enLayer, unsigned int uAccEn, unsigned int uAc
     U_VHDACCTHD1 VHDACCTHD1;
     VHDACCTHD1.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -3634,8 +3552,6 @@ void hal_set_acc_rst(HAL_LAYER_E enLayer, unsigned int uAccRst)
 {
     U_VHDACCTHD2 VHDACCTHD2;
     VHDACCTHD2.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -3722,8 +3638,6 @@ void hal_set_layer_cscDcCoef(HAL_LAYER_E enLayer, HAL_INTFCSCDCCOEF_S *pstCscCoe
     VHDCSCIDC.u32 = 0x0;
     VHDCSCODC.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -3756,8 +3670,6 @@ void hal_set_layer_cscDcCoef(HAL_LAYER_E enLayer, HAL_INTFCSCDCCOEF_S *pstCscCoe
 /*配置层CSC使能*/
 void hal_set_layer_csc(HAL_LAYER_E enLayer, unsigned int bCscEn)
 {
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch (enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -3784,8 +3696,6 @@ void hal_set_layer_csc(HAL_LAYER_E enLayer, unsigned int bCscEn)
 //配置源窗口
 void  hal_set_layer_in_rect(HAL_LAYER_E enLayer, RECT_S stRect)
 {
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch (enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -3815,8 +3725,6 @@ void  hal_set_layer_in_rect(HAL_LAYER_E enLayer, RECT_S stRect)
 //配置输出窗口
 void  hal_set_layer_out_rect(HAL_LAYER_E enLayer, RECT_S stRect)
 {
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch (enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -3854,8 +3762,6 @@ void  hal_set_layer_out_rect(HAL_LAYER_E enLayer, RECT_S stRect)
 //设置视频显示区域窗口
 void hal_set_layer_disp_rect(HAL_LAYER_E enLayer, RECT_S stRect)
 {
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
-
     switch(enLayer)
     {
         case HAL_LAYER_VIDEO1:
@@ -3912,8 +3818,6 @@ void  hal_set_layer_rect(HAL_LAYER_E enLayer, HAL_RECT_S  stVideoRect)
     VHDDLPOS.u32 = 0x0;
     VHDVFPOS.u32 = 0x0;
     VHDVLPOS.u32 = 0x0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch(enLayer)
     {
@@ -4050,8 +3954,6 @@ void  hal_clear_int_sta(unsigned int u32IntMsk)
 unsigned int hal_get_layer_enable(HAL_LAYER_E enLayer)
 {
     unsigned int u32Enable = 0;
-
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
 
     switch (enLayer)
     {
@@ -4303,7 +4205,11 @@ void hal_set_mmu_enable(HAL_LAYER_E enLayer,VPP_DIE_MODE_E edie_mode,VPP_PIXELFO
     U_MMU_TOP_CTL MMU_TOP_CTL;
     MMU_TOP_CTL.u32 = 0x0;
 
-    BUG_ON( enLayer != HAL_LAYER_VIDEO1 );
+    if ( enLayer != HAL_LAYER_VIDEO1 )
+    {
+        loge("enLayer is invalid\n");
+        return ;
+    }
 
     if(HAL_LAYER_VIDEO1 == enLayer)
     {

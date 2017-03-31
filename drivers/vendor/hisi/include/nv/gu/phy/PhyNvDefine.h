@@ -2027,7 +2027,10 @@ typedef struct
 *****************************************************************************/
 typedef struct
 {
-    PHY_UINT32                          uwRcmTestCtrl;                          /* RCM测试需求 */
+    PHY_UINT32                          uwRcmTestCtrl;                          /* RCM测试需求:
+                                                                                   BIT0表示在测试卡场景是否强制打开TAS,
+                                                                                   BIT1表示环回模式启动是否强制打开TAS */
+
     PHY_UINT32                          uwResvered;                             /* 保留 */
 }UCOM_NV_RCM_TEST_CTRL_STRU;
 
@@ -4787,6 +4790,26 @@ typedef struct
     PHY_UINT16                         uhwXpassEnFlag;                          /* XPASS高铁功能使能NV，0为关闭，1为打开 */
     PHY_UINT16                         uhwReserve;
 }UCOM_NV_GSM_FEATURE_XPASS_EN_STRU;
+
+/*****************************************************************************
+ 结构名    : UCOM_NV_GSM_OPTIMIZE_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : G模优化特性开关
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT32                          uwGsmDchFastSrchFlag   :1;              /* 专用态搜网优化开启标志位 */
+    VOS_UINT32                          uwGsmBchFast101Flag    :1;		/* 待机状态下快速101标志 */
+    VOS_UINT32                          uwGsmCellFastSrchFlag  :1;		/* 开机搜网优化 */
+    VOS_UINT32                          uwGsmBchPageRptFlag    :1;		/* 空闲态寻呼消息是否上报GAS的开关 */
+    VOS_UINT32                          uwGsmAdrxFlag          :1;		/* ADRX开关 */
+    VOS_UINT32                          uwSlaveGsmNcoFlag      :1;		/* ADRX开关 */
+    VOS_UINT32                          uwReserved2            :26;
+    
+}UCOM_NV_GSM_OPTIMIZE_STRU;
+
+	
 /*****************************************************************************
  结构名    : UCOM_NV_TRI_MODE_ENABLE_STRU
  协议表格  :
@@ -4819,7 +4842,7 @@ typedef struct
     VOS_INT16                           shwSirOpenThreshold;                    /* SIR统计法Open判决门限，单位0.01db */
     VOS_INT16                           shwTpcOpenThreshold;                    /* TPC统计法Open判决门限，百分比*100 */
     VOS_INT16                           shwSirCloseThreshold;                   /* SIR统计法Close判决门限，单位0.01db  */
-    VOS_UINT16                          uhwErrBlocksToClose;                    /*BLER方法关分集判决时错误块达到目标误块比例的门限，百分比*100*/
+    VOS_UINT16                          uhwLogSwitch;                            /*LOG SWITCH 1 FOR OPEN ,0 FOR CLOSE*/
     VOS_UINT16                          uhwErrBlocksToOpen;                     /*BLER方法开分集判决时错误块达到目标误块比例的门限，百分比*100*/
     VOS_UINT16                          uhwSnapNumberToJudge;                  /*BLER方法判决时窗内所需最小统计块数*/
     VOS_UINT16                          uhwBlerJudgeFlag;                       /*1为BLER方法，0为SIR方法*/
@@ -4855,6 +4878,18 @@ typedef struct
     VOS_UINT16                          uhwT313MinValue;                        /* T313最小值，单位10ms */
     VOS_UINT16                          uhwReserved;                            /* 保留 */
 }UCOM_NV_W_T313_BACK_CTRL_STRU;
+
+/*****************************************************************************
+ 结构名    : UCOM_NV_W_SYNC_MODULE_OPTIMIZE_PARA_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 同失步模块优化参数
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT16                          uhwCloseUlDelayTime;                    /* 失步后延迟关闭上行的时间,  单位10ms */
+    VOS_UINT16                          uhwQinQoutOptimizeSwitch;               /* QinQout门限优化开关 */
+}UCOM_NV_W_SYNC_MODULE_OPTIMIZE_PARA_STRU;
 
 
 typedef struct
@@ -4905,6 +4940,31 @@ typedef struct
     VOS_UINT16                              uhwGsmPchDummyDetectFlag;           /* dummy_pch检测开启标志位 */
 
 }UCOM_NV_GSM_PCH_DUMMY_DETECT_FLAG_STRU;
+
+
+/*****************************************************************************
+ 结构名    : UCOM_NV_W_PA_TEMP_DET_CHANNEL_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : W PA温度检测通道
+*****************************************************************************/
+typedef struct
+{
+    VOS_INT16                               sChannel;
+    VOS_UINT16                              usResvered;
+}UCOM_NV_W_PA_TEMP_DET_CHANNEL_STRU;
+
+/*****************************************************************************
+ 结构名    : UCOM_NV_GSM_PA_TEMP_DET_CHANNEL_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : G PA温度检测通道
+*****************************************************************************/
+typedef struct
+{
+    VOS_INT16                               sChannel;
+    VOS_UINT16                              usResvered;
+}UCOM_NV_GSM_PA_TEMP_DET_CHANNEL_STRU;
 
 /*****************************************************************************
   6 UNION

@@ -105,10 +105,12 @@ static void dump_chunk(struct gen_pool *pool,
 	}
 }
 
-size_t hisi_iommu_iova_available(void)
+size_t hisi_iommu_iova_available(int flag)
 {
 	struct hisi_iommu_domain *hisi_domain = hisi_iommu_domain_p;
-	gen_pool_for_each_chunk(hisi_domain->iova_pool, dump_chunk, NULL);
+	if (flag){
+		gen_pool_for_each_chunk(hisi_domain->iova_pool, dump_chunk, NULL);
+	}
 	return hisi_iova_available(hisi_domain->iova_pool);
 }
 EXPORT_SYMBOL_GPL(hisi_iommu_iova_available);
@@ -292,7 +294,7 @@ static int __hisi_iommu_domain_map(struct scatterlist *sgl,
 	if (!iova_start) {
 		printk("[%s]hisi_alloc_iova alloc 0x%lx failed!\n", __func__, iova_size);
 		printk("[%s]dump iova pool begain--------------------------\n", __func__);
-		printk("iova available: 0x%lx\n", hisi_iommu_iova_available());
+		printk("iova available: 0x%lx\n", hisi_iommu_iova_available(1));
 		printk("alloc count: %d, free count: %d\n",
 		dbg_inf.alloc_iova_count, dbg_inf.free_iova_count);
 		printk("[%s]dump iova pool end   --------------------------\n", __func__);

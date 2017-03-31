@@ -37,11 +37,13 @@ static hw_dec_struct hw_dec_device_array[] =
     { DEV_I2C_AIRPRESS,"airpress" },// id : 25    order number 26
     { DEV_I2C_HANDPRESS,"handpress" },// id : 26    order number 27
     { DEV_I2C_FFLASH,"fflash"},//id:27 order number28
-    { DEV_I2C_MAX,"NULL" },// id : 28    order number 29
-    { DEV_CONNECTIVITY_WIFI,"wifi" },// id : 29    order number 30
-    { DEV_CONNECTIVITY_BT,"bt" },// id : 30    order number 31
-    { DEV_CONNECTIVITY_FM,"fm" },// id : 31    order number 32
-    { DEV_CONNECTIVITY_GPS,"gps" },// id : 32    order number 33
+    { DEV_I2C_VIBRATOR_LRA,"vibrator_lra"},//id:28 order number29
+    { DEV_I2C_PS_SENSOR,"ps_sensor"},//id:29 order number30
+    { DEV_I2C_MAX,"NULL" },// id : 30   order number 31
+    { DEV_CONNECTIVITY_WIFI,"wifi" },// id : 31  order number 32
+    { DEV_CONNECTIVITY_BT,"bt" },// id : 32   order number 33
+    { DEV_CONNECTIVITY_FM,"fm" },// id : 33   order number 34
+    { DEV_CONNECTIVITY_GPS,"gps" },// id : 34   order number 35
 };
 
 #endif

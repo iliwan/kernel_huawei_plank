@@ -354,7 +354,8 @@ static inline void hisdio_heartbeat_timer_stop(struct hi110x_sdio *hi_sdio)
         del_timer_sync(&hi_sdio->heartbeat.heartbeat_timer);
     }
 }
-
+extern int32 patch_get_cfg(uint8 *cfg, int32 type);
+extern int32 create_recover_flag(void);
 struct sk_buff* hisdio_reserve_skb_alloc(struct hi110x_sdio *hi_sdio, uint32 len);
 void hisdio_reserve_skb_free(struct hi110x_sdio *hi_sdio,struct sk_buff* skb);
 void hisdio_reserve_skb_free_list_init(struct hi110x_sdio *hi_sdio, struct sk_buff_head* list);

@@ -152,7 +152,6 @@ hwcam_cfgreq_mount_pipeline_intf_get_result(hwcam_cfgreq_mount_pipeline_intf_t* 
 
 extern int
 hwcam_cfgpipeline_mount_req_create_instance(struct video_device* vdev, 
-                                            struct list_head* pipelines, 
                                             hwcam_dev_intf_t* cam, 
                                             int moduleID, 
                                             hwcam_cfgreq_mount_pipeline_intf_t** req); 
@@ -441,6 +440,10 @@ hwcam_cfgpipeline_intf_mount_stream(hwcam_cfgpipeline_intf_t* intf,
 {
     return intf->vtbl->mount_stream(intf, user, info); 
 }
+
+extern int
+hwcam_cfgpipeline_wait_idle(hwcam_dev_intf_t* cam, 
+                            int timeout); 
 
 //  hwcam_cfgpipeline interface definition end
 

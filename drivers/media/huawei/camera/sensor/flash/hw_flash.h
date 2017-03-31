@@ -31,7 +31,7 @@
 #include <media/huawei/flash_cfg.h>
 #include "hw_subdev.h"
 #include "cam_log.h"
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 
 #define CAMERA_FLASH_MAX	2
 #define CAMERA_FLASH_ARRAY_SIZE	10

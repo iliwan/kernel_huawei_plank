@@ -179,8 +179,11 @@ typedef enum __LPHY_TRACE_TURBO_ENUM__
     LPHY_TRACE_TURBO_DECODE_DATA_DMA_REPORT,
     LPHY_TRACE_TURBO_DECODE_SIB,
     LPHY_TRACE_TURBO_DECODE_PCH,
+    /* END:   Added by yushujing, 2012/3/22 */
+    /* BEGIN: Added by yushujing, 2013/3/18   PN:v7r2_mod*/
     LPHY_TRACE_TURBO_DECODE_FLOAT_INT_PCELL,
     LPHY_TRACE_TURBO_DECODE_FLOAT_INT_SCELL,
+    /* END:   Added by yushujing, 2013/3/18 */
 }LPHY_TRACE_TURBO_ENUM;
 typedef UINT16 LPHY_TRACE_TURBO_ENUM_UINT16;
 
@@ -230,17 +233,23 @@ typedef struct __LPHY_TRACE_TURBO_DECODE_FLOAT_INT_SCELL_OM_TRACE__
     UINT16 usRsv;
 }LPHY_TRACE_TURBO_DECODE_FLOAT_INT_SCELL_STRU;
 
+/* END:   Added by yushujing, 2013/3/18 */
 typedef struct __LPHY_TURBO_DECODE_FLOAT_INT_TRIGGERED_OM_TRACE__
 {
+    /* BEGIN: Added by yushujing, 2012/12/24   PN:v7r2_mod*/
     UINT16 usSysFn;
     UINT16 usSubFn;
+    /* END:   Added by yushujing, 2012/12/24   PN:v7r2_mod*/
     UINT32 ulTdlErrRptReg;
+    /* BEGIN: Added by yushujing, 2012/12/24   PN:v7r2_mod*/
     UINT32 ulTdlIntStatReg;
     UINT32 ulIntAlmReg;
     //LPHY_PDSCH_DECODE_RESULT_STRU stPdschDecResult;
+    /* END:   Added by yushujing, 2012/12/24 */
 }LPHY_TRACE_TURBO_DECODE_FLOAT_INT_TRIGGERED_STRU;
 
 /*Turbo译码数据面DMA上报Trace*/
+/* BEGIN: Added by yushujing, 2012/12/20   PN:v7r2_mod*/
 typedef struct __TDL_DMA_CHAN_S__
 {
     UINT32                      ulDestAddr;
@@ -267,6 +276,7 @@ typedef struct __TDL_DMA_DESCRIPTOR__
     TDL_DMA_CHAN_STRU           stHeadSCH0Scc;
     TDL_DMA_CHAN_STRU           stHeadSCH1Scc;
 }TDL_DMA_DESCRIPTOR_STRU;
+/* END:   Added by yushujing, 2012/12/20   PN:v7r2_mod*/
 typedef struct __LPHY_TRACE_TURBO_DECODE_DATA_DMA_REPORT_OM_TRACE__
 {
     UINT16 usSysFn;
@@ -280,6 +290,7 @@ typedef struct __LPHY_TRACE_TURBO_DECODE_TRACE_RPT_OM_TRACE__
     UINT32 aulData[4];
 }LPHY_TRACE_TURBO_DECODE_TRACE_RPT_STRU;
 
+/* END:   Added by yushujing, 2012/3/22 */
 
 /************************************************************
                            5. ERROR数据结构定义
@@ -341,8 +352,10 @@ typedef struct __LPHY_TURBO_TURBO_DEM_CHN_OM_ERROR__
     UINT16 usSubFn;
     UINT16 usDemChanNum;
     UINT16 usDciChanNum;
+    /* BEGIN: Added by yushujing, 2012/12/21   PN:v7r2_mod*/
     UINT16 usCcFlg;
     UINT16 usRsv;
+    /* END:   Added by yushujing, 2012/12/21 */
 }LPHY_ERROR_TURBO_DEM_CHN_STRU;
 
 typedef struct __LPHY_TURBO_TRAN_SCHEME_MISMATCH_OM_ERROR__
@@ -371,7 +384,9 @@ typedef struct __LPHY_TURBO_NON_EIGHT_BYTES_ALIGN_OM_ERROR__
 /************************************************************
                            6. DEBUG数据结构定义
 ************************************************************/
+/* BEGIN: Added by yushujing, 2012/12/20   PN:v7r2_mod*/
 #define     OM_TURBO_MAX_CFG_REG_IMG_LEN       ((0x1c4 - 0x100) / 4 + 1)       /*Turbo配置的数据长度, DW, 注意需要软硬件接口同步*/
+/* END:   Added by yushujing, 2012/12/20   PN:v7r2_mod*/
 typedef enum __LPHY_DEBUG_TURBO_ENUM__
 {
     LPHY_DEBUG_TURBO_PDSCH_CFG_REGS_IMAGE         = OM_CMD_ID(LPHY_TURBO_MID, OM_TYPE_DEBUG, 0x1),
@@ -437,6 +452,7 @@ typedef struct __LPHY_TURBO_PMCH_CFG_PARA_OM_DEBUG__
 }LPHY_DEBUG_TURBO_PMCH_CFG_PARA_STRU;
 
 
+/* BEGIN: Added by songwenning, 2014/3/19   */
 /************************************************************
                            7. DT 数据结构定义
 ************************************************************/
@@ -502,6 +518,7 @@ typedef struct __LPHY_DT_TURBO_RPT_DL_THROUGHPUT_STAT_IND_STRU__
 }LPHY_DT_TURBO_RPT_DL_THROUGHPUT_STAT_IND_STRU;
 
 
+/* END:   by songwenning, 2014/3/19 */
 
 #ifdef __cplusplus
 #if __cplusplus

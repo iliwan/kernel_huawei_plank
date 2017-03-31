@@ -5,7 +5,7 @@
 #include <linux/err.h>
 #include <linux/notifier.h>
 #include <linux/pm_qos.h>
-
+#include <linux/io.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
@@ -18,24 +18,14 @@
 #include <linux/of_device.h>
 #include <linux/of_address.h>
 
-#include <linux/hisi/hi3xxx_mailbox.h>
+#include <linux/hisi/hisi_mailbox.h>
 
 #define MODULE_NAME	"hisilicon,lowpowerm3"
-#define WDOGCTRL_OFFSET		0x08
-#define WDOGLOCK_OFFSET		0xC00
-#define SCDEEPSLEEPED_OFFSET	0x300
-#define HRST_OFFSET		(0x115 << 2)
-#define SCLPM3RSTEN_OFFSET	0x504
-#define SCLPM3RSTDIS_OFFSET	0x508
-#define SCLPM3CTRL_OFFSET	0x510
-
-#define REG_UNLOCK_KEY		0x1ACCE551
 
 struct hisi_lpm3 {
 	void __iomem		*lpram_base;
 	void __iomem		*pmu_base;
 	void __iomem 		*sysctrl_base;
-	int			irq;
 	struct platform_device	*pdev;
 	struct delayed_work	wd_worker;
 	struct clk		*clk;
@@ -43,7 +33,7 @@ struct hisi_lpm3 {
 
 #ifdef CONFIG_HISI_LPM3_DEBUG
 #define MAX_CMD		4
-#define MAX_OBJ		16
+#define MAX_OBJ		17
 #define MAX_TYPE	13
 
 static struct dentry *lpm3_debug_dir = NULL;
@@ -51,9 +41,9 @@ static struct dentry *lpm3_test = NULL;
 unsigned int display_mailbox_rec;
 
 char *cmd[MAX_CMD] = {"on", "off", "get", "set"};
-char *obj[MAX_OBJ] = {"ap ", "a7 ", "a15 ", "gpu ", "ddr ", "asp ", "hifi ",
+char *obj[MAX_OBJ] = {"ap ", "a15 ", "a7 ", "gpu ", "ddr ", "asp ", "hifi ",
 		"iom3 ", "lpm3 ", "modem ", "sys ", "hkadc ",
-		"regulator ", "clock ", "temp ", "coul"};
+		"regulator ", "clock ", "temp ", "coul ", "psci "};
 char *type[MAX_TYPE] = {"power ", "clk ", "core ", "cluster ", "sleep ",
 		"sr ", "mode ", "uplimit ", "dnlimit ","freq ",
 		"T ", "volt ", "test "};
@@ -230,33 +220,6 @@ static const struct file_operations hisi_lpm3_debugfs_fops =
 };
 #endif
 
-static void hisi_lpm3_watchdog_workqueue_handler(struct work_struct *work)
-{
-	struct hisi_lpm3 *lpm3 = container_of(to_delayed_work(work), struct hisi_lpm3, wd_worker);
-	/* record lpm3 */
-	writel(2, lpm3->pmu_base + HRST_OFFSET);
-}
-
-#ifndef CONFIG_ARM_SP805_WATCHDOG
-static irqreturn_t hisi_lpm3_watchdog_irq(int irq, void *args)
-{
-	unsigned int value;
-	struct hisi_lpm3 *lpm3 = (struct hisi_lpm3 *) args;
-	struct device *dev = &lpm3->pdev->dev;
-
-	/* generate NMI irq */
-	value = readl(lpm3->sysctrl_base + SCLPM3CTRL_OFFSET);
-	value |= 0x04;
-	writel(value, lpm3->sysctrl_base + SCLPM3CTRL_OFFSET);
-	value &= ~0x04;
-	writel(value, lpm3->sysctrl_base + SCLPM3CTRL_OFFSET);
-
-	dev_err(dev, "lpm3 watchdog timeout! lpm3 die T_T\n");
-	schedule_delayed_work(&lpm3->wd_worker, msecs_to_jiffies(5000));
-	return IRQ_HANDLED;
-}
-#endif
-
 static int hisi_lpm3_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -314,21 +277,6 @@ static int hisi_lpm3_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	lpm3->irq = platform_get_irq(pdev, 0);
-	if (lpm3->irq < 0) {
-		dev_err(dev, "cannot find IRQ\n");
-		return lpm3->irq;
-	}
-
-	INIT_DELAYED_WORK(&lpm3->wd_worker, hisi_lpm3_watchdog_workqueue_handler);
-#ifndef CONFIG_ARM_SP805_WATCHDOG
-	ret = devm_request_irq(dev, lpm3->irq, hisi_lpm3_watchdog_irq, IRQF_DISABLED, dev_name(dev), lpm3);
-	if (ret < 0) {
-		dev_err(dev, "cannot claim IRQ\n");
-		return ret;
-	}
-#endif
-
 #ifdef CONFIG_HISI_LPM3_DEBUG
 	nb = (struct notifier_block *)devm_kzalloc(dev, sizeof(struct notifier_block), GFP_KERNEL);
 	if (!nb) {
@@ -371,7 +319,6 @@ static int hisi_lpm3_remove(struct platform_device *pdev)
 	struct hisi_lpm3 *lpm3 = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(lpm3->clk);
-	free_irq(lpm3->irq, NULL);
 	kfree(lpm3);
 #ifdef CONFIG_HISI_LPM3_DEBUG
 	hisi_mbox_put(&mbox);
@@ -411,5 +358,5 @@ module_exit(hisi_lpm3_exit);
 
 
 MODULE_AUTHOR("wangtao.jean@huawei.com>");
-MODULE_DESCRIPTION(" LOW POWER M3 DRIVER");
+MODULE_DESCRIPTION("LOWPOWER M3 DRIVER");
 MODULE_LICENSE("GPL");

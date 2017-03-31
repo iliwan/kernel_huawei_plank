@@ -26,13 +26,17 @@
 #include <linux/ctype.h>
 #include <linux/hrtimer.h>
 #include "synaptics.h"
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #include <../../huawei_touchscreen_chips.h>
 #include "raw_data.h"
 #define WATCHDOG_TIMEOUT_S 2
 #define FORCE_TIMEOUT_100MS 10
 #define STATUS_WORK_INTERVAL 20 /* ms */
 #define MAX_I2C_MSG_LENS 0x3F
+
+#define V6_F12_CTL_LEN 14
+#define V6_RX_OFFSET 12
+#define V6_TX_OFFSET 13
 
 #define RX_NUMBER 89  //f01 control_base_addr + 57
 #define TX_NUMBER 90  //f01 control_base_addr + 58
@@ -108,8 +112,10 @@
 #define TREX_DATA_SIZE 7
 
 #define NO_AUTO_CAL_MASK 0x01
-#define F54_BUF_LEN 50
+#define F54_BUF_LEN 80
+#define TP_TEST_FAILED_REASON_LEN 20
 
+static char tp_test_failed_reason[TP_TEST_FAILED_REASON_LEN] = {"-software_reason"};
 static unsigned short report_rate_offset = 38;
 static char buf_f54test_result[F54_BUF_LEN] = {0};//store mmi test result
 extern char raw_data_limit_flag;
@@ -117,7 +123,6 @@ static int mmi_buf_size = 0;
 static int rawdata_size = 0;
 extern struct dsm_client *tp_dclient;
 extern struct ts_data g_ts_data;
-unsigned short f54_data_base_addr = 0x100;
 
 static int synaptics_rmi4_f54_attention(void);
 
@@ -1165,6 +1170,7 @@ static void mmi_deltacapacitance_test(void)
 	} else {
 		TS_LOG_ERR("deltadata test is out of range, test result is 3F\n");
 		strncat(buf_f54test_result, "-3F", MAX_STR_LEN);
+		strncpy(tp_test_failed_reason,"-panel_reason",TP_TEST_FAILED_REASON_LEN);
 	}
 	return;
 }
@@ -1301,12 +1307,14 @@ static void mmi_rawcapacitance_test(void)
 	} else {
 		TS_LOG_ERR("raw data is out of range, , test result is 1F\n");
 		strncat(buf_f54test_result, "1F", MAX_STR_LEN);
+		strncpy(tp_test_failed_reason,"-panel_reason",TP_TEST_FAILED_REASON_LEN);
 	}
 	if (1 == (f54_delta_rx_report() && f54_delta_tx_report())) {
 		strncat(buf_f54test_result, "-2P", MAX_STR_LEN);
 	} else {
 		TS_LOG_ERR("raw data diff is out of range, test result is 2F\n");
 		strncat(buf_f54test_result, "-2F", MAX_STR_LEN);
+		strncpy(tp_test_failed_reason,"-panel_reason",TP_TEST_FAILED_REASON_LEN);
 	}
 	return;
 }
@@ -1349,6 +1357,45 @@ static void synaptics_f54_free(void)
 		kfree(f54);
 		f54 = NULL;
 	}
+}
+
+static void rotate_rawdata_abcd2adcb(void)
+{
+	int *rawdatabuf_temp = NULL;
+	int row_index, column_index;
+	int row_size = 0;
+	int column_size = 0;
+	int i = 0;
+
+	TS_LOG_INFO("\n");
+	rawdatabuf_temp = (int *)kzalloc(rawdata_size*sizeof(int), GFP_KERNEL);
+	if (!rawdatabuf_temp) {
+		TS_LOG_ERR("Failed to alloc buffer for rawdatabuf_temp\n");
+		return;
+	}
+
+	memcpy(rawdatabuf_temp, f54->rawdatabuf, rawdata_size*sizeof(int));
+	row_size = rawdatabuf_temp[0];
+	column_size = rawdatabuf_temp[1];
+	for (column_index = 0; column_index < row_size; column_index++) {
+		for (row_index = 0; row_index < column_size; row_index ++) {
+			f54->rawdatabuf[i+2] = rawdatabuf_temp[row_index*row_size+column_index+2];
+			i ++;
+		}
+	}
+
+	for (column_index = 0; column_index < row_size; column_index++) {
+		for (row_index = 0; row_index < column_size; row_index ++) {
+			f54->rawdatabuf[i+2] = rawdatabuf_temp[row_size*column_size+row_index*row_size+column_index+2];
+			i ++;
+		}
+	}
+
+	if (rawdatabuf_temp) {
+		kfree(rawdatabuf_temp);
+		rawdatabuf_temp = NULL;
+	}
+	return;
 }
 
 static void put_capacitance_data (int index)
@@ -1414,6 +1461,7 @@ static void synaptics_change_report_rate(void)
 	} else {
 		TS_LOG_ERR("change rate error");
 		strncat(buf_f54test_result, "-4F", MAX_STR_LEN);
+		strncpy(tp_test_failed_reason,"-panel_reason",TP_TEST_FAILED_REASON_LEN);
 		#if defined (CONFIG_HUAWEI_DSM)
 			if (atomic_read(&g_ts_data.state) != TS_WORK_IN_SLEEP) {
 				if (!dsm_client_ocuppy(tp_dclient)) {
@@ -1426,7 +1474,6 @@ static void synaptics_change_report_rate(void)
 	}
 	return;
 }
-
 
 int synaptics_get_cap_data(struct ts_rawdata_info *info)
 {
@@ -1466,7 +1513,34 @@ int synaptics_get_cap_data(struct ts_rawdata_info *info)
 		TS_LOG_ERR("failed to resume glove/holster/palm or other status!\n");
 	}
 
+	if (f54->rmi4_data->synaptics_chip_data->rawdata_disp_format == 1)
+		rotate_rawdata_abcd2adcb();
+
 	memcpy(info->buff, f54->rawdatabuf, rawdata_size*sizeof(int));
+	if (0 == strlen(buf_f54test_result) || strstr(buf_f54test_result, "F")){
+		strncat(buf_f54test_result, tp_test_failed_reason, strlen(tp_test_failed_reason));
+	}
+
+	switch(f54->rmi4_data->synaptics_chip_data->ic_type) {
+		case SYNAPTICS_S3207:
+			strncat(buf_f54test_result, "-synaptics_3207", strlen("-synaptics_3207"));
+			break;
+		case SYNAPTICS_S3350:
+			strncat(buf_f54test_result, "-synaptics_3350", strlen("-synaptics_3350"));
+			break;
+		case SYNAPTICS_S3320:
+			strncat(buf_f54test_result, "-synaptics_3320", strlen("-synaptics_3320"));
+			break;
+		case SYNAPTICS_S3718:
+			strncat(buf_f54test_result, "-synaptics_", strlen("-synaptics_"));
+			strncat(buf_f54test_result, f54->rmi4_data->rmi4_mod_info.product_id_string,
+				strlen(f54->rmi4_data->rmi4_mod_info.product_id_string));
+			break;
+		default:
+			TS_LOG_ERR("failed to recognize ic_ver\n");
+			break;
+		}
+
 	memcpy(info->result, buf_f54test_result, strlen(buf_f54test_result));
 	info->used_size = rawdata_size;
 	TS_LOG_INFO("info->used_size = %d\n", info->used_size);
@@ -1627,6 +1701,15 @@ static int synaptics_read_f34(void)
 				TS_LOG_ERR("Could not read TX value from 0x%04x\n", f54->rmi4_data->rmi4_feature.f01_ctrl_base_addr + TX_NUMBER);
 				return -EINVAL;
 			}
+		} else if (V6 == f54->bl_version) {
+			retval = f54->fn_ptr->read(f54->rmi4_data, f54->rmi4_data->rmi4_feature.f12_ctrl_base_addr, f12_2d_data, V6_F12_CTL_LEN);
+			if (retval < 0){
+				TS_LOG_ERR("Could not read RX value from 0x%04x\n", f54->rmi4_data->rmi4_feature.f12_ctrl_base_addr);
+				return -EINVAL;
+			}
+			TS_LOG_INFO("F12 contrl base addr is 0x%x\n", f54->rmi4_data->rmi4_feature.f12_ctrl_base_addr);
+			f54->rmi4_data->num_of_rx = f12_2d_data[V6_RX_OFFSET];
+			f54->rmi4_data->num_of_tx = f12_2d_data[V6_TX_OFFSET];
 		}
 	} else {
 		retval = f54->fn_ptr->read(f54->rmi4_data, f54->rmi4_data->rmi4_feature.f11_ctrl_base_addr + RX_NUMBER_S3207, &f54->rmi4_data->num_of_rx, 1);
@@ -2086,7 +2169,7 @@ int synaptics_rmi4_f54_init(struct synaptics_rmi4_data *rmi4_data,const char *mo
 				f54->f34_fd.ctrl_base_addr = rmi_fd.ctrl_base_addr;
 				f54->f34_fd.data_base_addr = 	rmi_fd.data_base_addr;
 			}
-			f54_data_base_addr = f54->data_base_addr;
+
 			if (hasF54 && hasF55 && hasF34)
 				goto found;
 

@@ -56,7 +56,7 @@ extern unsigned int g_acpu_chip_max_freq;
 static ssize_t show_##file_name(struct cpufreq_policy *policy,\
 	char *buf)		\
 {									\
-	return sprintf(buf, "%u\n", object);		\
+	return snprintf(buf, PAGE_SIZE, "%u\n", object);		\
 }
 show_chip_one(chip_max_freq, g_acpu_chip_max_freq);
 cpufreq_freq_attr_ro(chip_max_freq);

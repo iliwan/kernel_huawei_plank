@@ -797,9 +797,20 @@ struct scanned_bss_info* find_scanned_bss_by_ssid(struct scanned_bss_mgmt *bss_m
     return bss;
 }
 
+bool is_hide_ssid(uint8* ssid_ie)
+{
+    return (ssid_ie == NULL || ssid_ie[1] == 0 || ssid_ie[2] == '\0');
+}
+
+
 int update_bss_info(struct scanned_bss_mgmt *bss_mgmt, struct scanned_bss_info* bss)
 {
     struct scanned_bss_info  *old_bss;
+
+    uint8     *beacon_ie;
+    uint32     beacon_ie_len;
+    uint8     *old_ssid_ie;
+    uint8     *ssid_ie;
 
     if (NULL == bss_mgmt)
     {
@@ -813,6 +824,28 @@ int update_bss_info(struct scanned_bss_mgmt *bss_mgmt, struct scanned_bss_info* 
 
     if (NULL != old_bss)
     {
+
+        beacon_ie      = old_bss->mgmt->u.beacon.variable;
+        beacon_ie_len  = old_bss->mgmt_len - offsetof(struct ieee80211_mgmt, u.beacon.variable);
+        old_ssid_ie    = (uint8 *)cfg80211_find_ie(WLAN_EID_SSID, beacon_ie, beacon_ie_len);
+
+        beacon_ie      = bss->mgmt->u.beacon.variable;
+        beacon_ie_len  = bss->mgmt_len - offsetof(struct ieee80211_mgmt, u.beacon.variable);
+        ssid_ie        = (uint8 *)cfg80211_find_ie(WLAN_EID_SSID, beacon_ie, beacon_ie_len);
+
+
+        if (!is_hide_ssid(old_ssid_ie) && is_hide_ssid(ssid_ie))
+        {
+            HWIFI_INFO("old isn't hide ssid,new is hide ssid\n");
+            old_bss->ts = bss->ts;
+            if(old_bss->signal < bss->signal) 
+            {
+                old_bss->signal = bss->signal;
+            }
+            mutex_unlock(&bss_mgmt->mutex);
+            return -EFAIL;
+        }
+
         if(old_bss->signal > bss->signal)
         {
 	        bss->signal = old_bss->signal;

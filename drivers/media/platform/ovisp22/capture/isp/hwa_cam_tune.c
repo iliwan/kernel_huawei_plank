@@ -36,6 +36,10 @@
 #include "cam_util.h"
 #include "k3_isp_io.h"
 
+#if defined (CONFIG_HUAWEI_DSM)
+#include <dsm/dsm_pub.h>
+#endif
+
 extern k3_isp_data *this_ispdata;
 
 
@@ -210,29 +214,91 @@ int hwa_v4l2_ioctl_g_ext_ctrls(struct v4l2_ext_control **controls, __u32 cmd_id,
 		case V4L2_CID_GET_MULTI_ISP_REG:
 		{
 			hwq_multi_reg_data *seq_data = NULL;
-			seq_data = (hwq_multi_reg_data *)(((*controls)[cid_idx]).string);
+			void __user *seq_data_temp = ((*controls)[cid_idx]).string;
 
-			if(NULL == seq_data || NULL == seq_data->reg || NULL == seq_data->value){
+			if(NULL == seq_data_temp){
 				ret = -EINVAL;
 				print_error("seq_data is NULL");
+				goto out;
+			}
+			void *data_buf = kmalloc(sizeof(hwq_multi_reg_data), GFP_KERNEL);
+			if (NULL == data_buf) {
+				ret = -ENOMEM;
+				print_error("fail to kmalloc buffer");
+				goto out;
+			}
+			seq_data = (hwq_multi_reg_data *)data_buf;
+			if(copy_from_user(seq_data, seq_data_temp, sizeof(hwq_multi_reg_data))){
+				print_error("%s V4L2_CID_GET_MULTI_ISP_REG mem error!", __FUNCTION__);
+				kfree(data_buf);
+				ret =  -EFAULT;
+				goto out;
+			}
+
+			if(NULL == seq_data->reg || NULL == seq_data->value)
+			{
+				ret = -EINVAL;
+				print_error("seq_data->reg or  seq_data->value is NULL");
+				kfree(data_buf);
 				goto out;
 			}
 
 			if(seq_data->length <= 0 || seq_data->length >= 1000){
 				ret = -EINVAL;
 				print_error("V4L2_CID_GET_MULTI_ISP_REG seq_data->length error!");
+				kfree(data_buf);
 				goto out;
 			}
 
 			if (NULL == this_ispdata) {
 				print_error("this_ispdata is NULL");
 				ret = -EINVAL;
+				kfree(data_buf);
 				goto out;
 			}
 
+			void *data_reg = kmalloc(seq_data->length * sizeof(int), GFP_KERNEL);
+			if (NULL == data_reg) {
+				ret = -ENOMEM;
+				kfree(data_buf);
+				print_error("V4L2_CID_GET_MULTI_ISP_REG fail to kmalloc data_reg");
+				goto out;
+			}
+			if(copy_from_user(data_reg, seq_data->reg, seq_data->length * sizeof(int))){
+				print_error("%s V4L2_CID_GET_MULTI_ISP_REG seq_data->reg mem error!", __FUNCTION__);
+				kfree(data_reg);
+				kfree(data_buf);
+				ret =  -EFAULT;
+				goto out;
+			}
+			seq_data->reg = data_reg;
+
+			void *data_value = kmalloc(seq_data->length * sizeof(int), GFP_KERNEL);
+			if (NULL == data_value) {
+				ret = -ENOMEM;
+				print_error("V4L2_CID_GET_MULTI_ISP_REG fail to kmalloc data_value");
+				kfree(data_reg);
+				kfree(data_buf);
+				goto out;
+			}
+			void *user_value_ptr = seq_data->value;
+			seq_data->value = data_value;
 			if(this_ispdata->sensor->isp_location == CAMERA_USE_K3ISP){
 				ret = hwa_get_multi_isp_reg(seq_data);
 			}
+
+			if(copy_to_user(user_value_ptr, data_value, seq_data->length * sizeof(int))){
+				print_error("%s: V4L2_CID_GET_MULTI_ISP_REG copy_to_user!",__FUNCTION__);
+				ret =  -EFAULT;
+				kfree(data_reg);
+				kfree(data_value);
+				kfree(data_buf);
+				goto out;
+			}
+
+			kfree(data_reg);
+			kfree(data_value);
+			kfree(data_buf);
 
 			break;
 		}
@@ -253,10 +319,21 @@ int hwa_v4l2_ioctl_g_ext_ctrls(struct v4l2_ext_control **controls, __u32 cmd_id,
 				goto out;
 			}
 
-			if(CAMERA_USE_K3ISP == this_ispdata->sensor->isp_location){
-				ret = hwa_get_bracket_iso(iso);
+			void *data_buf = kmalloc(sizeof(int) * 3, GFP_KERNEL);
+			if (NULL == data_buf) {
+				ret = -ENOMEM;
+				print_error("fail to kmalloc buffer");
+				goto out;
 			}
-
+			if(CAMERA_USE_K3ISP == this_ispdata->sensor->isp_location){
+				ret = hwa_get_bracket_iso((int*)data_buf);
+			}
+			if(copy_to_user(iso, data_buf, sizeof(int) * 3)){
+				kfree(data_buf);
+				print_error("%s V4L2_CID_GET_BRACKET_ISO_VALUE mem error!", __FUNCTION__);
+				goto out;
+			}
+			kfree(data_buf);
 			break;
 		}
 		case V4L2_CID_GET_BRACKET_EXP_VALUE:
@@ -276,9 +353,22 @@ int hwa_v4l2_ioctl_g_ext_ctrls(struct v4l2_ext_control **controls, __u32 cmd_id,
 				goto out;
 			}
 
-			if(CAMERA_USE_K3ISP == this_ispdata->sensor->isp_location){
-				ret = hwa_get_bracket_exp(exp);
+			void *data_buf = kmalloc(sizeof(int) * 3, GFP_KERNEL);
+			if (NULL == data_buf) {
+				ret = -ENOMEM;
+				print_error("fail to kmalloc buffer");
+				goto out;
 			}
+			if(CAMERA_USE_K3ISP == this_ispdata->sensor->isp_location){
+				ret = hwa_get_bracket_exp((int*)data_buf);
+			}
+			if(copy_to_user(exp, data_buf, sizeof(int) * 3)){
+				ret = -EFAULT;
+				kfree(data_buf);
+				print_error("%s V4L2_CID_GET_BRACKET_ISO_VALUE mem error!", __FUNCTION__);
+				goto out;
+			}
+			kfree(data_buf);
 			break;
 		}
 		case V4L2_CID_GET_AE_COFF:
@@ -412,6 +502,13 @@ int hwa_v4l2_ioctl_g_ext_ctrls(struct v4l2_ext_control **controls, __u32 cmd_id,
 				}
 			}
 
+			void *data_buf = kmalloc(sizeof(hw_awb_otp), GFP_KERNEL);
+			if (NULL == data_buf) {
+				ret = -ENOMEM;
+				print_error("fail to allocate buffer for ext controls");
+				goto out;
+			}
+			awb_otp = data_buf;
 			if(NULL != awb_otp && AWB_OTP_SUPPORT == support_awb_otp){
 				awb_otp->awb_otp_support = AWB_OTP_SUPPORT;
 				awb_otp->r_g_high = this_ispdata->sensor->sensor_hw_3a.awb_otp_value.r_g_high;
@@ -430,6 +527,13 @@ int hwa_v4l2_ioctl_g_ext_ctrls(struct v4l2_ext_control **controls, __u32 cmd_id,
 				awb_otp->gb_gr_high = 0;
 				awb_otp->gb_gr_low = 0;
 			}
+			if(copy_to_user((((*controls)[cid_idx]).string), awb_otp, sizeof(hw_awb_otp))){
+				ret = -ENOMEM;
+				kfree(data_buf);
+				print_error("%s V4L2_CID_GET_AWB_OTP_INFO mem error!", __FUNCTION__);
+				goto out;
+			}
+			kfree(data_buf);
 			break;
 		}
 		default:
@@ -444,14 +548,31 @@ int hwa_v4l2_ioctl_s_ext_ctrls(struct v4l2_ext_control **controls, __u32 cmd_id,
 {
 	int ret = 0;
 	//int func_ret = 0;
-	
+	void *data_buf = NULL;
+
 	switch(cmd_id)
 	{
 		case V4L2_CID_SET_MULTI_ISP_REG:
 		{
 			hwq_multi_reg_data *seq_data = NULL;
-			seq_data = (hwq_multi_reg_data *)(((*controls)[cid_idx]).string);
+			void __user *seq_data_temp = ((*controls)[cid_idx]).string;
 
+			if(NULL == seq_data_temp){
+				ret = -EINVAL;
+				print_error("seq_data is NULL");
+				goto out;
+			}
+			data_buf = kmalloc(sizeof(hwq_multi_reg_data), GFP_KERNEL);
+			seq_data = (hwq_multi_reg_data *)data_buf;
+			if (!seq_data) {
+				ret = -ENOMEM;
+				print_error("fail to kmalloc buffer");
+				goto out;
+			}
+			if(copy_from_user(seq_data, seq_data_temp, sizeof(hwq_multi_reg_data))){
+				print_error("%s V4L2_CID_SET_MULTI_ISP_REG mem error!", __FUNCTION__);
+				goto out;
+			}
 			if(NULL == seq_data || NULL == seq_data->reg || NULL == seq_data->value){
 				ret = -EINVAL;
 				print_error("seq_data is NULL");
@@ -470,9 +591,38 @@ int hwa_v4l2_ioctl_s_ext_ctrls(struct v4l2_ext_control **controls, __u32 cmd_id,
 				goto out;
 			}
 
+			void *data_reg = kmalloc(seq_data->length * sizeof(int), GFP_KERNEL);
+			if (!data_reg) {
+				ret = -ENOMEM;
+				print_error("V4L2_CID_SET_MULTI_ISP_REG fail to kmalloc data_reg");
+				goto out;
+			}
+			if(copy_from_user(data_reg, seq_data->reg, seq_data->length * sizeof(int))){
+				print_error("%s V4L2_CID_SET_MULTI_ISP_REG data_reg mem error!", __FUNCTION__);
+				kfree(data_reg);
+				goto out;
+			}
+			seq_data->reg = data_reg;
+
+			void *data_value = kmalloc(seq_data->length * sizeof(int), GFP_KERNEL);
+			if (!data_value) {
+				ret = -ENOMEM;
+				print_error("V4L2_CID_SET_MULTI_ISP_REG fail to kmalloc data_value");
+				kfree(data_reg);
+				goto out;
+			}
+			if(copy_from_user(data_value, seq_data->value, seq_data->length * sizeof(int))){
+				print_error("%s V4L2_CID_SET_MULTI_ISP_REG data_value mem error!", __FUNCTION__);
+				kfree(data_reg);
+				kfree(data_value);
+				goto out;
+			}
+			seq_data->value = data_value;
 			if(CAMERA_USE_K3ISP == this_ispdata->sensor->isp_location){
 				ret = hwa_set_multi_isp_reg(seq_data);
 			}
+			kfree(data_reg);
+			kfree(data_value);
 
 			break;
 		}
@@ -489,7 +639,18 @@ int hwa_v4l2_ioctl_s_ext_ctrls(struct v4l2_ext_control **controls, __u32 cmd_id,
 		}
 		case V4L2_CID_HWSCOPE:
 		{
-			void *hwscope_data = (void *)(((*controls)[cid_idx]).string);
+			data_buf = kmalloc(sizeof(hwa_hwscope_ctl), GFP_KERNEL);
+			if (!data_buf) {
+				ret = -ENOMEM;
+				print_error("fail to allocate buffer for ext controls");
+				goto  out;
+			}
+			if(copy_from_user(data_buf, (((*controls)[cid_idx]).string), sizeof(hwa_hwscope_ctl))){
+				print_error("%s V4L2_CID_HWSCOPE mem error!", __FUNCTION__);
+				ret = -EFAULT;
+				goto out;
+			}
+			void *hwscope_data = data_buf;
 
 			if(NULL == hwscope_data){
 				ret = -EINVAL;
@@ -568,6 +729,11 @@ int hwa_v4l2_ioctl_s_ext_ctrls(struct v4l2_ext_control **controls, __u32 cmd_id,
 	}
 
 out:
+	if(NULL != data_buf)
+	{
+		 kfree(data_buf);
+		 data_buf = NULL;
+	}
 	return ret;
 }
 
@@ -644,10 +810,12 @@ int hwa_get_multi_isp_reg(hwq_multi_reg_data *seq_data)
 	int *value = seq_data->value;
 
 	for(i = 0; i < length; i++){
-		value[i] = GETREG8(reg[i]);
-		print_debug("hwa_get_multi_isp_reg i = %d, get reg[0x%x] = 0x%x", i, reg[i], value[i]);
+		if((reg[i] >= 0x1c000 && reg[i] <= 0x1efff) || (reg[i] >= 0x50000 && reg[i] <= 0x6ffff))
+		{
+			value[i] = GETREG8(reg[i]);
+			print_debug("hwa_get_multi_isp_reg i = %d, get reg[0x%x] = 0x%x", i, reg[i],value[i]);
+		}
 	}
-
 	return 0;
 }
 
@@ -659,8 +827,11 @@ int hwa_set_multi_isp_reg(hwq_multi_reg_data *seq_data)
 	int *value = seq_data->value;
 
 	for(i = 0; i < length; i++){
-		SETREG8(reg[i], value[i]);
-		print_debug("hwa_set_multi_isp_reg i = %d, set reg[0x%x] = 0x%x", i, reg[i], value[i]);
+		if((reg[i] >= 0x1c000 && reg[i] <= 0x1efff) || (reg[i] >= 0x50000 && reg[i] <= 0x6ffff))
+		{
+			SETREG8(reg[i], value[i]);
+			print_debug("hwa_set_multi_isp_reg i = %d, set reg[0x%x] = 0x%x", i, reg[i], value[i]);
+		}
 	}
 
 	return 0;
@@ -1105,6 +1276,13 @@ int hwa_get_otp_status(void)
     print_info("%s() status:%d", __func__, status);
     if (status == OTP_INVALID)
     {
+	 print_error("%s() sensor OTP_INVALID", __func__);
+#if defined (CONFIG_HUAWEI_DSM)
+	if (!dsm_client_ocuppy(client_ovisp22)){
+	   dsm_client_record(client_ovisp22,"[%s]Fail to get otp status :%d \n", this_ispdata->sensor->info.name, status);
+	   dsm_client_notify(client_ovisp22, DSM_ISP22_GET_OTP_STATUS_ERROR_NO);
+	}
+#endif
         return OTP_ALL_INVALID_USER;
     }
     else

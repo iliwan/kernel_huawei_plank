@@ -52,7 +52,7 @@
 #include "../../hisi/mntn/excDrv.h"
 #include <linux/power/hisi_hi6521_charger_power.h>
 #if defined (CONFIG_HUAWEI_DSM)
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #endif
 
 #ifdef _DRV_LLT_
@@ -202,6 +202,8 @@ struct hi6521_device_info {
     unsigned int    bat_compohm;
     unsigned int    comp_vclampmV;
 
+    /* For watch dog control in LPT*/
+    unsigned int    watchdog_disable;
 
     /*buck_reg5*/
     unsigned int    buck_dpm_mode;
@@ -245,6 +247,8 @@ struct hi6521_device_info {
 	int  irq;
 	int  interrput_gpio;
 	int  gpio_ce;
+	int  gpio_ovlo_en;
+	int  ovlo_flag;
     int usb_shell_gpio;
     int usb_shell_gpio_valid;
 };
@@ -2462,6 +2466,10 @@ STATIC void hi6521_start_usb_charger(struct hi6521_device_info *di)
     unsigned int  events = VCHRG_START_USB_CHARGING_EVENT;
     int  timeout = 100;
     int chg_en=0;
+
+    dbg_current_iin = 0;
+    input_current_iin = di->max_cin_currentmA;
+    
     di->wakelock_enabled = 1;
     if (di->wakelock_enabled){
         wake_lock(&chrg_lock);
@@ -2556,6 +2564,10 @@ STATIC void hi6521_start_ac_charger(struct hi6521_device_info *di)
     unsigned int  events = VCHRG_START_AC_CHARGING_EVENT;
 	int timeout= 100;
     int chg_en=0;
+
+    dbg_current_iin = 0;
+    input_current_iin = di->max_cin_currentmA;
+    
     di->wakelock_enabled = 1;
     if (di->wakelock_enabled){
         wake_lock(&chrg_lock);
@@ -2673,7 +2685,7 @@ STATIC void hi6521_stop_charger(struct hi6521_device_info *di)
     hwlog_info("%s,---->STOP CHARGING\n", __func__);
     di->charger_source = POWER_SUPPLY_TYPE_BATTERY;
 
-    di->batfet_ctrl = CHG_BATFET_EN;
+    //di->batfet_ctrl = CHG_BATFET_EN;
     di->calling_limit = 0;
     di->factory_flag = 0;
     di->battery_temp_status = -1;
@@ -2686,8 +2698,20 @@ STATIC void hi6521_stop_charger(struct hi6521_device_info *di)
 	hi6521_config_otg_enable(di);
     hi6521_config_input_source_reg(di);
 
+    if(1 == di->watchdog_disable)
+    {
+        di->watchdog_timer = CHG_WDT_TIMER_DIS;
+        hi6521_config_chgwdt_timer_reg(di);
+    }
+
     cancel_delayed_work_sync(&di->hi6521_usb_otg_work);
     msleep(1000);
+
+    if((NULL != strstr(saved_command_line,"androidboot.swtype=factory")) &&
+       (CHG_BATFET_DIS == di->batfet_ctrl)){
+        hi6521_config_prechg_current_vot_and_batfet_ctrl_reg(di);
+        hwlog_info("Factory version and batfet_ctrl is off, re-disable batfet when plugout usb!\n");
+    }
 
     di->wakelock_enabled = 1;
     if (di->wakelock_enabled){
@@ -2842,7 +2866,7 @@ STATIC void hi6521_charger_update_status(struct hi6521_device_info *di)
 #endif
 
 	/*before feed wdt,judge wdt status*/
-	if (0 == hi6521_get_chgwdt_status(di))
+	if (0 == hi6521_get_chgwdt_status(di) && 0 == di->watchdog_disable)
 	{
 		di->watchdog_timer = CHG_WDT_TIMER_40S;
 		hi6521_config_chgwdt_timer_reg(di);
@@ -3008,7 +3032,10 @@ STATIC void hi6521_dpm_check_work(struct work_struct *work)
         hwlog_info("hi6521_dpm_check_work cur=%dmA do dpm switch\n", current_ma);
 
         if (dpm_switch_with_charge_stop){
-            down_interruptible(&di->charger_data_busy_lock);
+	    if (down_interruptible(&di->charger_data_busy_lock)) {
+		hwlog_err("hi6521_dpm_check_work sema fail! \n");
+		return -EINTR;
+	    }
 			chg_en_status = di->chg_en;
             di->chg_en = CHG_POWER_DIS;
             hi6521_config_charger_nolock_enable(di);
@@ -3684,7 +3711,7 @@ STATIC ssize_t hi6521_show_dppm_voltage(struct device *dev,
 	} else {
 		val = (int)di->input_source_reg.reg.buck_dpm_sel;
 	}
-    return sprintf(buf, "%d\n", val);
+    return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 STATIC ssize_t hi6521_set_iin_runningtest(struct device *dev,
@@ -3721,7 +3748,7 @@ STATIC ssize_t hi6521_show_iin_runningtest(struct device *dev,
 	} else {
 		val = (int)di->input_source_reg.reg.buck_int_lim_sel;
 	}
-    return sprintf(buf, "%d\n", val);
+    return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 STATIC ssize_t hi6521_set_fast_voltage(struct device *dev,
@@ -3755,7 +3782,7 @@ STATIC ssize_t hi6521_show_fast_voltage(struct device *dev,
 		val = (int)(di->charge_fast_vol_term_cur_reg.reg.chg_fast_vchg * CHG_FAST_VCHG_STEP_50 + CHG_FAST_VCHG_MIN);
 	}
     //val = di->chg_fast_vchg;
-    return sprintf(buf, "%d\n", val);
+    return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 STATIC ssize_t hi6521_set_ichg_runningtest(struct device *dev,
@@ -3792,7 +3819,7 @@ STATIC ssize_t hi6521_show_ichg_runningtest(struct device *dev,
 		val = (int)(di->charge_fast_current_reg.reg.chg_fast_ichg * CHG_FAST_ICHG_STEP_100 + CHG_FAST_ICHG_MIN);
 	}
     //val = di->chg_fast_ichg;
-    return sprintf(buf, "%d\n", val);
+    return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 STATIC ssize_t hi6521_set_precharge_current(struct device *dev,
@@ -3827,7 +3854,7 @@ STATIC ssize_t hi6521_show_precharge_current(struct device *dev,
 	} else {
 		val = (int)(di->charge_pre_current_vol_reg.reg.chg_pre_ichg * CHG_PRG_ICHG_STEP_100 + CHG_PRG_ICHG_MIN);
 	}
-    return sprintf(buf, "%d\n", val);
+    return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 
@@ -3879,7 +3906,7 @@ STATIC ssize_t hi6521_show_precharge_voltage(struct device *dev,
 		else
 			val = CHG_PRE_VCHG_MAX;
 	}
-    return sprintf(buf, "%d\n", val);
+    return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 
@@ -3915,7 +3942,7 @@ STATIC ssize_t hi6521_show_termination_current(struct device *dev,
 	} else {
 		val = (int)(di->charge_fast_vol_term_cur_reg.reg.chg_term_ichg * CHG_TERM_ICHG_STEP_50 + CHG_TERM_ICHG_MIN);
 	}
-    return sprintf(buf, "%d\n", val);
+    return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 STATIC ssize_t hi6521_set_enable_itermination(struct device *dev,
@@ -3950,7 +3977,7 @@ STATIC ssize_t hi6521_show_enable_itermination(struct device *dev,
 	} else {
 		val = (int)di->charge_fast_safe_timer_term_ctrl_reg.reg.chg_termination_ctrl;
 	}
-    return sprintf(buf, "%d\n", val);
+    return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 /*
@@ -4026,11 +4053,62 @@ STATIC ssize_t hi6521_show_enable_charger(struct device *dev,
 	} else {
 		val = (int)di->power_on_config_reg01.reg.chg_en_int;
 	}
-    return sprintf(buf, "%d\n", val);
+    return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
-/* set 1 --- enable_batfet; 0 --- disable batfet */
-STATIC ssize_t hi6521_set_enable_batfet(struct device *dev,
+/* set 1 --- disable_batfet; 0 --- enable batfet */
+STATIC ssize_t hi6521_set_disable_batfet(struct device *dev,
+                  struct device_attribute *attr,
+                  const char *buf, size_t count)
+{
+    long val;
+    size_t status = count;
+    unsigned char off_flag = 0;
+    struct hi6521_device_info *di = dev_get_drvdata(dev);
+
+    if ((strict_strtol(buf, 10, &val) < 0) || (val < 0) || (val > 1))
+        return -EINVAL;
+
+    off_flag = (unsigned char)val;
+    if(1 == off_flag){
+        di->batfet_ctrl = CHG_BATFET_DIS;
+    }else if(0 == off_flag){
+        di->batfet_ctrl = CHG_BATFET_EN;
+    }else{
+        di->batfet_ctrl = CHG_BATFET_EN;
+        hwlog_err("Batfet ctr command is wrong, turn on batfet!\n");
+    }
+
+    hi6521_config_prechg_current_vot_and_batfet_ctrl_reg(di);//hi6521_config_misc_operation_reg(di);
+
+    return status;
+}
+
+STATIC ssize_t hi6521_show_disable_batfet(struct device *dev,
+                  struct device_attribute *attr,
+                  char *buf)
+{
+    int val;
+    int ret = 0;
+    int off_flag = 1;
+    struct hi6521_device_info *di = dev_get_drvdata(dev);
+
+    //val = di->batfet_ctrl;
+    ret = hi6521_read_byte(di,&di->charge_pre_current_vol_reg.value, CHG_PRE_VOL_CURRENT_BATFET_REG);
+    if(ret) {
+        val = ret;
+        off_flag = val;//read reg error
+    } else {
+        val = (int)di->charge_pre_current_vol_reg.reg.batfet_ctrl;
+        off_flag = !val;
+    }
+    return snprintf(buf, PAGE_SIZE, "%d\n", off_flag);
+}
+
+ /*
+* set 1 --- disable watchdog ; 0 --- nothing
+*/
+static ssize_t hi6521_set_disable_watchdog(struct device *dev,
                   struct device_attribute *attr,
                   const char *buf, size_t count)
 {
@@ -4041,28 +4119,25 @@ STATIC ssize_t hi6521_set_enable_batfet(struct device *dev,
     if ((strict_strtol(buf, 10, &val) < 0) || (val < 0) || (val > 1))
         return -EINVAL;
 
-    di->batfet_ctrl = (unsigned char)val;
-    hi6521_config_prechg_current_vot_and_batfet_ctrl_reg(di);//hi6521_config_misc_operation_reg(di);
-
+    di->watchdog_disable = (unsigned char)val;
+    if(1 == di->watchdog_disable){
+        di->watchdog_timer = CHG_WDT_TIMER_DIS;
+        hi6521_config_chgwdt_timer_reg(di);
+    }
+    hwlog_info("Set wdt disable = %d\n", di->watchdog_disable);
     return status;
 }
 
-STATIC ssize_t hi6521_show_enable_batfet(struct device *dev,
+static ssize_t hi6521_show_disable_watchdog(struct device *dev,
                   struct device_attribute *attr,
                   char *buf)
 {
-    int val;
-	int ret = 0;
+    int val = 0;
     struct hi6521_device_info *di = dev_get_drvdata(dev);
 
-    //val = di->batfet_ctrl;
-    ret = hi6521_read_byte(di,&di->charge_pre_current_vol_reg.value, CHG_PRE_VOL_CURRENT_BATFET_REG);
-	if(ret)	{
-		val = ret;
-	} else {
-		val = (int)di->charge_pre_current_vol_reg.reg.batfet_ctrl;
-	}
-    return sprintf(buf, "%d\n", val);
+    val = di->watchdog_disable;
+
+    return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 /*
@@ -4094,7 +4169,7 @@ STATIC ssize_t hi6521_show_gpio_enable_charger(struct device *dev,
 		val = gpio_get_value(di->gpio_ce);
 	}
 
-    return sprintf(buf, "%d\n", val);
+    return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 STATIC ssize_t hi6521_set_charging(struct device *dev,
@@ -4155,7 +4230,7 @@ STATIC ssize_t hi6521_show_wakelock_enable(struct device *dev,
     struct hi6521_device_info *di = dev_get_drvdata(dev);
 
     val = di->wakelock_enabled;
-    return sprintf(buf, "%u\n", val);
+    return snprintf(buf, PAGE_SIZE, "%u\n", val);
 }
 
 
@@ -4201,7 +4276,7 @@ STATIC ssize_t hi6521_show_reg_info(struct device *dev,
 	if(ret)	{
 		val = ret;
 	}
-	return sprintf(buf,"reg[0x%x]=0x%x\n",(u32)g_reg_addr,val);
+	return snprintf(buf, PAGE_SIZE, "reg[0x%x]=0x%x\n",(u32)g_reg_addr,val);
 }
 STATIC ssize_t hi6521_show_chargelog_head(struct device *dev,
                   struct device_attribute *attr,
@@ -4211,8 +4286,8 @@ STATIC ssize_t hi6521_show_chargelog_head(struct device *dev,
     u8 temp_buf[20] = {0};
     for(i=0;i<=107;i++)
     {
-        sprintf(temp_buf,"Reg[0x%2x]    ",i);
-        strcat(buf,temp_buf);
+        snprintf(temp_buf, 20, "Reg[0x%2x]    ",i);
+        strncat(buf, temp_buf, 20);
     }
     strcat(buf,"\n");
     return strlen(buf);
@@ -4231,7 +4306,7 @@ STATIC ssize_t hi6521_show_chargelog(struct device *dev,
     for(i=0;i<=107;i++)
     {
         snprintf(buf_temp,26,"0x%-11.2x",read_reg[i]);
-        strcat(buf,buf_temp);
+        strncat(buf, buf_temp, 26);
     }
     strcat(buf,"\n");
    return strlen(buf);
@@ -4252,7 +4327,7 @@ STATIC ssize_t hi6521_show_lcd_state(struct device *dev,
     } else {
         val = (int)scharger_lcd_state_reg.reg.wled_en_int;
     }
-    return sprintf(buf, "%d\n", val);
+    return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 STATIC ssize_t hi6521_set_calling_limit(struct device *dev,
@@ -4298,7 +4373,7 @@ STATIC ssize_t hi6521_show_calling_limit(struct device *dev,
 
     val = di->calling_limit;
 
-    return sprintf(buf, "%u\n", val);
+    return snprintf(buf, PAGE_SIZE, "%u\n", val);
 }
 
 /*
@@ -4411,7 +4486,7 @@ static ssize_t hi6521_show_dpm_switch_enable(struct device *dev,
 {
     unsigned long val;
     val = dpm_switch_enable;
-    return sprintf(buf, "%lu\n", val);
+    return snprintf(buf, PAGE_SIZE, "%lu\n", val);
 }
 
 STATIC ssize_t hi6521_set_temperature_parameter(struct device *dev,
@@ -4448,7 +4523,7 @@ STATIC ssize_t hi6521_show_temperature_parameter(struct device *dev,
     read_reg[4] = di->temperature_warm;
     read_reg[5] = di->temperature_hot;
 
-    sprintf(buf,"%-9d  %-9d  %-9d  %-9d  %-9d  %-9d",
+    snprintf(buf, PAGE_SIZE, "%-9d  %-9d  %-9d  %-9d  %-9d  %-9d",
     read_reg[0],read_reg[1],read_reg[2],read_reg[3],read_reg[4],read_reg[5]);
 
     return strlen(buf);
@@ -4546,7 +4621,7 @@ STATIC ssize_t hi6521_show_iin_thermal(struct device *dev,
 {
     unsigned int val;
     val = input_current_iin;
-    return sprintf(buf, "%u\n", val);
+    return snprintf(buf, PAGE_SIZE, "%u\n", val);
 }
 
 STATIC ssize_t hi6521_set_ichg_thermal(struct device *dev,
@@ -4575,7 +4650,7 @@ STATIC ssize_t hi6521_show_ichg_thermal(struct device *dev,
 {
     unsigned int val;
     val = input_current_ichg;
-    return sprintf(buf, "%u\n", val);
+    return snprintf(buf, PAGE_SIZE, "%u\n", val);
 }
 
 #ifdef CONFIG_HUAWEI_HLTHERM_CHARGING
@@ -4597,10 +4672,43 @@ STATIC ssize_t hi6521_show_charge_temp_protect(struct device *dev,
 {
     unsigned int val;
       val = hisi_coul_reg_read();
-    return sprintf(buf, "%d\n", val);
+    return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 #endif
-
+STATIC ssize_t hi6521_show_enable_hiz(struct device *dev,
+                  struct device_attribute *attr,
+                  char *buf)
+{
+    struct hi6521_device_info *di = dev_get_drvdata(dev);
+    if(di->ovlo_flag == 1){
+        hwlog_err("[%s] HIZ,ovlo is not used\n", __func__);
+        return -EINVAL;
+    }
+    return snprintf(buf, PAGE_SIZE, "%d\n", gpio_get_value(di->gpio_ovlo_en));
+}
+STATIC ssize_t hi6521_set_enable_hiz(struct device *dev,
+                  struct device_attribute *attr,
+                  const char *buf, size_t count)
+{
+    struct hi6521_device_info *di = dev_get_drvdata(dev);
+    long val;
+    size_t status = count;
+    if ((strict_strtol(buf, 10, &val) < 0) || (val < 0) || (val > 1))
+        return -EINVAL;
+    if(di->ovlo_flag == 1){
+        hwlog_err("[%s] HIZ,ovlo is not used\n", __func__);
+        return -EINVAL;
+    }
+    if(val == 1){
+        hwlog_info("[%s] HIZ,enable:%d\n",__func__,val);
+        gpio_direction_output(di->gpio_ovlo_en,1);
+        return status;
+    }else{
+        hwlog_info("[%s] HIZ,enable:%d\n",__func__,val);
+        gpio_direction_output(di->gpio_ovlo_en,0);
+        return status;
+    }
+}
 STATIC DEVICE_ATTR(dppm_voltage, (S_IWUSR | S_IRUGO),
                 hi6521_show_dppm_voltage,
                 hi6521_set_dppm_voltage);
@@ -4628,9 +4736,12 @@ STATIC DEVICE_ATTR(enable_itermination, (S_IWUSR | S_IRUGO),
 STATIC DEVICE_ATTR(enable_charger, (S_IWUSR | S_IRUGO),
                 hi6521_show_enable_charger,
                 hi6521_set_enable_charger);
-STATIC DEVICE_ATTR(enable_batfet, (S_IWUSR | S_IRUGO),
-                hi6521_show_enable_batfet,
-                hi6521_set_enable_batfet);
+STATIC DEVICE_ATTR(disable_batfet, (S_IWUSR | S_IRUGO),
+                hi6521_show_disable_batfet,
+                hi6521_set_disable_batfet);
+STATIC DEVICE_ATTR(disable_watchdog, (S_IWUSR | S_IRUGO),
+                hi6521_show_disable_watchdog,
+                hi6521_set_disable_watchdog);
 STATIC DEVICE_ATTR(gpio_enable_charger, (S_IWUSR | S_IRUGO),
                 hi6521_show_gpio_enable_charger,
                 hi6521_set_gpio_enable_charger);
@@ -4684,7 +4795,9 @@ STATIC DEVICE_ATTR(charge_temp_protect, (S_IWUSR | S_IRUGO),
                 hi6521_show_charge_temp_protect,
                 hi6521_store_charge_temp_protect);
 #endif
-
+STATIC DEVICE_ATTR(enable_hiz, (S_IWUSR | S_IRUGO),
+                hi6521_show_enable_hiz,
+                hi6521_set_enable_hiz);
 
 STATIC struct attribute *hi6521_attributes[] = {
     &dev_attr_dppm_voltage.attr,
@@ -4696,7 +4809,8 @@ STATIC struct attribute *hi6521_attributes[] = {
     &dev_attr_termination_current.attr,
     &dev_attr_enable_itermination.attr,
     &dev_attr_enable_charger.attr,
-    &dev_attr_enable_batfet.attr,
+    &dev_attr_disable_batfet.attr,
+    &dev_attr_disable_watchdog.attr,
     &dev_attr_gpio_enable_charger.attr,
     &dev_attr_charging_mode_sel.attr,
     &dev_attr_wakelock_enable.attr,
@@ -4716,6 +4830,7 @@ STATIC struct attribute *hi6521_attributes[] = {
 #ifdef CONFIG_HUAWEI_HLTHERM_CHARGING
     &dev_attr_charge_temp_protect.attr,
 #endif
+    &dev_attr_enable_hiz.attr,
     NULL,
 };
 
@@ -4907,6 +5022,8 @@ STATIC int  hi6521_charger_probe(struct i2c_client *client,
     di->battery_full           = 0;
     di->charge_full_count      = 0;
 
+    di->watchdog_disable       = 0;
+
     di->japan_charger          = 0;
     di->is_two_stage_charger   = 0;
     di->two_stage_charger_status = TWO_STAGE_CHARGE_FIRST_STAGE;
@@ -5027,7 +5144,20 @@ STATIC int  hi6521_charger_probe(struct i2c_client *client,
 		hwlog_err("request Scharger irq error\n");
 		goto err_irq_request;
 	}
-
+    di->ovlo_flag = 0;
+    di->gpio_ovlo_en = of_get_named_gpio(np,"gpio_ovlo_en",0);
+    if(!!gpio_is_valid(di->gpio_ovlo_en)){
+        ret = gpio_request(di->gpio_ovlo_en,"ovlo_en");
+        if(ret<0){
+            hwlog_err("%s failed request gpio_ovlo_en. LINE:%d\n", __func__, __LINE__);
+            di->ovlo_flag = 1;
+        }
+        hwlog_info("%s request gpio_ovlo_en[%d]. LINE:%d\n", __func__,di->gpio_ovlo_en, __LINE__);
+    }
+    else{
+        hwlog_err("%s failed gpio_is_valid.gpio:%d LINE:%d\n", __func__,di->gpio_ovlo_en, __LINE__);
+        di->ovlo_flag = 1;
+    }
     INIT_DELAYED_WORK(&di->hi6521_charger_work,
         hi6521_charger_work);
 
@@ -5103,6 +5233,10 @@ err_hiusb:
     sysfs_remove_group(&client->dev.kobj, &hi6521_attr_group);
 err_sysfs:
 	free_irq(di->irq,di);
+    if(!di->ovlo_flag)
+    {
+        gpio_free(di->gpio_ovlo_en);
+    }
 err_irq_request:
 	gpio_free(di->interrput_gpio);
 err_irq_gpio:
@@ -5143,6 +5277,10 @@ STATIC int  hi6521_charger_remove(struct i2c_client *client)
 	}
 
 	free_irq(di->irq,di);
+    if(!di->ovlo_flag)
+    {
+        gpio_free(di->gpio_ovlo_en);
+    }
 	gpio_free(di->interrput_gpio);
 	destroy_workqueue(di->scharger_int_workqueue);
 	di->scharger_int_workqueue = NULL;

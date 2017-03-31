@@ -117,7 +117,7 @@ extern int32 patch_download_patch(int32 type);
 
 /*function for patch init(sdio or uart)*/
 extern int32 patch_init(int32 type);
-
+extern void reset_uart_rx_buf(void);
 
 /*function for patch uninstall*/
 extern int32 patch_exit(void);
@@ -407,6 +407,7 @@ void bfg_gpio_set(uint8 on)
     if (on)
     {
         /*disagree bfg to sleep*/
+        reset_uart_rx_buf();
         gpio_direction_output(g_wire_dev->host_wakeup_bfg,HIGHLEVEL);
         PS_PRINT_SUC("host wakeup bfg by pull up gpio\n");
     }
@@ -626,7 +627,9 @@ void bfg_sleep_wakeup(void)
         return ;
     }
 
+    PS_PRINT_INFO("bfg sleep wakeup!\n");
     /*wake up bfg via gpio*/
+    reset_uart_rx_buf();
     gpio_direction_output(g_wire_dev->host_wakeup_bfg, HIGHLEVEL);
     /*mod beat timer to 3s*/
     pm_data->ps_pm_interface->reset_beat_timer(1);

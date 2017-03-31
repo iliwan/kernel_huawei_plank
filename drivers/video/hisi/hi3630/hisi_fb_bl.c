@@ -89,6 +89,7 @@ static void hisifb_bl_workqueue_handler(struct hisi_fb_data_type *hisifd)
 
 		hisifd->backlight.frame_updated = 0;
 		hisifd->backlight.bl_updated = 1;
+
 		if (is_recovery_mode) {
 			hisifd->bl_level = HISI_FB_DEFAULT_BL_LEVEL;
 		}
@@ -101,9 +102,15 @@ void hisifb_backlight_update(struct hisi_fb_data_type *hisifd)
 {
 	struct hisi_fb_panel_data *pdata = NULL;
 
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return;
+	}
 	pdata = dev_get_platdata(&hisifd->pdev->dev);
-	BUG_ON(pdata == NULL);
+	if (NULL == pdata) {
+		HISI_FB_ERR("NULL Pointer");
+		return;
+	}
 
 	if (!hisifd->backlight.bl_updated) {
 		hisifd->backlight.frame_updated = 1;
@@ -120,9 +127,15 @@ void hisifb_backlight_cancel(struct hisi_fb_data_type *hisifd)
 {
 	struct hisi_fb_panel_data *pdata = NULL;
 
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return;
+	}
 	pdata = dev_get_platdata(&hisifd->pdev->dev);
-	BUG_ON(pdata == NULL);
+	if (NULL == pdata) {
+		HISI_FB_ERR("NULL Pointer");
+		return;
+	}
 
 #ifdef CONFIG_HISI_FB_BACKLIGHT_DELAY
 	cancel_delayed_work(&hisifd->backlight.bl_worker);
@@ -257,9 +270,15 @@ void hisifb_backlight_register(struct platform_device *pdev)
 	struct backlight_properties props;
 #endif
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return;
+	}
 
 	hisifd->backlight.bl_updated = 0;
 	hisifd->backlight.bl_level_old = 0;
@@ -312,9 +331,15 @@ void hisifb_backlight_unregister(struct platform_device *pdev)
 {
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return;
+	}
 
 	if (lcd_backlight_registered) {
 		lcd_backlight_registered = 0;

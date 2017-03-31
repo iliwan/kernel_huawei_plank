@@ -209,6 +209,7 @@ struct dw_mci {
 	struct timer_list       rw_to_timer;
 	struct work_struct   dmd_work;
 	u32 para;
+	u32			dmd_cmd_status;
 #endif
 
 	/* pinctrl handles */

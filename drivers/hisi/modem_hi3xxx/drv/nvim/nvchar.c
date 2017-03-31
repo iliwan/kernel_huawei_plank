@@ -217,7 +217,7 @@ void nvchar_dev_setup_cdev(struct nv_dev* dev,struct file_operations* fops)
 
     nv_class = class_create(THIS_MODULE,NVCHAR_DEVICE_CLASS);
     if(IS_ERR(nv_class))
-    {
+    {
         printk("class create failed!\n");
         return ;
     }

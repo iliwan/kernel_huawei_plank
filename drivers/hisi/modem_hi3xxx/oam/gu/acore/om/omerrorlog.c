@@ -488,6 +488,40 @@ VOS_INT OM_AcpuReportErrLogMsg(VOS_UINT8 *pucData, VOS_UINT32 ulLen)
 
     return VOS_OK;
 }
+VOS_VOID OM_AcpuErrLogHook(VOS_UINT8 *pucData, VOS_UINT32 ulLen, VOS_UINT32 ulDateType)
+{
+    OM_ERRLOG_TRANS_MSG_STRU           *pstOmErrLogMsg;
+    VOS_UINT32                          ulTotalLen;
+
+    ulTotalLen = offsetof(OM_ERRLOG_TRANS_MSG_STRU, aucValue) + ulLen;
+
+    pstOmErrLogMsg = (OM_ERRLOG_TRANS_MSG_STRU*)VOS_MemAlloc(ACPU_PID_OM, DYNAMIC_MEM_PT, ulTotalLen);
+
+    if (VOS_NULL_PTR == pstOmErrLogMsg)
+    {
+        OM_ERR_LOG("OM_AcpuErrLogHook: VOS_AllocMem failure.\n");
+        return;
+    }
+
+    /* lint -e534 */
+    VOS_MemCpy((VOS_VOID*)pstOmErrLogMsg->aucValue, (VOS_VOID*)pucData, ulLen);
+    /* lint +e534 */
+
+    pstOmErrLogMsg->ucFuncType     = OM_TRANS_FUNC;
+    pstOmErrLogMsg->usLength       = (VOS_UINT16)(ulTotalLen -sizeof(VOS_UINT32));
+    pstOmErrLogMsg->usPrimId       = OM_APP_ERRLOG_HOOK_IND;
+    pstOmErrLogMsg->ulDateType     = ulDateType;
+
+    OM_AcpuAddSNTime(&(pstOmErrLogMsg->ulSn), &(pstOmErrLogMsg->ulTimeStamp));
+
+    OM_AcpuSendData((OM_RSP_PACKET_STRU*)pstOmErrLogMsg, (VOS_UINT16)ulTotalLen);
+
+    VOS_MemFree(ACPU_PID_OM, pstOmErrLogMsg);
+
+    return;
+}
+
+
 VOS_VOID OM_AcpuSendVComData(VOS_UINT8 *pucData, VOS_UINT32 ulLen)
 {
     /* 调用注册函数，给Vcom发数据 */
@@ -497,6 +531,9 @@ VOS_VOID OM_AcpuSendVComData(VOS_UINT8 *pucData, VOS_UINT32 ulLen)
     /*lint -e40*/
     OM_ACPU_DEBUG_TRACE((VOS_UINT8*)pucData, ulLen, OM_ACPU_ERRLOG_SEND);
     /*lint +e40*/
+
+    /* 增加Trans勾包 */
+    OM_AcpuErrLogHook(pucData, ulLen, OM_ERRLOG_SEND_MSG);
 
     if(VOS_OK != APP_VCOM_Send(APP_VCOM_DEV_INDEX_ERRLOG, pucData, ulLen))
     {
@@ -509,6 +546,8 @@ VOS_VOID OM_AcpuSendVComData(VOS_UINT8 *pucData, VOS_UINT32 ulLen)
     }
     return ;
 }
+
+
 VOS_VOID OM_AcpuSendFTMMsgOther(APP_OM_FTM_REQ_STRU *pstAppOmFtmReq, VOS_UINT32 ulLen, VOS_UINT32 ulPID)
 {
     OM_FTM_REQUIRE_STRU                *pstOmFtmReq;  
@@ -942,6 +981,9 @@ VOS_INT OM_AcpuReadVComData(VOS_UINT8 ucDevIndex, VOS_UINT8 *pucData, VOS_UINT32
     /*lint -e40*/
     OM_ACPU_DEBUG_TRACE((VOS_UINT8*)pucData, ulLen, OM_ACPU_ERRLOG_RCV);
     /*lint +e40*/
+
+    /* 增加Trans勾包 */
+    OM_AcpuErrLogHook(pucData, ulLen, OM_ERRLOG_RCV_MSG);
 
     /* 根据消息头判断命令类型 */
     pstOmAlarmMsgHead = (OM_ALARM_MSG_HEAD_STRU *)pucData;

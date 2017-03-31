@@ -266,7 +266,7 @@ struct hcc_rx_action
     int32               registered;
     hcc_rx_cb_func      rx_cb;
     void               *context;
-};
+};
 /*indicate the direction, host  between device*/
 typedef enum _hwifi_trans_flow_dir_
 {

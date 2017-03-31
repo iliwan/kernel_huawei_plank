@@ -1,13 +1,8 @@
-
-
-
 #ifndef __SOC_MEMMAP_H__
-#define __SOC_MEMMAP_H__
-
+#define __SOC_MEMMAP_H__ 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 #include "product_config.h"
 #ifdef __KERNEL__
 #include <soc_memmap_app.h>
@@ -20,10 +15,7 @@ extern "C" {
 #else
 #include <soc_memmap_comm.h>
 #endif
-
 #ifdef __cplusplus
 }
 #endif
-
-#endif    /* __SOC_MEMMAP_H__ */
-
+#endif

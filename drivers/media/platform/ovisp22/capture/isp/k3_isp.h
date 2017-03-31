@@ -149,6 +149,9 @@ typedef struct _k3_isp_data {
 
 	zsl_ctrl_t          zsl_ctrl;
 
+	camera_b_shutter_mode b_shutter_state;
+	ecgc_support_type_s   ecgc_support_type;
+
 	bool        		hw_3a_switch;
 
     int                 ddr_lock_freq;
@@ -158,6 +161,14 @@ typedef struct _k3_isp_data {
     u32                 isp_clk_freq;
 
     u32                 focus_timeout;
+	b_shutter_aecagc_s       b_shutter_aecagc;      //used for LongAE mode
+	b_shutter_hdr_aecagc_s   b_shutter_hdr_aecagc;  //used for hdrAE mode
+	b_shutter_tryae_aecagc_s b_shutter_tryae_aecagc;//used for tryAE mode
+
+	camera_pro_mode       pro_mode;//professional mode
+	int	                  pro_iso;//manaul ISO
+	int	                  pro_pre_expo;//exposure time in preview
+	int                   pro_cap_expo;//exposure time in capture
 
 } k3_isp_data;
 
@@ -192,6 +203,11 @@ typedef struct _isp_hw_controller {
 #else
     void (*isp_set_process_mode) (capture_type process_mode);
 #endif
+	void (*isp_set_b_shutter_mode) (camera_b_shutter_mode b_shutter_mode);
+    int (*isp_set_b_shutter_long_ae)(b_shutter_ae_iso_s* b_shutter_ae_iso);
+	bool  (*isp_get_aec_state)(void);
+    int (*isp_set_b_shutter_hdr_ae)(b_shutter_hdr_aeciso_s* b_shutter_hdr_ae_iso);
+	int (*isp_set_b_shutter_ecgc)(b_shutter_ae_iso_s* b_shutter_ae_iso);
 	isp_process_mode_t(*isp_get_process_mode) (void);
 	int (*isp_check_config) (struct v4l2_pix_format *pixfmt, camera_state state);
 	int (*isp_set_zoom) (zoom_t *zoom, zoom_quality_t quality);

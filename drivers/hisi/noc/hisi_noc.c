@@ -18,7 +18,6 @@
 #include <asm/io.h>
 #include <linux/string.h>
 #include <linux/clk.h>
-#include <linux/workqueue.h>
 
 #ifdef CONFIG_HISI_NOC_HI6220_PLATFORM
 #include "soc_peri_sctrl_interface.h"
@@ -83,6 +82,12 @@ static const struct hisi_noc_data hisi3650_noc_data = {
 	.platform_id=HISI_NOC_HI3650
 };
 
+
+// 3630 platform
+static const struct hisi_noc_data hisi3630_noc_data = {
+	.platform_id=HISI_NOC_HI3630
+};
+
 static struct of_device_id hisi_noc_match[] = {
 	{ .compatible = "hisilicon,hi6220-noc",
 	   .data=&hisi6220_noc_data,
@@ -92,7 +97,10 @@ static struct of_device_id hisi_noc_match[] = {
 	},
 	{ .compatible = "hisilicon,hi3650-noc" ,
 	   .data=&hisi3650_noc_data,
-    },
+    	},
+	{ .compatible = "hisilicon,hi3630-noc" ,
+	   .data=&hisi3630_noc_data,
+    	},
     { /* end */ }
 };
 
@@ -118,21 +126,6 @@ static irqreturn_t hisi_noc_timeout_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-extern int iom3_need_recovery(void);
-static struct work_struct iom3_noc_work;
-static void iom3_noc_work_fn(struct work_struct *work)
-{
-	int ret = 0;
-	ret = iom3_need_recovery();
-	pr_err("IOM3 NOC ERR trigger recovery -%d.\n", ret);
-	return;
-}
-
-void iom3_noc_handler(void)
-{
-	schedule_work(&iom3_noc_work);
-}
-
 static irqreturn_t hisi_noc_irq_handler(int irq, void *data)
 {
        unsigned long pending;
@@ -144,13 +137,13 @@ static irqreturn_t hisi_noc_irq_handler(int irq, void *data)
 	struct hisi_noc_device *noc_dev = (struct hisi_noc_device *)data;
 	pctrl_base = noc_dev->pctrl_base;
 
-#if defined(CONFIG_HISI_NOC_HI3635_PLATFORM) ||defined(CONFIG_HISI_NOC_HI3650_PLATFORM)
+#if defined(CONFIG_HISI_NOC_HI3635_PLATFORM) ||defined(CONFIG_HISI_NOC_HI3650_PLATFORM) || defined(CONFIG_HISI_NOC_HI3630_PLATFORM)
 #ifdef CONFIG_HISI_BALONG_MODEM_HI3XXX
     bsp_modem_error_handler(0,(void*)0,(void*)0,(void*)0);
 #endif
 #endif
 
-#ifdef CONFIG_HISI_NOC_HI3635_PLATFORM
+#if defined(CONFIG_HISI_NOC_HI3635_PLATFORM) || defined(CONFIG_HISI_NOC_HI3630_PLATFORM)
     regulator_address_info_list();
 #endif
 
@@ -159,7 +152,7 @@ static irqreturn_t hisi_noc_irq_handler(int irq, void *data)
 
 
 	pending = readl_relaxed(pctrl_base + PCTRL_NOC_IRQ_STAT2);
-    	pending = (pending << 32) | readl_relaxed(pctrl_base + PCTRL_NOC_IRQ_STAT1);
+    	pending = (((u32)pending) << 32) | readl_relaxed(pctrl_base + PCTRL_NOC_IRQ_STAT1);
    	pending = pending & HI3XXX_NOC_PCTRL_IRQ_MASK;
 	if (pending) {
 		for_each_set_bit(offset, &pending, BITS_PER_LONG) {
@@ -1293,9 +1286,6 @@ static int hisi_noc_probe(struct platform_device *pdev)
     /*Modem Noc print*/
     modem_reg_addr_init();
 #endif
-
-	INIT_WORK(&iom3_noc_work, iom3_noc_work_fn);
-
 	return 0;
 
 err_irq:

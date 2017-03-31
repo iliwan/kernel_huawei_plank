@@ -43,7 +43,8 @@ enum ion_heap_ids {
     ION_FB_HEAP_ID = 10,
     ION_VPU_HEAP_ID = 11,
     ION_JPU_HEAP_ID = 12,
-	HISI_ION_HEAP_IOMMU_ID,
+	HISI_ION_HEAP_IOMMU_ID = 13,
+	ION_MISC_HEAP_ID = 14,	
 	ION_HEAP_ID_RESERVED = 31, /* Bit reserved */
 };
 

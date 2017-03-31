@@ -1932,6 +1932,7 @@ int dump_dsp_stack(struct bridge_dev_context *bridge_context)
 	}
 
 	if (!status) {
+		/* Look for SYS_PUTCBEG/SYS_PUTCEND: */
 		status =
 			cod_get_sym_value(code_mgr, COD_TRACEBEG, &trace_begin);
 		pr_debug("%s: trace_begin Value 0x%x\n",

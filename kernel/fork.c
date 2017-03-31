@@ -86,6 +86,7 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/task.h>
+#include <linux/cgroup_pids.h>
 
 /*
  * Protected counters by write_lock_irq(&tasklist_lock)
@@ -1273,9 +1274,13 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	}
 	current->flags &= ~PF_NPROC_EXCEEDED;
 
-	retval = copy_creds(p, clone_flags);
+	retval = cgroup_pids_can_fork();
 	if (retval < 0)
 		goto bad_fork_free;
+
+	retval = copy_creds(p, clone_flags);
+	if (retval < 0)
+		goto bad_fork_cleanup_cgroup_pids;
 
 	/*
 	 * If multiple threads are within copy_process(), then this check
@@ -1608,6 +1613,8 @@ bad_fork_cleanup_cgroup:
 bad_fork_cleanup_count:
 	atomic_dec(&p->cred->user->processes);
 	exit_creds(p);
+bad_fork_cleanup_cgroup_pids:
+	cgroup_pids_cancel_fork();
 bad_fork_free:
 	free_task(p);
 fork_out:

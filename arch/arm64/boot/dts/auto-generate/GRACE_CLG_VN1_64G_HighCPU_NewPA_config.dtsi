@@ -1,0 +1,20 @@
+
+/**
+ * Huawei Ltd.
+ * PhosphorV660
+ */
+
+
+/include/ "GRACE_CLG_VN1_64G_NewPA_config.dtsi"
+
+/ {
+	hisi,boardid = <1 4 4 4 >;
+	hisi,boardname = "GRACE_CLG_VN1_64G_HighCPU_NewPA";
+	hisi,config_profile = "highhigh";
+
+	target-cpu {
+		compatible = "hisi,targetcpu";
+		target_cpu = "Kirin 935";
+	};
+};
+

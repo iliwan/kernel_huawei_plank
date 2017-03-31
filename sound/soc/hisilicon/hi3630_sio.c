@@ -60,7 +60,12 @@ static int hi3630_sio_reg_write(struct hi3630_sio_platform_data *pdata,
 				unsigned int reg,
 				unsigned int value)
 {
-	writel(value, pdata->reg_base_addr + reg);
+	if (pdata->is_pu) {
+		writel(value, pdata->reg_base_addr + reg);
+	} else {
+		loge("%s asp is power down!!! write reg 0x%x val 0x%x!\n", __FUNCTION__, reg, value);
+	}
+
 	return 0;
 }
 
@@ -72,46 +77,53 @@ static int sio_dai_startup(struct snd_pcm_substream *substream,
 
 	switch (pdata->id) {
 	case SIO_AUDIO_ID:
-
+		/* 3Mic Product
+		 * AP don't control sio start or stop,
+		 * SIO start or stop control handled in HiFi!
+		 */
+		if(pdata->is_ctrl){
 #ifdef CONFIG_PM_RUNTIME
-	pm_runtime_get_sync(pdata->dev);
+			pm_runtime_get_sync(pdata->dev);
 #else
-	{
-		struct pinctrl_state *pinctrl_state;
-		int ret = -1;
+			{
+				struct pinctrl_state *pinctrl_state;
+				int ret = -1;
 
 #ifdef  REGULATOR_ENABLE
-		ret = regulator_bulk_enable(1, &pdata->regu);
-		if (0 != ret) {
-			loge("couldn't enable regulators %d\n", ret);
-			return -ENOENT;
-		}
+				ret = regulator_bulk_enable(1, &pdata->regu);
+				if (0 != ret) {
+					loge("couldn't enable regulators %d\n", ret);
+					return -ENOENT;
+				} else {
+					pdata->is_pu = true;
+				}
 #endif
 
-		mutex_lock(&pdata->mutex);
-		if (0 == pdata->active_count) {
-			/* config iomux */
+				mutex_lock(&pdata->mutex);
+				if (0 == pdata->active_count) {
+					/* config iomux */
 #ifdef PINCTRL_ENABLE
-			pinctrl_state = pinctrl_lookup_state(pdata->pctrl, PINCTRL_STATE_DEFAULT);
-			if (IS_ERR(pinctrl_state)) {
-				loge("could not get defstate (%li)\n", PTR_ERR(pinctrl_state));
+					pinctrl_state = pinctrl_lookup_state(pdata->pctrl, PINCTRL_STATE_DEFAULT);
+					if (IS_ERR(pinctrl_state)) {
+						loge("could not get defstate (%li)\n", PTR_ERR(pinctrl_state));
+						mutex_unlock(&pdata->mutex);
+						return ret;
+					}
+					ret = pinctrl_select_state(pdata->pctrl, pinctrl_state);
+					if (ret) {
+						loge("could not set pins to default state\n");
+						mutex_unlock(&pdata->mutex);
+						return ret;
+					}
+#endif
+				}
+				pdata->active_count++;
 				mutex_unlock(&pdata->mutex);
-				return ret;
-			}
-			ret = pinctrl_select_state(pdata->pctrl, pinctrl_state);
-			if (ret) {
-				loge("could not set pins to default state\n");
-				mutex_unlock(&pdata->mutex);
-				return ret;
 			}
 #endif
-		}		
-		pdata->active_count++;
-		mutex_unlock(&pdata->mutex);
-	}
-#endif
-		set_sio_audio_master(pdata->is_master);
-		sio_audio_module_enable(true);
+			set_sio_audio_master(pdata->is_master);
+			sio_audio_module_enable(true);
+		}
 		break;
 	case SIO_VOICE_ID:
 #if 0
@@ -144,44 +156,52 @@ static void sio_dai_shutdown(struct snd_pcm_substream *substream,
 
 	switch (pdata->id) {
 	case SIO_AUDIO_ID:
-		sio_audio_module_enable(false);
+		/* 3Mic Product
+		 * AP don't control sio start or stop,
+		 * SIO start or stop control handled in HiFi!
+		 */
+		if(pdata->is_ctrl){
+			sio_audio_module_enable(false);
 
 #ifdef CONFIG_PM_RUNTIME
-	pm_runtime_mark_last_busy(pdata->dev);
-	pm_runtime_put_autosuspend(pdata->dev);
+			pm_runtime_mark_last_busy(pdata->dev);
+			pm_runtime_put_autosuspend(pdata->dev);
 #else
-	{
-		struct pinctrl_state *pinctrl_state;
-		int ret = -1;
+			{
+				struct pinctrl_state *pinctrl_state;
+				int ret = -1;
 
-		mutex_lock(&pdata->mutex);
-		if (0 == pdata->active_count) {
-			loge("sio iomux is alread set as default\n");
-			goto err;
-		}
-		pdata->active_count--;
-		if (0 == pdata->active_count) {
-			/* config iomux */
+				mutex_lock(&pdata->mutex);
+				if (0 == pdata->active_count) {
+					loge("sio iomux is alread set as default\n");
+					goto err;
+				}
+				pdata->active_count--;
+				if (0 == pdata->active_count) {
+					/* config iomux */
 #ifdef PINCTRL_ENABLE
-			pinctrl_state = pinctrl_lookup_state(pdata->pctrl, PINCTRL_STATE_IDLE);
-			if (IS_ERR(pinctrl_state)) {
-				loge("could not get defstate (%li)\n", PTR_ERR(pinctrl_state));
-				goto err;
-			}
-			ret = pinctrl_select_state(pdata->pctrl, pinctrl_state);
-			if (0 != ret) {
-				loge("could not set pins to idle state\n");
-				goto err;
-			}
+					pinctrl_state = pinctrl_lookup_state(pdata->pctrl, PINCTRL_STATE_IDLE);
+					if (IS_ERR(pinctrl_state)) {
+						loge("could not get defstate (%li)\n", PTR_ERR(pinctrl_state));
+						goto err;
+					}
+					ret = pinctrl_select_state(pdata->pctrl, pinctrl_state);
+					if (0 != ret) {
+						loge("could not set pins to idle state\n");
+						goto err;
+					}
 #endif
-		}
-	}
+				}
+			}
 err:
 #ifdef  REGULATOR_ENABLE
-	regulator_bulk_disable(1, &pdata->regu);
+			pdata->is_pu = false;
+			regulator_bulk_disable(1, &pdata->regu);
 #endif
-	mutex_unlock(&pdata->mutex);
+			mutex_unlock(&pdata->mutex);
+
 #endif
+		}
 		break;
 	case SIO_VOICE_ID:
 #if 0
@@ -255,16 +275,26 @@ static int sio_dai_hw_params(struct snd_pcm_substream *substream,
 	/* config sio mode & parameters */
 	switch (pdata->id) {
 	case SIO_AUDIO_ID:
-		hi3630_sio_reg_write(pdata, SIO_CFG, SIO_CFG_SIO_MODE);
-		/* to do*/
-		hi3630_sio_reg_write(pdata, SIO_DATA_WIDTH, 0x24);
-		hi3630_sio_reg_write(pdata, SIO_I2S_POS_MERGE, 0x1);
+		/* 3Mic Product
+		 * AP don't control sio start or stop,
+		 * SIO start or stop control handled in HiFi!
+		 */
+		if(pdata->is_ctrl) {
+			hi3630_sio_reg_write(pdata, SIO_CFG, SIO_CFG_SIO_MODE);
+			/* to do*/
+#ifdef CONFIG_SND_HI3630_HI6401
+			hi3630_sio_reg_write(pdata, SIO_DATA_WIDTH, 0x9);
+#else
+			hi3630_sio_reg_write(pdata, SIO_DATA_WIDTH, 0x24);
+#endif
+			hi3630_sio_reg_write(pdata, SIO_I2S_POS_MERGE, 0x1);
 
-		/* config control regs */
-		if (SNDRV_PCM_STREAM_PLAYBACK == substream->stream)
-			enable_sio_audio_tx(pdata);
-		else
-			enable_sio_audio_rx(pdata);
+			/* config control regs */
+			if (SNDRV_PCM_STREAM_PLAYBACK == substream->stream)
+				enable_sio_audio_tx(pdata);
+			else
+				enable_sio_audio_rx(pdata);
+		}
 		break;
 	case SIO_VOICE_ID:
 		break;
@@ -292,10 +322,16 @@ static int sio_dai_hw_free(struct snd_pcm_substream *substream,
 
 	switch (pdata->id) {
 	case SIO_AUDIO_ID:
-		if (SNDRV_PCM_STREAM_PLAYBACK == substream->stream)
-			disable_sio_audio_tx(pdata);
-		else
-			disable_sio_audio_rx(pdata);
+		/* 3Mic Product
+		 * AP don't control sio start or stop,
+		 * SIO start or stop control handled in HiFi!
+		 */
+		if(pdata->is_ctrl) {
+			if (SNDRV_PCM_STREAM_PLAYBACK == substream->stream)
+				disable_sio_audio_tx(pdata);
+			else
+				disable_sio_audio_rx(pdata);
+		}
 		break;
 	case SIO_VOICE_ID:
 		break;
@@ -348,7 +384,7 @@ static struct snd_soc_dai_driver hi3630_sio_dai = {
 	},
 	.capture = {
 		.channels_min = 1,
-		.channels_max = 2,
+		.channels_max = 4,
 		.rates = HISI_SIO_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
 	},
@@ -399,7 +435,7 @@ static int soc_sio_probe(struct platform_device *pdev)
 		dev_err(dev, "could not get pinctrl\n");
 		return -ENOENT;
 	}
-#endif 
+#endif
 	match = of_match_device(hi3630_sio_of_match, dev);
 	if (!match) {
 		dev_err(dev, "get device info err\n");
@@ -409,9 +445,11 @@ static int soc_sio_probe(struct platform_device *pdev)
 
 		/* get defination */
 		pdata->is_master = of_property_read_bool(node, "hisilicon,is_master");
+		pdata->is_ctrl = !(of_property_read_bool(node, "hisilicon,is_ctrl_by_hifi"));
 	}
 
 	logi("sio is_master = %s\n", pdata->is_master ? "t":"f");
+	logi("sio is_ctrl = %s\n", pdata->is_ctrl ? "t":"f");
 
 	/* rename device name */
 	switch (pdata->res->start) {
@@ -520,7 +558,17 @@ int hi3630_sio_runtime_suspend(struct device *dev)
 	if (SIO_VOICE_ID == pdata->id) {
 		goto err_exit;
 	}
+	/* 3Mic Product
+	 * AP don't control sio start or stop,
+	 * SIO start or stop control handled in HiFi!
+	 */
+	if(SIO_AUDIO_ID == pdata->id) {
+		if(!(pdata->is_ctrl))
+			goto err_exit;
+	}
+
 #ifdef REGULATOR_ENABLE
+	pdata->is_pu = false;
 	regulator_bulk_disable(1, &pdata->regu);
 #endif
 #ifdef PINCTRL_ENABLE
@@ -558,6 +606,14 @@ int hi3630_sio_runtime_resume(struct device *dev)
 	if (SIO_VOICE_ID == pdata->id) {
 		goto err_exit;
 	}
+	/* 3Mic Product
+	 * AP don't control sio start or stop,
+	 * SIO start or stop control handled in HiFi!
+	 */
+	if(SIO_AUDIO_ID == pdata->id) {
+		if(!(pdata->is_ctrl))
+			goto err_exit;
+	}
 
 #ifdef PINCTRL_ENABLE
 	pinctrl_state = pinctrl_lookup_state(pdata->pctrl, PINCTRL_STATE_DEFAULT);
@@ -573,18 +629,19 @@ int hi3630_sio_runtime_resume(struct device *dev)
 		pr_err("%s : could not set pins to default state\n", __FUNCTION__);
 		goto err_exit;
 	}
-#endif 
+#endif
 
 #ifdef  REGULATOR_ENABLE
-	
+
 	ret = regulator_bulk_enable(1, &pdata->regu);
 	if (0 != ret){
 		dev_err(dev, "couldn't enable regulators %d\n", ret);
 	}
 	else {
+		pdata->is_pu = true;
 		dev_err(dev, "============== Enable regulators ===========\n");
 	}
-	
+
 #endif
 
 err_exit:

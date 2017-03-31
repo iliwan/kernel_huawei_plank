@@ -162,7 +162,9 @@ typedef enum __LPHY_VITERBI_OM_CNF__
 typedef enum __LPHY_IND_VITERBI__
 {
     LPHY_IND_VITERBI_RPT_CFI                = OM_CMD_ID(LPHY_VITERBI_MID, OM_TYPE_IND, 0x1),
+    /* BEGIN: Added by yushujing, 2013/8/29   PN:chan_om*/
     LPHY_IND_VITERBI_RPT_CFI_SCELL,
+    /* END:   Added by yushujing, 2013/8/29   PN:chan_om*/
     LPHY_IND_VITERBI_RPT_PDCCH_SINR,
     LPHY_IND_VITERBI_RPT_PDCCH_DL_GRANT,
     LPHY_IND_VITERBI_RPT_PDCCH_UL_GRANT,
@@ -291,6 +293,7 @@ typedef struct __LPHY_VITERBI_RPT_PDCCH_UL_GRANT_OM_IND__
     UINT8  ucNewReTrans;
     UINT8  ucRsd0;
     UINT16 usRsd1;
+    /* END:   Added by yushujing, 2012/3/21 */
 }LPHY_IND_VITERBI_RPT_PDCCH_UL_GRANT_STRU;
 
 /*上报功率授权*/
@@ -435,6 +438,7 @@ typedef enum __LPHY_TRACE_VITERBI_ENUM__
     LPHY_TRACE_VITERBI_PDCCH_ORDER_DL_DCI_RECEIVED,
     LPHY_TRACE_VITERBI_PDCCH_ORDER_DCI0_RECEIVED,
     LPHY_TRACE_VITERBI_TC_RNTI_INVALID,
+    /* END:   Added by yushujing, 2012/3/21 */
     LPHY_TRACE_VITERBI_PDCCH_DCI_PARSE_FINISHED_SCELL,
 }LPHY_TRACE_VITERBI_ENUM;
 typedef UINT16 LPHY_TRACE_VITERBI_ENUM_UINT16;
@@ -778,8 +782,10 @@ typedef struct __LPHY_VITERBI_PDCCH_DEC_UNFINISHED_OM_ERROR__
 {
     UINT16 usSysFn;
     UINT16 usSubFn;
+    /* BEGIN: Added by yushujing, 2013/1/4   PN:v7r2_mod*/
     UINT16 usPdcDecFinish;
     UINT16 usCfiValid;
+    /* END:   Added by yushujing, 2013/1/4   PN:v7r2_mod*/
 }LPHY_ERROR_VITERBI_PDCCH_DEC_UNFINISHED_STRU;
 
 typedef struct __LPHY_VITERBI_PDCCH_CHN_NUM_OVERFLOW_OM_ERROR__
@@ -804,7 +810,9 @@ typedef struct __LPHY_VITERBI_PDCCH_NOISE_PWR_ZERO_OM_ERROR__
 /*Viterbi上报的数据长度, DW, 注意需要软硬件接口同步, 由于目前HSO不支持条件宏方式区分, 此处给出较大值, MPW: 0x204, Pilot: 0x230*/
 #define     OM_VITERBI_MAX_RPT_PCELL_REG_IMG_LEN       ((0x378 - 0x200) / 4 + 1)
 #define     OM_VITERBI_MAX_RPT_SCELL_REG_IMG_LEN       ((0x484 - 0x37c) / 4 + 1)
+/* BEGIN: Added by yushujing, 2013/1/28   PN:v7r2_mod*/
 #define     OM_VITERBI_CFG_REG_IMG_LEN                 ((0xbc - 0x5c) / 4 + 1)
+/* END:   Added by yushujing, 2013/1/28 */
 
 typedef enum __LPHY_DEBUG_VITERBI_ENUM__
 {
@@ -861,11 +869,13 @@ typedef struct
 typedef struct __LPHY_VITERBI_PDCCH_DCI_LEN_OM_DEBUG__
 {
     UINT16            usDci1CLen;
+	/* BEGIN: Added by yushujing, 2013/1/28   PN:v7r2_mod*/
 
     UINT16            usDci01ACommLen;
     UINT16            ausDci01AUeLen[2];
     UINT16            ausDciXLen[2];
     //UINT16            ausTranMode[2];
+	/* END:   Added by yushujing, 2013/1/28 */
 
     OM_RNTI_LIST_STRU stRntiList;
 }LPHY_DEBUG_VITERBI_PDCCH_DCI_LEN_STRU;
@@ -929,6 +939,7 @@ typedef struct
     LPHY_PDCCH_CDRX_HARQ_RTT_COM_STRU astUlHarqRttDci0[2];
     LPHY_PDCCH_CDRX_HARQ_RTT_COM_STRU astUlHarqRttPhich[2];
 }LPHY_PDCCH_CDRX_HARQ_RTT_STRU;
+/* BEGIN: Added by yushujing, 2013/1/28   PN:v7r2_mod*/
 typedef struct __LPHY_VITERBI_PDCCH_CFG_REGS_IMAGE_OM_DEBUG__
 {
     UINT16 usSysFn;
@@ -937,6 +948,7 @@ typedef struct __LPHY_VITERBI_PDCCH_CFG_REGS_IMAGE_OM_DEBUG__
     UINT32 aulRegImg[OM_VITERBI_CFG_REG_IMG_LEN];
 }LPHY_DEBUG_VITERBI_PDCCH_CFG_REGS_IMAGE_STRU;
 
+/* END:   Added by yushujing, 2013/1/28 */
 
 
 

@@ -219,8 +219,7 @@
 #include <linux/usb/composite.h>
 
 #include "gadget_chips.h"
-#include <huawei_platform/usb/hw_rwswitch.h>
-
+#include <chipset_common/hwusb/hw_usb_rwswitch.h>
 
 /*------------------------------------------------------------------------*/
 
@@ -2224,11 +2223,11 @@ static int do_scsi_command(struct fsg_common *common)
 			cmnd[0] = SC_REWIND_11;
 			cmnd[1] = 0x06;
 			if (0 == memcmp(common->cmnd, cmnd, sizeof(cmnd))) {
-				usb_port_switch_request(INDEX_ENDUSER_SWITCH);//enduser pnp switch such as pc modem
+				hw_usb_port_switch_request(INDEX_ENDUSER_SWITCH);//enduser pnp switch such as pc modem
 			}
 			cmnd[9] = 0x11;
 			if (0 == memcmp(common->cmnd, cmnd, sizeof(cmnd))) {
-				usb_port_switch_request(INDEX_FACTORY_REWORK);//manufactory rework
+				hw_usb_port_switch_request(INDEX_FACTORY_REWORK);//manufactory rework
 			}
 		}
 		break;
@@ -2508,16 +2507,6 @@ static void fsg_disable(struct usb_function *f)
     struct fsg_dev *fsg = fsg_from_func(f);
     fsg->common->new_fsg = NULL;
     raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE);
-
-    /* Disable the endpoints */
-    usb_ep_disable(fsg->bulk_in);
-    fsg->bulk_in->driver_data = NULL;
-    fsg->bulk_in_enabled = 0;
-
-    usb_ep_disable(fsg->bulk_out);
-    fsg->bulk_out->driver_data = NULL;
-    fsg->bulk_out_enabled = 0;
-
 }
 
 
@@ -3051,7 +3040,7 @@ static void fsg_unbind(struct usb_configuration *c, struct usb_function *f)
 		fsg->common->new_fsg = NULL;
 		raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE);
 		/* FIXME: make interruptible or killable somehow? */
-		wait_event(common->fsg_wait, common->fsg != fsg);
+		wait_event_timeout(common->fsg_wait, common->fsg != fsg, 3 * HZ);
 	}
 
 	fsg_common_put(common);

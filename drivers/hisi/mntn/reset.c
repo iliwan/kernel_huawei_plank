@@ -914,7 +914,7 @@ int drv_read_bin(const char *partion_name, unsigned int offset, unsigned int len
             memset(pathname, 0, DRV_RESET_NAME_MAX);
             strncat(pathname, DRV_RESET_BLK_DEV, DRV_RESET_NAME_MAX-1);
 
-            sprintf(blk_number, "%d", i);
+            snprintf(blk_number, PAGE_SIZE, "%d", i);
             strncat(pathname, blk_number, DRV_RESET_NAME_MAX-1);
 
             break;

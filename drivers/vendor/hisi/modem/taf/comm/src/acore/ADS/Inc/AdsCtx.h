@@ -28,6 +28,7 @@
 
 #if (VOS_OS_VER == VOS_LINUX)
 #include <asm/dma-mapping.h>
+#include <linux/wakelock.h>
 #else
 #include "Linuxstub.h"
 #endif
@@ -73,6 +74,9 @@ extern "C" {
 #define ADS_UL_SEND_DATA_NUM_THREDHOLD          (g_stAdsCtx.stAdsIpfCtx.ulThredHoldNum)
 
 #define ADS_UL_SET_SEND_DATA_NUM_THREDHOLD(n)   (g_stAdsCtx.stAdsIpfCtx.ulThredHoldNum = (n))
+
+#define ADS_UL_TX_WAKE_LOCK_TMR_LEN     (g_stAdsCtx.stAdsIpfCtx.ulTxWakeLockTmrLen)
+#define ADS_DL_RX_WAKE_LOCK_TMR_LEN     (g_stAdsCtx.stAdsIpfCtx.ulRxWakeLockTmrLen)
 
 /* 申请的AD需要偏移14作为IPF RD的目的地址，14为MAC头的长度 */
 #define ADS_DL_AD_DATA_PTR_OFFSET       (14)
@@ -502,10 +506,26 @@ typedef struct
     VOS_UINT32                          ulThredHoldNum;                         /* 上行赞包门限值 */
     VOS_UINT32                          ulProtectTmrLen;
     VOS_UINT8                           ucSendingFlg;                           /* 正在发送标志 */
-    VOS_UINT8                           aucRsv[7];
+    VOS_UINT8                           aucRsv[3];
+
+    VOS_UINT32                          ulWakeLockEnable;                       /* wake lock 使能标识 */
+
+    struct wake_lock                    stUlBdWakeLock;                         /* wake lock BD */
+    struct wake_lock                    stDlRdWakeLock;                         /* wake lock RD */
+
+    struct wake_lock                    stTxWakeLock;                           /* wake lock TX */
+    struct wake_lock                    stRxWakeLock;                           /* wake lock RX */
+
+    VOS_UINT32                          ulUlBdWakeLockCnt;                      /* wake lock BD 计数 */
+    VOS_UINT32                          ulDlRdWakeLockCnt;                      /* wake lock BD 计数 */
+
+    VOS_UINT32                          ulTxWakeLockTimeout;                    /* wake lock TX 超时时间 */
+    VOS_UINT32                          ulRxWakeLockTimeout;                    /* wake lock RX 超时时间 */
+
+    VOS_UINT32                          ulTxWakeLockTmrLen;                     /* wake lock TX 超时配置 */
+    VOS_UINT32                          ulRxWakeLockTmrLen;                     /* wake lock RX 超时配置 */
+
 }ADS_IPF_CTX_STRU;
-
-
 typedef struct
 {
     ADS_UL_CTX_STRU                     stAdsUlCtx;                             /* 上行上下文 */
@@ -615,7 +635,16 @@ VOS_VOID ADS_UL_UpdateQueueInPdpModified(
            VOS_UINT8                           ucRabId
 );
 ADS_CTX_STRU* ADS_GetAllCtx(VOS_VOID);
-VOS_VOID ADS_DL_ProcAdqEmptyEvent(VOS_UINT32 ulEvent);
+
+ADS_IPF_CTX_STRU* ADS_GetIpfCtx(VOS_VOID);
+VOS_UINT32 ADS_UL_EnableTxWakeLockTimeout(VOS_UINT32 ulValue);
+VOS_UINT32 ADS_UL_WakeLockTimeout(VOS_VOID);
+VOS_UINT32 ADS_UL_WakeLock(VOS_VOID);
+VOS_UINT32 ADS_UL_WakeUnLock(VOS_VOID);
+VOS_UINT32 ADS_DL_EnableRxWakeLockTimeout(VOS_UINT32 ulValue);
+VOS_UINT32 ADS_DL_WakeLockTimeout(VOS_VOID);
+VOS_UINT32 ADS_DL_WakeLock(VOS_VOID);
+VOS_UINT32 ADS_DL_WakeUnLock(VOS_VOID);
 
 VOS_VOID ADS_DL_InitFcAssemParamInfo(VOS_VOID);
 

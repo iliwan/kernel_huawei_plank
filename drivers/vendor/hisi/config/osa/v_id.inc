@@ -113,8 +113,10 @@ BEGIN_DECLARE_PID_BELONG_TO_FID()
     ON_DECLARE(PS_PID_ESM    ,                  PS_FID_CM   ,           VOS_PRIORITY_NULL)
     ON_DECLARE(PS_PID_OM     ,                  PS_FID_OM   ,           VOS_PRIORITY_NULL)
     ON_DECLARE(PS_PID_RABM   ,                  PS_FID_CM ,             VOS_PRIORITY_NULL)
+    /*added by sunbing for VoLTE 20130715 begin*/
     ON_DECLARE(PS_PID_IMSA   ,                  PS_FID_IMSA ,           VOS_PRIORITY_NULL)
     ON_DECLARE(PS_PID_IMSVA  ,                  PS_FID_IMSVA,           VOS_PRIORITY_NULL)
+    /*added by sunbing for VoLTE 20130715 end*/
     ON_DECLARE(PS_PID_MAC_UL ,                  PS_FID_RM_UL,           VOS_PRIORITY_NULL)
     ON_DECLARE(PS_PID_RLC_UL ,                  PS_FID_RM_UL,           VOS_PRIORITY_NULL)
     ON_DECLARE(PS_PID_MAC_DL ,                  PS_FID_RM_DL,           VOS_PRIORITY_NULL)
@@ -126,7 +128,9 @@ BEGIN_DECLARE_PID_BELONG_TO_FID()
     ON_DECLARE(PS_PID_MUXOM  ,                  PS_FID_COMM ,           VOS_PRIORITY_NULL)
     ON_DECLARE(PS_PID_TC     ,                  PS_FID_CM ,             VOS_PRIORITY_NULL)
     ON_DECLARE(PS_PID_IP     ,                  PS_FID_CM ,             VOS_PRIORITY_NULL)
+    /* added by hujianbo for PTT 20111201 begin*/
     ON_DECLARE(PS_PID_PTT    ,                  PS_FID_CM ,             VOS_PRIORITY_NULL)
+    /* added by hujianbo for PTT 20111201 end */
     ON_DECLARE(UEPS_PID_FLOWCTRL_C,             UEPS_FID_FLOWCTRL_C,    VOS_PRIORITY_NULL)
     ON_DECLARE(WUEPS_PID_MACDL,                 UEPS_FID_RM_DL,         VOS_PRIORITY_NULL)
     ON_DECLARE(WUEPS_PID_RLCDL,                 UEPS_FID_RM_DL,         VOS_PRIORITY_NULL)
@@ -220,7 +224,9 @@ BEGIN_DECLARE_PID_BELONG_TO_FID()
     ON_DECLARE(UEPS_PID_BASTET,                 UEPS_FID_BASTET,        VOS_PRIORITY_NULL)
 #endif
 
+    /* Added by x00312156 for TLPHY CHR, 2015-01-28, Begin */
     ON_DECLARE(TLPHY_PID_RTTAGENT,              TLPHY_FID_RTTAGENT,     VOS_PRIORITY_NULL)
+    /* Added by x00312156 for TLPHY CHR, 2015-01-28, End */
 
 END_DECLARE_PID_BELONG_TO_FID()
 

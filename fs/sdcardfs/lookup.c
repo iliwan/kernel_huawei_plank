@@ -146,8 +146,8 @@ static struct inode *sdcardfs_iget(struct super_block *sb,
 		init_special_inode(inode, lower_inode->i_mode,
 				   lower_inode->i_rdev);
 
-	/* all well, copy inode attributes */
-	fsstack_copy_attr_all(inode, lower_inode);
+	/* all well, copy inode attributes, don't need to hold i_mutex here */
+	sdcardfs_copy_inode_attr(inode, lower_inode);
 	fsstack_copy_inode_size(inode, lower_inode);
 
 	fix_derived_permission(inode);
@@ -313,15 +313,7 @@ setup_lower:
 	 * the VFS will continue the process of making this negative dentry
 	 * into a positive one.
 	 */
-/*
-	if (nd) {
-		if (nd->flags & (LOOKUP_CREATE|LOOKUP_RENAME_TARGET))
-			err = 0;
-	} else
-		err = 0;
-*/
-        if (flags & (LOOKUP_CREATE|LOOKUP_RENAME_TARGET))
-            err = 0;
+	err = 0;
 
 out:
 	return ERR_PTR(err);

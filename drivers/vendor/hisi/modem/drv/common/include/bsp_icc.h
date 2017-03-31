@@ -100,6 +100,7 @@ enum ICC_RECV_FUNC_ID{
 	RFILE_RECV_FUNC_ID_MAX,
 
     NV_RECV_FUNC_AC = 0,
+    /* yangzhi for sc file backup and restore begin: */
     NV_RECV_FUNC_SC = 1,
     /* yangzhi for sc file backup and restore End */
 	/* 若要在ICC_CHN_NV物理通道上定义子通道,请在该注释行之前定义 */

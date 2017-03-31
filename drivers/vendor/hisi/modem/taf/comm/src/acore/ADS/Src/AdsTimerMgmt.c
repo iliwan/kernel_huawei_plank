@@ -5,6 +5,7 @@
 #include "AdsTimerMgmt.h"
 #include "AdsCtx.h"
 #include "AdsDownLink.h"
+#include "AdsDebug.h"
 
 
 #ifdef __cplusplus
@@ -32,7 +33,7 @@ ADS_TIMER_PRECISION_STRU                g_astAdsTmrPrecisionTbl[] =
     { TI_ADS_DL_ADQ_EMPTY,              VOS_TIMER_PRECISION_0  },
     { TI_ADS_DL_PROTECT,                VOS_TIMER_PRECISION_5  },
     { TI_ADS_RPT_STATS_INFO,            VOS_TIMER_NO_PRECISION },
-    { TI_ADS_UL_DATA_STAT,              VOS_TIMER_PRECISION_5 }
+    { TI_ADS_UL_DATA_STAT,              VOS_TIMER_NO_PRECISION }
 };
 
 
@@ -87,14 +88,14 @@ VOS_TIMER_PRECISION_ENUM_UINT32 ADS_GetTimerPrecision(ADS_TIMER_ID_ENUM_UINT32 e
 #if (FEATURE_OFF == FEATURE_SKB_EXP)
 VOS_VOID ADS_DL_StartAdqEmptyTimer(VOS_VOID)
 {
-    ADS_TIMER_CTX_STRU                 *pstTiCtx;
+    ADS_TIMER_CTX_STRU                 *pstTiCtx = VOS_NULL_PTR;
     VOS_TIMER_PRECISION_ENUM_UINT32     enTmrPrecision;
     VOS_UINT32                          ulRslt;
 
     pstTiCtx = ADS_GetTiCtx();
 
     /* 如果该定时器已经启动则直接返回 */
-    if (ADS_TIMER_STATUS_RUNNING == pstTiCtx[TI_ADS_DL_ADQ_EMPTY].enTimerStatus)
+    if (VOS_NULL_PTR != pstTiCtx[TI_ADS_DL_ADQ_EMPTY].hTimer)
     {
         return;
     }
@@ -116,8 +117,7 @@ VOS_VOID ADS_DL_StartAdqEmptyTimer(VOS_VOID)
         return;
     }
 
-    pstTiCtx[TI_ADS_DL_ADQ_EMPTY].enTimerStatus = ADS_TIMER_STATUS_RUNNING;
-
+    ADS_DBG_DL_ADQ_START_EMPTY_TMR_NUM(1);
     return;
 }
 #endif

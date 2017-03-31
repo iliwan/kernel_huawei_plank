@@ -813,7 +813,7 @@ int32 hwifi_android_ioctl_cmd(struct hi110x_device* hi110x_dev, struct ifreq *if
              break;
 
         /*scaleb  new finish*/
-        case HWIFI_ANDROID_IOCTL_SCALEB_SET:
+        case HWIFI_ANDROID_IOCTL_SCALEB_SET:
              HWIFI_INFO("Set scaleb : %d", ioctl_data.pri_data.scaleb_info);
              ret = wl_scaleb_set(hi110x_dev->cfg, ioctl_data.pri_data.scaleb_info);
              break;

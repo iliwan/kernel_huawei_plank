@@ -63,6 +63,7 @@ EXPORT_SYMBOL(exception_log_buf);
 static int  __init hisi_log_init(void)
 {
 	int rc = 0;
+
 #ifdef CONFIG_HISI_RDR
 	u32 rdr_int = 0;
 
@@ -83,6 +84,7 @@ static int  __init hisi_log_init(void)
 	hilog_loaded  = 1;
 
 	return rc;
+
 }
 
 static void __init hisi_log_exit(void)

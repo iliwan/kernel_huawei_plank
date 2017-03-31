@@ -296,7 +296,11 @@ extern int cache_limit_ratio_sysctl_handler(struct ctl_table *table, int write,
 extern int cache_limit_mbytes_sysctl_handler(struct ctl_table *table, int write,
 			void __user *buffer, size_t *length, loff_t *ppos);
 #endif
-
+#ifdef CONFIG_SHRINK_MEMORY
+extern int sysctl_shrink_memory;
+extern int sysctl_shrinkmem_handler(struct ctl_table *table, int write,
+			void __user *buffer, size_t *length , loff_t *ppos);
+#endif
 #ifdef CONFIG_NUMA
 extern int zone_reclaim_mode;
 extern int sysctl_min_unmapped_ratio;

@@ -90,8 +90,10 @@ typedef enum
     LPHY_TRACE_RFE_CTU_LTE_INT5_EVT,
     LPHY_TRACE_RFE_CTU_LTE_INT6_EVT,
     LPHY_TRACE_RFE_CTU_WCDMA_INT5_EVT,
+    /* BEGIN: Added by xueqiuyan, 2013/5/21   PN:V7R2_CTU_Modify*/
     //LPHY_TRACE_RFE_CTU_GSM_INT6_EVT
     LPHY_TRACE_RFE_CTU_GSM_INT5_EVT
+    /* END:   Added by xueqiuyan, 2013/5/21 */
 }LPHY_TRACE_RFE_CTU_EVENT_ENUM;
 typedef enum
 {

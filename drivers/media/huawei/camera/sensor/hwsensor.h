@@ -41,6 +41,7 @@ typedef struct _tag_hwsensor_vtbl {
 	int (*i2c_write) (hwsensor_intf_t *, void *);
 	int (*i2c_read_seq) (hwsensor_intf_t *, void *);
 	int (*i2c_write_seq) (hwsensor_intf_t *, void *);
+	int (*i2c_read_otp) (hwsensor_intf_t *, void *);
 	int (*ioctl) (hwsensor_intf_t *, void *);
 	int (*ext_power_ctrl)(int enable);
 	int (*set_expo_gain)(hwsensor_intf_t *, u32 expo, u16 gain);

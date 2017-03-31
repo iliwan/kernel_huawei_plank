@@ -212,7 +212,6 @@ static struct usb_interface_descriptor acm_single_interface_desc = {
 	.bInterfaceProtocol =   0x01,
 	/* .iInterface = DYNAMIC */
 };
-unsigned char prot_id[5];
 
 /* full speed support: */
 
@@ -960,12 +959,7 @@ acm_bind(struct usb_configuration *c, struct usb_function *f)
 	acm_ss_out_desc.bEndpointAddress = acm_fs_out_desc.bEndpointAddress;
 
 
-	((struct usb_interface_descriptor *)acm_fs_cur_function[0])->bInterfaceProtocol
-	    = prot_id[acm->port_num];
-	((struct usb_interface_descriptor *)acm_hs_cur_function[0])->bInterfaceProtocol
-	    = prot_id[acm->port_num];
-	((struct usb_interface_descriptor *)acm_ss_cur_function[0])->bInterfaceProtocol
-	    = prot_id[acm->port_num];
+	acm_single_interface_desc.bInterfaceProtocol = ACM_GET_TYPE(acm);
 
 	D("to assign desc\n");
 	status = usb_assign_descriptors(f, acm_fs_cur_function, acm_hs_cur_function,
@@ -1041,9 +1035,6 @@ static inline void acm_set_config_vendor(struct f_acm *acm)
 		acm_single_interface_desc.bInterfaceClass = 0xFF;
 		acm_single_interface_desc.bInterfaceSubClass = 0x02;
 		//acm_single_interface_desc.bInterfaceProtocol = ACM_GET_TYPE(acm);
-
-		prot_id[acm->port_num] = ACM_GET_TYPE(acm);
-
 		//printk("prot class is %d\n", acm_single_interface_desc.bInterfaceProtocol);
 	} else {
 		acm_control_interface_desc.bInterfaceClass = 0xFF;

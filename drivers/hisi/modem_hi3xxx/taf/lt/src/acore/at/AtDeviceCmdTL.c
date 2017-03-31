@@ -193,6 +193,7 @@ AT_PAR_CMD_ELEMENT_STRU g_astAtDeviceCmdTLTbl[] = {
     VOS_NULL_PTR,        AT_NOT_SET_TIME,
     AT_ERROR, CMD_TBL_PIN_IS_LOCKED,
     (VOS_UINT8*)"^NVWREX",(VOS_UINT8*)"(0-65535),(0-2048),(0-2048),(@data),(@data),(@data),(@data),(@data),(@data),(@data),(@data),(@data),(@data),(@data),(@data)"},
+    /*END: LTE 快速校准装备AT命令 */
 
     /*BEGIN: LTE 非信令综测装备AT命令 */
     {AT_CMD_SSYNC,
@@ -313,6 +314,7 @@ AT_PAR_CMD_ELEMENT_STRU g_astAtDeviceCmdTLTbl[] = {
      VOS_NULL_PTR,        AT_NOT_SET_TIME,
      AT_ERROR, CMD_TBL_PIN_IS_LOCKED,
      (VOS_UINT8*)"^STRXMEAS",         NULL},  
+    /*END: LTE 非信令综测装备AT命令 */
 #endif
 
 #if(FEATURE_ON == FEATURE_UE_MODE_TDS)
@@ -334,6 +336,7 @@ AT_PAR_CMD_ELEMENT_STRU g_astAtDeviceCmdTLTbl[] = {
     VOS_NULL_PTR,        AT_NOT_SET_TIME,
     AT_CME_INCORRECT_PARAMETERS,    CMD_TBL_PIN_IS_LOCKED,
     (VOS_UINT8*)"^CMTM",  VOS_NULL_PTR},
+    /*END: TDS 装备AT命令 */
 #endif  
 
     {AT_CMD_LTCOMMCMD,

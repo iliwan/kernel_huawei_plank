@@ -780,6 +780,10 @@ VOS_VOID USIMM_InitGlobalVarOnReset(VOS_VOID)
 
     VOS_MemSet(&g_stUSIMMCardVersionType, VOS_NULL, sizeof(g_stUSIMMCardVersionType));
 
+ 
+    g_ulCsimSessionId = VOS_NULL_DWORD;
+
+
     return;
 }
 VOS_VOID USIMM_FeatureGlobalInit(VOS_VOID)

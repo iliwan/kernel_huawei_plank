@@ -493,8 +493,8 @@ typedef struct
     VOS_MSG_HEADER                                                              /*_H2ASN_Skip*/
     LRRC_GRR_MSG_TYPE_ENUM_UINT32                           enMsgId;            /*_H2ASN_Skip*/
     VOS_UINT16                                              usOpid;
-    VOS_UINT8                                               aucReserved[2];
-
+    VOS_UINT8                                               ucValidFreqNum;
+    VOS_UINT8                                               ucReserved;
     LRRC_GURRC_MEAS_RESULT_ENUM_UINT32                      enRslt;
 }LRRC_GRR_IDLE_MEASURE_CNF_STRU;
 
@@ -540,8 +540,8 @@ typedef struct
     VOS_MSG_HEADER                                                              /*_H2ASN_Skip*/
     LRRC_GRR_MSG_TYPE_ENUM_UINT32                           enMsgId;            /*_H2ASN_Skip*/
     VOS_UINT16                                              usOpid;
-    VOS_UINT8                                               aucReserved[2];
-
+    VOS_UINT8                                               ucValidFreqNum;
+    VOS_UINT8                                               ucReserved;
     LRRC_GURRC_MEAS_RESULT_ENUM_UINT32                      enRslt;
 }LRRC_GRR_CONNECTED_MEASURE_CNF_STRU;
 
@@ -837,11 +837,13 @@ typedef struct
 
     /* v7r2 lld begin */
     /*#ifdef V7R2*/
+    /* Add by zhuochao for SRVCC 20131025 begin */
     /* 目标GSM小区频段指示 */
     LRRC_GRR_BANDINDICATOR_ENUM_UINT16                      enBandInd;
 
     /* 同步切换时携带的L侧TA，单位为1TS，取值有效范围[0~20512]TS */
     VOS_UINT16                                              usTaValue;
+    /* Add by zhuochao for SRVCC 20131025 end */
     /*#endif*/
     /* v7r2 lld end */
 

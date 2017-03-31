@@ -32,6 +32,19 @@ static bool checksum_enable_ctl = false;
 static bool g_debug_enable = false;
 static int g_cabc_mode = 1;
 
+bool g_enable_extra_data = false;  //default must be false, other panel do not need this.
+
+enum {  
+    COLOR_EN_WEAK   = 0,
+    COLOR_EN_STRONG = 1,
+    COLOR_EN_SRGB = 2,
+    COLOR_EN_CLOSE  = 3,
+};
+
+static int g_color_enhancement_mode = 1;
+
+static int g_support_mode = 0;
+
 extern int fastboot_set_needed;
 extern bool gesture_func;
 extern void ts_power_gpio_enable(void);
@@ -76,12 +89,12 @@ static char exit_sleep[] = {
 
 static char bl_enable[] = {
 	0x53,
-	0x2C,
+	0x24,
 };
 
 static char te_line[] = {
 	0x44,
-	0x07, 0x7D,
+	0x07, 0x78,
 };
 
 /*******************************************************************************
@@ -263,32 +276,32 @@ static char color_enhancement_0x13[] = {
 
 static char color_enhancement_0x1B[] = {
 	0x1B,
-	0x4C,
+	0x32,
 };
 
 static char color_enhancement_0x1C[] = {
 	0x1C,
-	0x48,
+	0x33,
 };
 
 static char color_enhancement_0x1D[] = {
 	0x1D,
-	0x44,
+	0x34,
 };
 
 static char color_enhancement_0x1E[] = {
 	0x1E,
-	0x40,
+	0x35,
 };
 
 static char color_enhancement_0x1F[] = {
 	0x1F,
-	0x3C,
+	0x36,
 };
 
 static char color_enhancement_0x20[] = {
 	0x20,
-	0x38,
+	0x37,
 };
 
 static char color_enhancement_0x21[] = {
@@ -298,52 +311,52 @@ static char color_enhancement_0x21[] = {
 
 static char color_enhancement_0x22[] = {
 	0x22,
-	0x38,
+	0x39,
 };
 
 static char color_enhancement_0x23[] = {
 	0x23,
-	0x38,
+	0x3A,
 };
 
 static char color_enhancement_0x24[] = {
 	0x24,
-	0x38,
+	0x3B,
 };
 
 static char color_enhancement_0x25[] = {
 	0x25,
-	0x38,
+	0x3c,
 };
 
 static char color_enhancement_0x26[] = {
 	0x26,
-	0x38,
+	0x27,
 };
 
 static char color_enhancement_0x27[] = {
 	0x27,
-	0x38,
+	0x1c,
 };
 
 static char color_enhancement_0x28[] = {
 	0x28,
-	0x30,
+	0x00,
 };
 
 static char color_enhancement_0x29[] = {
 	0x29,
-	0x28,
+	0x00,
 };
 
 static char color_enhancement_0x2A[] = {
 	0x2A,
-	0x20,
+	0x00,
 };
 
 static char color_enhancement_0x2B[] = {
 	0x2B,
-	0x10,
+	0x00,
 };
 
 static char color_enhancement_0x2F[] = {
@@ -363,122 +376,122 @@ static char color_enhancement_0x31[] = {
 
 static char color_enhancement_0x32[] = {
 	0x32,
-	0x04,
+	0x87,
 };
 
 static char color_enhancement_0x33[] = {
 	0x33,
-	0x00,
+	0x86,
 };
 
 static char color_enhancement_0x34[] = {
 	0x34,
-	0x00,
+	0x85,
 };
 
 static char color_enhancement_0x35[] = {
 	0x35,
-	0x04,
+	0x84,
 };
 
 static char color_enhancement_0x36[] = {
 	0x36,
-	0x08,
+	0x82,
 };
 
 static char color_enhancement_0x37[] = {
 	0x37,
-	0x0c,
+	0x02,
 };
 
 static char color_enhancement_0x38[] = {
 	0x38,
-	0x10,
+	0x06,
 };
 
 static char color_enhancement_0x39[] = {
 	0x39,
-	0x14,
+	0x08,
 };
 
 static char color_enhancement_0x3A[] = {
 	0x3A,
-	0x18,
+	0x0a,
 };
 
 static char color_enhancement_0x3B[] = {
 	0x3B,
-	0x1c,
+	0x0c,
 };
 
 static char color_enhancement_0x3F[] = {
 	0x3F,
-	0x20,
+	0x0f,
 };
 
 static char color_enhancement_0x40[] = {
 	0x40,
-	0x24,
+	0x14,
 };
 
 static char color_enhancement_0x41[] = {
 	0x41,
-	0x25,
+	0x1a,
 };
 
 static char color_enhancement_0x42[] = {
 	0x42,
-	0x26,
+	0x20,
 };
 
 static char color_enhancement_0x43[] = {
 	0x43,
-	0x26,
+	0x1e,
 };
 
 static char color_enhancement_0x44[] = {
 	0x44,
-	0x26,
+	0x1c,
 };
 
 static char color_enhancement_0x45[] = {
 	0x45,
-	0x24,
+	0x18,
 };
 
 static char color_enhancement_0x46[] = {
 	0x46,
-	0x20,
+	0x14,
 };
 
 static char color_enhancement_0x47[] = {
 	0x47,
-	0x1c,
+	0x10,
 };
 
 static char color_enhancement_0x48[] = {
 	0x48,
-	0x18,
+	0x0c,
 };
 
 static char color_enhancement_0x49[] = {
 	0x49,
-	0x14,
+	0x08,
 };
 
 static char color_enhancement_0x4A[] = {
 	0x4A,
-	0x10,
+	0x04,
 };
 
 static char color_enhancement_0x4B[] = {
 	0x4B,
-	0x0c,
+	0x00,
 };
 
 static char color_enhancement_0x4C[] = {
 	0x4C,
-	0x08,
+	0x86,
 };
 
 static char smart_color_ratio_0x4D[] = {
@@ -493,7 +506,7 @@ static char smart_color_ratio_0x4E[] = {
 
 static char smart_color_ratio_0x4F[] = {
 	0x4F,
-	0x04,
+	0x00, 
 };
 
 static char vivid_color_enable_0x1A[] = {
@@ -508,7 +521,7 @@ static char smart_color_enable_0x53[] = {
 
 static char skin_protection_enable_0x54[] = {
 	0x54,
-	0x03,
+	0x77,
 };
 
 static char v_constrain_enable_0x55[] = {
@@ -545,6 +558,27 @@ static char sharpness_0x69[] = {
 	0x69,
 	0xF2,
 };
+static char color_sign_0x84[] = {
+	0x84,
+	0x00,
+};
+static char color_sign_0x85[] = {
+	0x85,
+	0x00,
+};
+static char color_sign_0x86[] = {
+	0x86,
+	0xF0,
+};
+static char color_sign_0x87[] = {
+	0x87,
+	0xFF,
+};
+static char color_sign_0x88[] = {
+	0x88,
+	0xFF,
+};
+
 
 static char sharpness_0x97[] = {
 	0x97,
@@ -585,6 +619,11 @@ static char cabc_set_mode_UI[] = {
 	0xB1,
 };
 
+static char strong_cabc_set_mode_UI[] = {
+	0x55,
+	0x81,
+};
+
 static char cabc_set_mode_STILL[] = {
 	0x55,
 	0xB2,
@@ -594,6 +633,330 @@ static char cabc_set_mode_MOVING[] = {
 	0x55,
 	0xB3,
 };
+
+static char srgb_ce_param_1[] =  {0x55,0x80};
+static char srgb_ce_param_2[] =  {0xFF,0x22};
+static char srgb_ce_param_3[] =  {0xFB,0x01};
+static char srgb_ce_param_4[] =  {0x00,0x00};
+static char srgb_ce_param_5[] =  {0x01,0x04};
+static char srgb_ce_param_6[] =  {0x02,0x08};
+static char srgb_ce_param_7[] =  {0x03,0x0C};
+static char srgb_ce_param_8[] =  {0x04,0x10};
+static char srgb_ce_param_9[] =  {0x05,0x14};
+static char srgb_ce_param_10[] = {0x06,0x18};
+static char srgb_ce_param_11[] = {0x07,0x20};
+static char srgb_ce_param_12[] = {0x08,0x24};
+static char srgb_ce_param_13[] = {0x09,0x28};
+static char srgb_ce_param_14[] = {0x0A,0x30};
+static char srgb_ce_param_15[] = {0x0B,0x38};
+static char srgb_ce_param_16[] = {0x0C,0x38};
+static char srgb_ce_param_17[] = {0x0D,0x30};
+static char srgb_ce_param_18[] = {0x0E,0x28};
+static char srgb_ce_param_19[] = {0x0F,0x20};
+static char srgb_ce_param_20[] = {0x10,0x10};
+static char srgb_ce_param_21[] = {0x11,0x00};
+static char srgb_ce_param_22[] = {0x12,0x00};
+static char srgb_ce_param_23[] = {0x13,0x00};
+static char srgb_ce_param_24[] = {0x32,0x08};
+static char srgb_ce_param_25[] = {0x33,0x0C};
+static char srgb_ce_param_26[] = {0x34,0x08};
+static char srgb_ce_param_27[] = {0x35,0x04};
+static char srgb_ce_param_28[] = {0x36,0x00};
+static char srgb_ce_param_29[] = {0x37,0x00};
+static char srgb_ce_param_30[] = {0x38,0x00};
+static char srgb_ce_param_31[] = {0x39,0x00};
+static char srgb_ce_param_32[] = {0x3A,0x00};
+static char srgb_ce_param_33[] = {0x3B,0x00};
+static char srgb_ce_param_34[] = {0x3F,0x04};
+static char srgb_ce_param_35[] = {0x40,0x08};
+static char srgb_ce_param_36[] = {0x41,0x0C};
+static char srgb_ce_param_37[] = {0x42,0x10};
+static char srgb_ce_param_38[] = {0x43,0x14};
+static char srgb_ce_param_39[] = {0x44,0x18};
+static char srgb_ce_param_40[] = {0x45,0x1c};
+static char srgb_ce_param_41[] = {0x46,0x18};
+static char srgb_ce_param_42[] = {0x47,0x14};
+static char srgb_ce_param_43[] = {0x48,0x10};
+static char srgb_ce_param_44[] = {0x49,0x0C};
+static char srgb_ce_param_45[] = {0x4A,0x08};
+static char srgb_ce_param_46[] = {0x4B,0x06};
+static char srgb_ce_param_47[] = {0x4C,0x04};
+static char srgb_ce_param_48[] = {0x4D,0x00};
+static char srgb_ce_param_49[] = {0x1A,0x00};
+static char srgb_ce_param_50[] = {0x53,0x01};
+static char srgb_ce_param_51[] = {0x54,0x00};
+static char srgb_ce_param_52[] = {0x55,0x77};
+static char srgb_ce_param_53[] = {0x56,0x00};
+static char srgb_ce_param_54[] = {0x68,0x00};
+static char srgb_ce_param_55[] = {0xFF,0x22};
+static char srgb_ce_param_56[] = {0xFB,0x01};
+static char srgb_ce_param_57[] = {0xEB,0xC4};
+static char srgb_ce_param_58[] = {0xEC,0x2A};
+static char srgb_ce_param_59[] = {0xED,0x11};
+static char srgb_ce_param_60[] = {0xEE,0x00};
+static char srgb_ce_param_61[] = {0xEF,0xEB};
+static char srgb_ce_param_62[] = {0xF0,0x11};
+static char srgb_ce_param_63[] = {0xF1,0x04};
+static char srgb_ce_param_64[] = {0xF2,0x1E};
+static char srgb_ce_param_65[] = {0xF3,0xCD};
+static char srgb_ce_param_66[] = {0xF4,0x00};
+static char srgb_ce_param_67[] = {0xF5,0x00};
+static char srgb_ce_param_68[] = {0xF6,0x00};
+static char srgb_ce_param_69[] = {0xFA,0x01};
+static char srgb_ce_param_69_1[] = {0x84,0x00};
+static char srgb_ce_param_69_2[] = {0x85,0x00};
+static char srgb_ce_param_69_3[] = {0x86,0x00};
+static char srgb_ce_param_69_4[] = {0x87,0x00};
+static char srgb_ce_param_69_5[] = {0x88,0x00};
+static char srgb_ce_param_70[] = {0xA2,0x20};
+static char srgb_ce_param_71[] = {0xFF,0x10};
+
+
+static struct dsi_cmd_desc srgb_jdi_display_effect_on_cmds[] = {
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_1 ), srgb_ce_param_1 },
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_2 ), srgb_ce_param_2 },
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_3 ), srgb_ce_param_3 },
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_4 ), srgb_ce_param_4 },
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_5 ), srgb_ce_param_5 },
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_6 ), srgb_ce_param_6 },
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_7 ), srgb_ce_param_7 },
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_8 ), srgb_ce_param_8 },
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_9 ), srgb_ce_param_9 },
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_10), srgb_ce_param_10},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_11), srgb_ce_param_11},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_12), srgb_ce_param_12},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_13), srgb_ce_param_13},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_14), srgb_ce_param_14},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_15), srgb_ce_param_15},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_16), srgb_ce_param_16},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_17), srgb_ce_param_17},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_18), srgb_ce_param_18},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_19), srgb_ce_param_19},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_20), srgb_ce_param_20},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_21), srgb_ce_param_21},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_22), srgb_ce_param_22},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_23), srgb_ce_param_23},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_24), srgb_ce_param_24},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_25), srgb_ce_param_25},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_26), srgb_ce_param_26},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_27), srgb_ce_param_27},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_28), srgb_ce_param_28},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_29), srgb_ce_param_29},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_30), srgb_ce_param_30},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_31), srgb_ce_param_31},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_32), srgb_ce_param_32},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_33), srgb_ce_param_33},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_34), srgb_ce_param_34},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_35), srgb_ce_param_35},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_36), srgb_ce_param_36},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_37), srgb_ce_param_37},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_38), srgb_ce_param_38},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_39), srgb_ce_param_39},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_40), srgb_ce_param_40},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_41), srgb_ce_param_41},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_42), srgb_ce_param_42},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_43), srgb_ce_param_43},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_44), srgb_ce_param_44},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_45), srgb_ce_param_45},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_46), srgb_ce_param_46},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_47), srgb_ce_param_47},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_48), srgb_ce_param_48},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_49), srgb_ce_param_49},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_50), srgb_ce_param_50},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_51), srgb_ce_param_51},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_52), srgb_ce_param_52},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_53), srgb_ce_param_53},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_54), srgb_ce_param_54},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_55), srgb_ce_param_55},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_56), srgb_ce_param_56},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_57), srgb_ce_param_57},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_58), srgb_ce_param_58},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_59), srgb_ce_param_59},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_60), srgb_ce_param_60},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_61), srgb_ce_param_61},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_62), srgb_ce_param_62},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_63), srgb_ce_param_63},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_64), srgb_ce_param_64},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_65), srgb_ce_param_65},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_66), srgb_ce_param_66},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_67), srgb_ce_param_67},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_68), srgb_ce_param_68},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_69), srgb_ce_param_69},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_69_1), srgb_ce_param_69_1},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_69_2), srgb_ce_param_69_2},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_69_3), srgb_ce_param_69_3},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_69_4), srgb_ce_param_69_4},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_69_5), srgb_ce_param_69_5},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_70), srgb_ce_param_70},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(srgb_ce_param_71), srgb_ce_param_71},										
+};       	
+
+
+static char strong_ce_param_1[] = {0x55,0x80};
+static char strong_ce_param_2[] = {0xFF,0x22};
+static char strong_ce_param_3[] = {0xFB,0x01};
+static char strong_ce_param_4[] = {0x00,0x00};
+static char strong_ce_param_5[] = {0x01,0x04};
+static char strong_ce_param_6[] = {0x02,0x08};
+static char strong_ce_param_7[] = {0x03,0x0C};
+static char strong_ce_param_8[] = {0x04,0x10};
+static char strong_ce_param_9[] = {0x05,0x14};
+static char strong_ce_param_10[] = {0x06,0x18};
+static char strong_ce_param_11[] = {0x07,0x20};
+static char strong_ce_param_12[] = {0x08,0x24};
+static char strong_ce_param_13[] = {0x09,0x28};
+static char strong_ce_param_14[] = {0x0A,0x30};
+static char strong_ce_param_15[] = {0x0B,0x38};
+static char strong_ce_param_16[] = {0x0C,0x38};
+static char strong_ce_param_17[] = {0x0D,0x30};
+static char strong_ce_param_18[] = {0x0E,0x28};
+static char strong_ce_param_19[] = {0x0F,0x20};
+static char strong_ce_param_20[] = {0x10,0x10};
+static char strong_ce_param_21[] = {0x11,0x00};
+static char strong_ce_param_22[] = {0x12,0x00};
+static char strong_ce_param_23[] = {0x13,0x00}; 
+static char strong_ce_param_24[] = {0x32,0x06};
+static char strong_ce_param_25[] = {0x33,0x00};
+static char strong_ce_param_26[] = {0x34,0x08};
+static char strong_ce_param_27[] = {0x35,0x10};
+static char strong_ce_param_28[] = {0x36,0x18};
+static char strong_ce_param_29[] = {0x37,0x20};
+static char strong_ce_param_30[] = {0x38,0x28};
+static char strong_ce_param_31[] = {0x39,0x32};
+static char strong_ce_param_32[] = {0x3A,0x28};
+static char strong_ce_param_33[] = {0x3B,0x20};
+static char strong_ce_param_34[] = {0x3F,0x20};
+static char strong_ce_param_35[] = {0x40,0x20};
+static char strong_ce_param_36[] = {0x41,0x20};
+static char strong_ce_param_37[] = {0x42,0x24};
+static char strong_ce_param_38[] = {0x43,0x28};
+static char strong_ce_param_39[] = {0x44,0x2C};
+static char strong_ce_param_40[] = {0x45,0x28};
+static char strong_ce_param_41[] = {0x46,0x24};
+static char strong_ce_param_42[] = {0x47,0x20};
+static char strong_ce_param_43[] = {0x48,0x20};
+static char strong_ce_param_44[] = {0x49,0x1E};
+static char strong_ce_param_45[] = {0x4A,0x18};
+static char strong_ce_param_46[] = {0x4B,0x12};
+static char strong_ce_param_47[] = {0x4C,0x0C};
+static char strong_ce_param_48[] = {0x4D,0x05};
+static char strong_ce_param_49[] = {0x1A,0x00};
+static char strong_ce_param_50[] = {0x53,0x01};
+static char strong_ce_param_51[] = {0x54,0x00};
+static char strong_ce_param_52[] = {0x55,0x01};
+static char strong_ce_param_53[] = {0x56,0x00};
+static char strong_ce_param_54[] = {0x68,0x00};
+
+//srgb set this value, in normal and strong ce mode, need set these regs to default
+static char strong_ce_param_55[] = {0xEB,0x00};
+static char strong_ce_param_56[] = {0xEC,0x00};
+static char strong_ce_param_57[] = {0xED,0x00};
+static char strong_ce_param_58[] = {0xEE,0x00};
+static char strong_ce_param_59[] = {0xEF,0x00};
+static char strong_ce_param_60[] = {0xF0,0x00};
+static char strong_ce_param_61[] = {0xF1,0x00};
+static char strong_ce_param_62[] = {0xF2,0x00};
+static char strong_ce_param_63[] = {0xF3,0x00};
+static char strong_ce_param_64[] = {0xF4,0x01};
+static char strong_ce_param_65[] = {0xF5,0x01};
+static char strong_ce_param_66[] = {0xF6,0x01};
+static char strong_ce_param_67[] = {0xFA,0x00};
+
+static char strong_ce_param_68[] = {0x84,0x00};
+static char strong_ce_param_69[] = {0x85,0x00};
+static char strong_ce_param_70[] = {0x86,0x00};
+static char strong_ce_param_71[] = {0x87,0x00};
+static char strong_ce_param_72[] = {0x88,0x00};
+
+static struct dsi_cmd_desc strong_jdi_display_effect_on_cmds[] = {
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_1 ), strong_ce_param_1 },
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_2 ), strong_ce_param_2 },
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_3 ), strong_ce_param_3 },
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_4 ), strong_ce_param_4 },
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_5 ), strong_ce_param_5 },
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_6 ), strong_ce_param_6 },
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_7 ), strong_ce_param_7 },
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_8 ), strong_ce_param_8 },
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_9 ), strong_ce_param_9 },
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_10), strong_ce_param_10},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_11), strong_ce_param_11},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_12), strong_ce_param_12},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_13), strong_ce_param_13},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_14), strong_ce_param_14},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_15), strong_ce_param_15},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_16), strong_ce_param_16},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_17), strong_ce_param_17},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_18), strong_ce_param_18},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_19), strong_ce_param_19},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_20), strong_ce_param_20},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_21), strong_ce_param_21},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_22), strong_ce_param_22},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_23), strong_ce_param_23},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_24), strong_ce_param_24},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_25), strong_ce_param_25},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_26), strong_ce_param_26},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_27), strong_ce_param_27},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_28), strong_ce_param_28},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_29), strong_ce_param_29},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_30), strong_ce_param_30},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_31), strong_ce_param_31},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_32), strong_ce_param_32},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_33), strong_ce_param_33},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_34), strong_ce_param_34},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_35), strong_ce_param_35},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_36), strong_ce_param_36},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_37), strong_ce_param_37},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_38), strong_ce_param_38},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_39), strong_ce_param_39},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_40), strong_ce_param_40},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_41), strong_ce_param_41},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_42), strong_ce_param_42},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_43), strong_ce_param_43},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_44), strong_ce_param_44},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_45), strong_ce_param_45},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_46), strong_ce_param_46},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_47), strong_ce_param_47},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_48), strong_ce_param_48},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_49), strong_ce_param_49},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_50), strong_ce_param_50},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_51), strong_ce_param_51},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_52), strong_ce_param_52},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_53), strong_ce_param_53},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_54), strong_ce_param_54},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,sizeof(sharpness_0x65), sharpness_0x65},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,sizeof(sharpness_0x66), sharpness_0x66},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,sizeof(sharpness_0x67), sharpness_0x67},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,sizeof(sharpness_0x69), sharpness_0x69},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,sizeof(sharpness_0x97), sharpness_0x97},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,sizeof(sharpness_0x98), sharpness_0x98},	
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_55), strong_ce_param_55},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_56), strong_ce_param_56},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_57), strong_ce_param_57},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_58), strong_ce_param_58},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_59), strong_ce_param_59},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_60), strong_ce_param_60},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_61), strong_ce_param_61},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_62), strong_ce_param_62},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_63), strong_ce_param_63},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_64), strong_ce_param_64},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_65), strong_ce_param_65},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_66), strong_ce_param_66},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_67), strong_ce_param_67},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_68), strong_ce_param_68},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_69), strong_ce_param_69},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_70), strong_ce_param_70},									
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_71), strong_ce_param_71},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_72), strong_ce_param_72},
+																					
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,sizeof(dither_enable_0xA2), dither_enable_0xA2},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,sizeof(page_selection_0xFF_0x23), page_selection_0xFF_0x23},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,sizeof(non_reload_0xFB), non_reload_0xFB},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,sizeof(cabc_endimming_0x00), cabc_endimming_0x00},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,sizeof(cabc_0x32), cabc_0x32},
+	{DTYPE_DCS_WRITE1, 0, 200, WAIT_TYPE_US,sizeof(cmd1_0xFF), cmd1_0xFF},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,sizeof(strong_cabc_set_mode_UI), strong_cabc_set_mode_UI},																					
+};       	
+
 
 static struct dsi_cmd_desc jdi_display_effect_on_cmds[] = {
 	//diplay effect
@@ -757,9 +1120,36 @@ static struct dsi_cmd_desc jdi_display_effect_on_cmds[] = {
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(sharpness_0x69), sharpness_0x69},
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
+		sizeof(color_sign_0x84), color_sign_0x84},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
+		sizeof(color_sign_0x85), color_sign_0x85},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
+		sizeof(color_sign_0x86), color_sign_0x86},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
+		sizeof(color_sign_0x87), color_sign_0x87},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
+		sizeof(color_sign_0x88), color_sign_0x88},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(sharpness_0x97), sharpness_0x97},
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(sharpness_0x98), sharpness_0x98},
+
+	//srgb change this value , when setting normal and strong ce mode, need set to default 
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_55), strong_ce_param_55},										
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_56), strong_ce_param_56},
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_57), strong_ce_param_57},																						
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_58), strong_ce_param_58},																					
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_59), strong_ce_param_59},																					
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_60), strong_ce_param_60},																						
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_61), strong_ce_param_61},																						
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_62), strong_ce_param_62},																					
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_63), strong_ce_param_63},																					
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_64), strong_ce_param_64},																						
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_65), strong_ce_param_65},																						
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_66), strong_ce_param_66},	
+	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,	sizeof(strong_ce_param_67), strong_ce_param_67},
+
+		
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(dither_enable_0xA2), dither_enable_0xA2},
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
@@ -1003,6 +1393,156 @@ static struct gpio_desc jdi_lcd_gpio_lowpower_cmds[] = {
 };
 
 
+/*******************************************************************************
+** ACM LUT Tables
+*/
+
+static u32 acm_lut_hue_table[] = {
+	0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007, 0x0008, 0x0009, 0x000a, 0x000a, 0x000b, 0x000c, 0x000d, 0x000e, 
+	0x000f, 0x0010, 0x0011, 0x0012, 0x0013, 0x0014, 0x0015, 0x0016, 0x0017, 0x0018, 0x0019, 0x001a, 0x001b, 0x001c, 0x001d, 0x001e, 
+	0x001f, 0x0020, 0x0021, 0x0022, 0x0023, 0x0024, 0x0025, 0x0026, 0x0027, 0x0028, 0x0029, 0x002a, 0x002b, 0x002c, 0x002d, 0x002e, 
+	0x002f, 0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035, 0x0036, 0x0037, 0x0038, 0x0039, 0x003a, 0x003b, 0x003c, 0x003d, 0x003e, 
+	0x003f, 0x0040, 0x0041, 0x0042, 0x0043, 0x0044, 0x0045, 0x0046, 0x0047, 0x0048, 0x0049, 0x004a, 0x004b, 0x004c, 0x004d, 0x004e, 
+	0x004f, 0x0050, 0x0051, 0x0052, 0x0053, 0x0054, 0x0055, 0x0056, 0x0057, 0x0058, 0x0059, 0x005a, 0x005b, 0x005c, 0x005d, 0x005e, 
+	0x0060, 0x0061, 0x0062, 0x0063, 0x0064, 0x0065, 0x0066, 0x0067, 0x0068, 0x0069, 0x006a, 0x006b, 0x006c, 0x006d, 0x006e, 0x006f, 
+	0x0070, 0x0071, 0x0072, 0x0073, 0x0074, 0x0075, 0x0076, 0x0077, 0x0078, 0x0079, 0x007a, 0x007b, 0x007c, 0x007d, 0x007e, 0x007f, 
+	0x0080, 0x0081, 0x0082, 0x0083, 0x0084, 0x0085, 0x0086, 0x0087, 0x0088, 0x0089, 0x008a, 0x008b, 0x008c, 0x008d, 0x008e, 0x008f, 
+	0x0090, 0x0091, 0x0092, 0x0093, 0x0094, 0x0095, 0x0096, 0x0097, 0x0098, 0x0099, 0x009a, 0x009b, 0x009c, 0x009d, 0x009e, 0x009f, 
+	0x00a0, 0x00a1, 0x00a2, 0x00a3, 0x00a4, 0x00a5, 0x00a6, 0x00a7, 0x00a8, 0x00a9, 0x00aa, 0x00ab, 0x00ac, 0x00ad, 0x00ae, 0x00af, 
+	0x00b0, 0x00b1, 0x00b2, 0x00b3, 0x00b4, 0x00b5, 0x00b6, 0x00b7, 0x00b8, 0x00b9, 0x00ba, 0x00bb, 0x00bc, 0x00bd, 0x00be, 0x00bf, 
+	0x00c0, 0x00c1, 0x00c2, 0x00c3, 0x00c4, 0x00c5, 0x00c6, 0x00c7, 0x00c8, 0x00c9, 0x00ca, 0x00cb, 0x00cc, 0x00cd, 0x00ce, 0x00cf, 
+	0x00d0, 0x00d1, 0x00d2, 0x00d3, 0x00d4, 0x00d5, 0x00d6, 0x00d7, 0x00d8, 0x00d9, 0x00da, 0x00db, 0x00dc, 0x00dd, 0x00de, 0x00df, 
+	0x00e0, 0x00e1, 0x00e2, 0x00e3, 0x00e4, 0x00e5, 0x00e6, 0x00e7, 0x00e8, 0x00e9, 0x00ea, 0x00eb, 0x00ec, 0x00ed, 0x00ee, 0x00ef, 
+	0x00f0, 0x00f1, 0x00f2, 0x00f3, 0x00f4, 0x00f5, 0x00f6, 0x00f7, 0x00f8, 0x00f9, 0x00fa, 0x00fb, 0x00fc, 0x00fd, 0x00fe, 0x00ff, 
+	0x0100, 0x0101, 0x0102, 0x0103, 0x0104, 0x0105, 0x0106, 0x0107, 0x0108, 0x0109, 0x010a, 0x010b, 0x010c, 0x010d, 0x010e, 0x010f, 
+	0x0110, 0x0111, 0x0112, 0x0113, 0x0114, 0x0115, 0x0116, 0x0117, 0x0118, 0x0119, 0x011a, 0x011b, 0x011c, 0x011d, 0x011e, 0x011f, 
+	0x0120, 0x0121, 0x0122, 0x0123, 0x0124, 0x0125, 0x0126, 0x0127, 0x0128, 0x0129, 0x012a, 0x012b, 0x012c, 0x012d, 0x012e, 0x012f, 
+	0x0130, 0x0131, 0x0132, 0x0133, 0x0134, 0x0135, 0x0136, 0x0137, 0x0138, 0x0139, 0x013a, 0x013b, 0x013c, 0x013d, 0x013e, 0x013f, 
+	0x0140, 0x0141, 0x0142, 0x0143, 0x0144, 0x0145, 0x0146, 0x0147, 0x0148, 0x0149, 0x014a, 0x014b, 0x014c, 0x014d, 0x014e, 0x014f, 
+	0x0150, 0x0151, 0x0152, 0x0153, 0x0154, 0x0155, 0x0156, 0x0157, 0x0158, 0x0159, 0x015a, 0x015b, 0x015c, 0x015d, 0x015e, 0x015f, 
+	0x0160, 0x0161, 0x0162, 0x0163, 0x0164, 0x0165, 0x0166, 0x0167, 0x0168, 0x0169, 0x016a, 0x016b, 0x016c, 0x016d, 0x016e, 0x016f, 
+	0x0170, 0x0171, 0x0172, 0x0173, 0x0174, 0x0175, 0x0176, 0x0177, 0x0178, 0x0179, 0x017a, 0x017b, 0x017c, 0x017d, 0x017e, 0x017f, 
+	0x0180, 0x0181, 0x0182, 0x0183, 0x0184, 0x0185, 0x0186, 0x0187, 0x0188, 0x0189, 0x018a, 0x018b, 0x018c, 0x018d, 0x018e, 0x018f, 
+	0x0190, 0x0191, 0x0192, 0x0193, 0x0194, 0x0195, 0x0196, 0x0197, 0x0198, 0x0199, 0x019a, 0x019b, 0x019c, 0x019d, 0x019e, 0x019f, 
+	0x01a0, 0x01a1, 0x01a2, 0x01a3, 0x01a4, 0x01a5, 0x01a6, 0x01a7, 0x01a8, 0x01a9, 0x01aa, 0x01ab, 0x01ac, 0x01ad, 0x01ae, 0x01af, 
+	0x01b0, 0x01b1, 0x01b2, 0x01b3, 0x01b4, 0x01b5, 0x01b6, 0x01b7, 0x01b8, 0x01b9, 0x01ba, 0x01bb, 0x01bc, 0x01bd, 0x01be, 0x01bf, 
+	0x01c0, 0x01c1, 0x01c2, 0x01c3, 0x01c4, 0x01c5, 0x01c6, 0x01c7, 0x01c8, 0x01c9, 0x01ca, 0x01cb, 0x01cc, 0x01cd, 0x01ce, 0x01cf, 
+	0x01d0, 0x01d1, 0x01d2, 0x01d3, 0x01d4, 0x01d5, 0x01d6, 0x01d7, 0x01d8, 0x01d9, 0x01da, 0x01db, 0x01dc, 0x01dd, 0x01de, 0x01df, 
+	0x01e0, 0x01e1, 0x01e2, 0x01e3, 0x01e4, 0x01e5, 0x01e6, 0x01e7, 0x01e8, 0x01e9, 0x01ea, 0x01eb, 0x01ec, 0x01ed, 0x01ee, 0x01ef, 
+	0x01f0, 0x01f1, 0x01f2, 0x01f3, 0x01f4, 0x01f5, 0x01f6, 0x01f7, 0x01f8, 0x01f9, 0x01fa, 0x01fb, 0x01fc, 0x01fd, 0x01fe, 0x01ff, 
+	0x0200, 0x0201, 0x0202, 0x0203, 0x0204, 0x0205, 0x0206, 0x0207, 0x0208, 0x0209, 0x020a, 0x020b, 0x020c, 0x020d, 0x020e, 0x020f, 
+	0x0210, 0x0211, 0x0212, 0x0213, 0x0214, 0x0215, 0x0216, 0x0217, 0x0218, 0x0219, 0x021a, 0x021b, 0x021c, 0x021d, 0x021e, 0x021f, 
+	0x0220, 0x0221, 0x0222, 0x0223, 0x0224, 0x0225, 0x0226, 0x0227, 0x0228, 0x0229, 0x022a, 0x022b, 0x022c, 0x022d, 0x022e, 0x022f, 
+	0x0230, 0x0231, 0x0232, 0x0233, 0x0234, 0x0235, 0x0236, 0x0237, 0x0238, 0x0239, 0x023a, 0x023b, 0x023c, 0x023d, 0x023e, 0x023f, 
+	0x0240, 0x0241, 0x0242, 0x0243, 0x0244, 0x0245, 0x0246, 0x0247, 0x0248, 0x0249, 0x024a, 0x024b, 0x024c, 0x024d, 0x024e, 0x024f, 
+	0x0250, 0x0251, 0x0252, 0x0253, 0x0254, 0x0255, 0x0256, 0x0257, 0x0258, 0x0259, 0x025a, 0x025b, 0x025c, 0x025d, 0x025e, 0x025f, 
+	0x0260, 0x0261, 0x0262, 0x0263, 0x0264, 0x0265, 0x0266, 0x0267, 0x0268, 0x0269, 0x026a, 0x026b, 0x026c, 0x026d, 0x026e, 0x026f, 
+	0x0270, 0x0271, 0x0272, 0x0273, 0x0274, 0x0275, 0x0276, 0x0277, 0x0278, 0x0279, 0x027a, 0x027b, 0x027c, 0x027d, 0x027e, 0x027f, 
+	0x0280, 0x0281, 0x0282, 0x0283, 0x0284, 0x0285, 0x0286, 0x0287, 0x0288, 0x0289, 0x028a, 0x028b, 0x028c, 0x028d, 0x028e, 0x028f, 
+	0x0290, 0x0291, 0x0292, 0x0293, 0x0294, 0x0295, 0x0296, 0x0297, 0x0298, 0x0299, 0x029a, 0x029b, 0x029c, 0x029d, 0x029e, 0x029f, 
+	0x02a0, 0x02a1, 0x02a2, 0x02a3, 0x02a4, 0x02a5, 0x02a6, 0x02a7, 0x02a8, 0x02a9, 0x02aa, 0x02ab, 0x02ac, 0x02ad, 0x02ae, 0x02af, 
+	0x02b0, 0x02b1, 0x02b2, 0x02b3, 0x02b4, 0x02b5, 0x02b6, 0x02b7, 0x02b8, 0x02b9, 0x02ba, 0x02bb, 0x02bc, 0x02bd, 0x02be, 0x02bf, 
+	0x02c0, 0x02c1, 0x02c2, 0x02c3, 0x02c4, 0x02c5, 0x02c6, 0x02c7, 0x02c8, 0x02c9, 0x02ca, 0x02cb, 0x02cc, 0x02cd, 0x02ce, 0x02cf, 
+	0x02d0, 0x02d1, 0x02d2, 0x02d3, 0x02d4, 0x02d5, 0x02d6, 0x02d7, 0x02d8, 0x02d9, 0x02da, 0x02db, 0x02dc, 0x02dd, 0x02de, 0x02df, 
+	0x02e0, 0x02e2, 0x02e3, 0x02e4, 0x02e5, 0x02e6, 0x02e7, 0x02e8, 0x02e9, 0x02ea, 0x02eb, 0x02ec, 0x02ed, 0x02ee, 0x02ef, 0x02f0, 
+	0x02f1, 0x02f2, 0x02f3, 0x02f4, 0x02f5, 0x02f6, 0x02f7, 0x02f8, 0x02f9, 0x02fa, 0x02fb, 0x02fc, 0x02fd, 0x02fe, 0x02ff, 0x0300, 
+	0x0301, 0x0302, 0x0303, 0x0304, 0x0305, 0x0306, 0x0307, 0x0308, 0x0309, 0x030a, 0x030b, 0x030c, 0x030d, 0x030e, 0x030f, 0x0310, 
+	0x0311, 0x0312, 0x0313, 0x0314, 0x0315, 0x0316, 0x0317, 0x0318, 0x0319, 0x031a, 0x031b, 0x031c, 0x031d, 0x031e, 0x031f, 0x0320, 
+	0x0322, 0x0323, 0x0324, 0x0325, 0x0326, 0x0327, 0x0328, 0x0329, 0x032a, 0x032b, 0x032c, 0x032d, 0x032e, 0x032f, 0x0330, 0x0331, 
+	0x0332, 0x0333, 0x0334, 0x0335, 0x0336, 0x0337, 0x0338, 0x0339, 0x033a, 0x033b, 0x033c, 0x033d, 0x033e, 0x033f, 0x0340, 0x0341, 
+	0x0342, 0x0343, 0x0344, 0x0345, 0x0346, 0x0347, 0x0348, 0x0349, 0x034a, 0x034b, 0x034c, 0x034d, 0x034e, 0x034f, 0x0350, 0x0351, 
+	0x0352, 0x0354, 0x0355, 0x0356, 0x0357, 0x0358, 0x0359, 0x035a, 0x035b, 0x035c, 0x035d, 0x035e, 0x035f, 0x0360, 0x0361, 0x0362, 
+	0x0363, 0x0364, 0x0365, 0x0366, 0x0367, 0x0368, 0x0369, 0x036a, 0x036b, 0x036c, 0x036d, 0x036e, 0x036f, 0x0370, 0x0371, 0x0372, 
+	0x0374, 0x0375, 0x0376, 0x0377, 0x0378, 0x0379, 0x037a, 0x037b, 0x037c, 0x037d, 0x037e, 0x037f, 0x0380, 0x0381, 0x0382, 0x0383, 
+	0x0384, 0x0385, 0x0386, 0x0387, 0x0388, 0x0389, 0x038a, 0x038b, 0x038c, 0x038d, 0x038e, 0x038f, 0x0390, 0x0391, 0x0392, 0x0393, 
+	0x0394, 0x0396, 0x0397, 0x0398, 0x0399, 0x039a, 0x039b, 0x039c, 0x039d, 0x039e, 0x039f, 0x03a0, 0x03a1, 0x03a2, 0x03a3, 0x03a4, 
+	0x03a5, 0x03a6, 0x03a7, 0x03a8, 0x03a9, 0x03aa, 0x03ab, 0x03ac, 0x03ad, 0x03ae, 0x03af, 0x03b0, 0x03b1, 0x03b2, 0x03b3, 0x03b4, 
+	0x03b6, 0x03b7, 0x03b8, 0x03b9, 0x03ba, 0x03bb, 0x03bc, 0x03bd, 0x03be, 0x03bf, 0x03c0, 0x03c1, 0x03c2, 0x03c3, 0x03c4, 0x03c5, 
+	0x03c6, 0x03c7, 0x03c8, 0x03c9, 0x03ca, 0x03cb, 0x03cc, 0x03cd, 0x03ce, 0x03cf, 0x03d0, 0x03d1, 0x03d2, 0x03d3, 0x03d4, 0x03d5, 
+	0x03d6, 0x03d7, 0x03d8, 0x03d9, 0x03da, 0x03db, 0x03dc, 0x03dd, 0x03de, 0x03df, 0x03e0, 0x03e0, 0x03e1, 0x03e2, 0x03e3, 0x03e4, 
+	0x03e5, 0x03e6, 0x03e7, 0x03e8, 0x03e9, 0x03ea, 0x03ea, 0x03eb, 0x03ec, 0x03ed, 0x03ee, 0x03ef, 0x03f0, 0x03f1, 0x03f1, 0x03f2, 
+	0x03f3, 0x03f4, 0x03f5, 0x03f5, 0x03f6, 0x03f7, 0x03f8, 0x03f9, 0x03fa, 0x03fa, 0x03fb, 0x03fc, 0x03fd, 0x03fe, 0x03fe, 0x03ff, 
+};
+
+
+static u32 acm_lut_value_table[] = {
+	0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007, 0x0008, 0x0009, 0x000a, 0x000b, 0x000c, 0x000d, 0x000e, 0x000f,
+	0x0010, 0x0011, 0x0012, 0x0013, 0x0014, 0x0015, 0x0016, 0x0017, 0x0018, 0x0019, 0x001a, 0x001b, 0x001c, 0x001d, 0x001e, 0x001f,
+	0x0020, 0x0021, 0x0022, 0x0023, 0x0024, 0x0025, 0x0026, 0x0027, 0x0028, 0x0029, 0x002a, 0x002b, 0x002c, 0x002d, 0x002e, 0x002f,
+	0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035, 0x0036, 0x0037, 0x0038, 0x0039, 0x003a, 0x003b, 0x003c, 0x003d, 0x003e, 0x003f,
+	0x0040, 0x0041, 0x0042, 0x0043, 0x0044, 0x0045, 0x0046, 0x0047, 0x0048, 0x0049, 0x004a, 0x004b, 0x004c, 0x004d, 0x004e, 0x004f,
+	0x0050, 0x0051, 0x0052, 0x0053, 0x0054, 0x0055, 0x0056, 0x0057, 0x0058, 0x0059, 0x005a, 0x005b, 0x005c, 0x005d, 0x005e, 0x005f,
+	0x0060, 0x0061, 0x0062, 0x0063, 0x0064, 0x0065, 0x0066, 0x0067, 0x0068, 0x0069, 0x006a, 0x006b, 0x006c, 0x006d, 0x006e, 0x006f,
+	0x0070, 0x0071, 0x0072, 0x0073, 0x0074, 0x0075, 0x0076, 0x0077, 0x0078, 0x0079, 0x007a, 0x007b, 0x007c, 0x007d, 0x007e, 0x007f,
+	0x0080, 0x0081, 0x0082, 0x0083, 0x0084, 0x0085, 0x0086, 0x0087, 0x0088, 0x0089, 0x008a, 0x008b, 0x008c, 0x008d, 0x008e, 0x008f,
+	0x0090, 0x0091, 0x0092, 0x0093, 0x0094, 0x0095, 0x0096, 0x0097, 0x0098, 0x0099, 0x009a, 0x009b, 0x009c, 0x009d, 0x009e, 0x009f,
+	0x00a0, 0x00a1, 0x00a2, 0x00a3, 0x00a4, 0x00a5, 0x00a6, 0x00a7, 0x00a8, 0x00a9, 0x00aa, 0x00ab, 0x00ac, 0x00ad, 0x00ae, 0x00af,
+	0x00b0, 0x00b1, 0x00b2, 0x00b3, 0x00b4, 0x00b5, 0x00b6, 0x00b7, 0x00b8, 0x00b9, 0x00ba, 0x00bb, 0x00bc, 0x00bd, 0x00be, 0x00bf,
+	0x00c0, 0x00c1, 0x00c2, 0x00c3, 0x00c4, 0x00c5, 0x00c6, 0x00c7, 0x00c8, 0x00c9, 0x00ca, 0x00cb, 0x00cc, 0x00cd, 0x00ce, 0x00cf,
+	0x00d0, 0x00d1, 0x00d2, 0x00d3, 0x00d4, 0x00d5, 0x00d6, 0x00d7, 0x00d8, 0x00d9, 0x00da, 0x00db, 0x00dc, 0x00dd, 0x00de, 0x00df,
+	0x00e0, 0x00e1, 0x00e2, 0x00e3, 0x00e4, 0x00e5, 0x00e6, 0x00e7, 0x00e8, 0x00e9, 0x00ea, 0x00eb, 0x00ec, 0x00ed, 0x00ee, 0x00ef,
+	0x00f0, 0x00f1, 0x00f2, 0x00f3, 0x00f4, 0x00f5, 0x00f6, 0x00f7, 0x00f8, 0x00f9, 0x00fa, 0x00fb, 0x00fc, 0x00fd, 0x00fe, 0x00ff,
+};
+
+static u32 acm_lut_sata_table[] = {
+	0x000f, 0x0010, 0x0012, 0x0014, 0x0015, 0x0016, 0x0018, 0x001a, 0x001b, 0x001b, 0x001b, 0x001b, 0x001a, 0x001a, 0x001a, 0x001a, 
+	0x001a, 0x001a, 0x001a, 0x001b, 0x001b, 0x001b, 0x001c, 0x001c, 0x001c, 0x001c, 0x001c, 0x001b, 0x001b, 0x001b, 0x001a, 0x001a, 
+	0x001a, 0x0019, 0x0018, 0x0018, 0x0017, 0x0016, 0x0016, 0x0015, 0x0014, 0x0013, 0x0013, 0x0012, 0x0012, 0x0011, 0x0010, 0x0010, 
+	0x000f, 0x000e, 0x000e, 0x000d, 0x000c, 0x000c, 0x000b, 0x000b, 0x000a, 0x0009, 0x0008, 0x0007, 0x0006, 0x0006, 0x0005, 0x0004, 
+	0x0003, 0x0003, 0x0003, 0x0003, 0x0002, 0x0002, 0x0002, 0x0002, 0x0002, 0x0002, 0x0002, 0x0002, 0x0002, 0x0003, 0x0003, 0x0003, 
+	0x0003, 0x0003, 0x0002, 0x0002, 0x0002, 0x0001, 0x0001, 0x0000, 0x0000, 0x0001, 0x0001, 0x0002, 0x0002, 0x0003, 0x0004, 0x0004, 
+	0x0005, 0x0006, 0x0007, 0x0008, 0x0008, 0x0009, 0x000a, 0x000b, 0x000c, 0x000c, 0x000d, 0x000d, 0x000e, 0x000e, 0x000e, 0x000f, 
+	0x000f, 0x0010, 0x0010, 0x0010, 0x0011, 0x0012, 0x0012, 0x0012, 0x0013, 0x0013, 0x0012, 0x0012, 0x0012, 0x0011, 0x0011, 0x0010, 
+	0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0011, 0x0011, 0x0011, 0x0012, 0x0012, 
+	0x0012, 0x0012, 0x0011, 0x0011, 0x0010, 0x0010, 0x0010, 0x000f, 0x000f, 0x000f, 0x000f, 0x000f, 0x000f, 0x000f, 0x000f, 0x000f, 
+	0x000f, 0x0010, 0x0010, 0x0010, 0x0011, 0x0012, 0x0012, 0x0012, 0x0013, 0x0013, 0x0012, 0x0012, 0x0012, 0x0011, 0x0011, 0x0010, 
+	0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x000f, 0x000f, 0x000f, 0x000f, 0x000f, 0x000e, 0x000e, 0x000e, 0x000d, 0x000d, 0x000c, 
+	0x000c, 0x000c, 0x000c, 0x000b, 0x000b, 0x000b, 0x000a, 0x000a, 0x000a, 0x000a, 0x000a, 0x000a, 0x000a, 0x000a, 0x000a, 0x000a, 
+	0x000a, 0x000a, 0x000a, 0x000a, 0x000a, 0x000b, 0x000b, 0x000b, 0x000b, 0x000b, 0x000b, 0x000b, 0x000c, 0x000c, 0x000c, 0x000c, 
+	0x000c, 0x000c, 0x000c, 0x000c, 0x000c, 0x000b, 0x000b, 0x000b, 0x000b, 0x000c, 0x000c, 0x000c, 0x000d, 0x000e, 0x000e, 0x000e, 
+	0x000f, 0x000f, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0011, 0x0011, 0x0011, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x000f, 
+};
+
+
+static u32 acm_lut_satr_table[] = {
+	0x0000, 0x0001, 0x0003, 0x0004, 0x0005, 0x0006, 0x0008, 0x0009, 0x000a, 0x000c, 0x000d, 0x000e, 0x000f, 0x0011, 0x0012, 0x0013, 
+	0x0014, 0x0016, 0x0017, 0x0018, 0x001a, 0x001b, 0x001c, 0x001d, 0x001f, 0x0020, 0x001e, 0x001d, 0x001b, 0x0019, 0x0017, 0x0016, 
+	0x0014, 0x0012, 0x0011, 0x000f, 0x000d, 0x000c, 0x000a, 0x0008, 0x0006, 0x0005, 0x0003, 0x0001, 0x0000, 0x00fe, 0x00fc, 0x00fa, 
+	0x00f9, 0x00f7, 0x00f5, 0x00f2, 0x00f0, 0x00ee, 0x00f0, 0x00f2, 0x00f3, 0x00f5, 0x00f7, 0x00f9, 0x00fb, 0x00fc, 0x00fe, 0x0000, 
+	0x0000, 0x0001, 0x0003, 0x0004, 0x0005, 0x0007, 0x0008, 0x000a, 0x000b, 0x000c, 0x000e, 0x000f, 0x0010, 0x0012, 0x0013, 0x0014, 
+	0x0016, 0x0017, 0x0018, 0x001a, 0x001b, 0x001d, 0x001e, 0x001f, 0x0021, 0x0022, 0x0020, 0x001e, 0x001d, 0x001b, 0x0019, 0x0017, 
+	0x0015, 0x0014, 0x0012, 0x0010, 0x000e, 0x000c, 0x000b, 0x0009, 0x0007, 0x0005, 0x0004, 0x0002, 0x0000, 0x00fe, 0x00fc, 0x00fb, 
+	0x00f9, 0x00f7, 0x00f4, 0x00f2, 0x00f0, 0x00ed, 0x00ef, 0x00f1, 0x00f3, 0x00f5, 0x00f6, 0x00f8, 0x00fa, 0x00fc, 0x00fe, 0x0000, 
+	0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0008, 0x0009, 0x000a, 0x000b, 0x000c, 0x000d, 0x000e, 0x000f, 0x0010, 
+	0x0011, 0x0012, 0x0013, 0x0015, 0x0016, 0x0017, 0x0018, 0x0019, 0x001a, 0x001b, 0x0019, 0x0018, 0x0016, 0x0015, 0x0013, 0x0011, 
+	0x0010, 0x000e, 0x000c, 0x000b, 0x0009, 0x0008, 0x0006, 0x0004, 0x0003, 0x0001, 0x00ff, 0x00fe, 0x00fc, 0x00fb, 0x00f9, 0x00f7, 
+	0x00f6, 0x00f4, 0x00f2, 0x00f0, 0x00ef, 0x00ed, 0x00ef, 0x00f1, 0x00f3, 0x00f5, 0x00f6, 0x00f8, 0x00fa, 0x00fc, 0x00fe, 0x0000, 
+	0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0008, 0x0009, 0x000a, 0x000b, 0x000c, 0x000d, 0x000e, 0x000f, 0x0010, 
+	0x0011, 0x0012, 0x0013, 0x0015, 0x0016, 0x0017, 0x0018, 0x0019, 0x001a, 0x001b, 0x001a, 0x0019, 0x0017, 0x0016, 0x0015, 0x0014, 
+	0x0013, 0x0011, 0x0010, 0x000f, 0x000e, 0x000d, 0x000b, 0x000a, 0x0009, 0x0008, 0x0006, 0x0005, 0x0004, 0x0003, 0x0002, 0x0000, 
+	0x00ff, 0x00fe, 0x00fe, 0x00fd, 0x00fc, 0x00fc, 0x00fc, 0x00fd, 0x00fd, 0x00fe, 0x00fe, 0x00fe, 0x00ff, 0x00ff, 0x0000, 0x0000, 
+	0x0000, 0x0001, 0x0002, 0x0003, 0x0005, 0x0006, 0x0007, 0x0008, 0x0009, 0x000a, 0x000c, 0x000d, 0x000e, 0x000f, 0x0010, 0x0011, 
+	0x0013, 0x0014, 0x0015, 0x0016, 0x0017, 0x0018, 0x001a, 0x001b, 0x001c, 0x001d, 0x001c, 0x001a, 0x0019, 0x0017, 0x0016, 0x0014, 
+	0x0013, 0x0011, 0x0010, 0x000e, 0x000d, 0x000b, 0x000a, 0x0008, 0x0007, 0x0005, 0x0004, 0x0002, 0x0001, 0x00ff, 0x00fe, 0x00fc, 
+	0x00fb, 0x00f9, 0x00f9, 0x00f9, 0x00f9, 0x00f9, 0x00f9, 0x00fa, 0x00fb, 0x00fc, 0x00fc, 0x00fd, 0x00fe, 0x00ff, 0x00ff, 0x0000, 
+	0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007, 0x0008, 0x0009, 0x000a, 0x000b, 0x000c, 0x000d, 0x000e, 0x000f, 
+	0x0010, 0x0011, 0x0012, 0x0013, 0x0014, 0x0015, 0x0016, 0x0017, 0x0018, 0x0019, 0x0018, 0x0016, 0x0015, 0x0014, 0x0012, 0x0011, 
+	0x0010, 0x000e, 0x000d, 0x000c, 0x000a, 0x0009, 0x0008, 0x0006, 0x0005, 0x0003, 0x0002, 0x0001, 0x00ff, 0x00fe, 0x00fd, 0x00fb, 
+	0x00fa, 0x00f9, 0x00f8, 0x00f7, 0x00f6, 0x00f5, 0x00f6, 0x00f7, 0x00f8, 0x00f9, 0x00fa, 0x00fc, 0x00fd, 0x00fe, 0x00ff, 0x0000, 
+	0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0006, 0x0007, 0x0008, 0x0009, 0x000a, 0x000b, 0x000c, 0x000d, 0x000f, 0x0010, 0x0011, 
+	0x0012, 0x0013, 0x0014, 0x0015, 0x0016, 0x0018, 0x0019, 0x001a, 0x001b, 0x001c, 0x001b, 0x0019, 0x0018, 0x0017, 0x0015, 0x0014, 
+	0x0013, 0x0011, 0x0010, 0x000f, 0x000d, 0x000c, 0x000b, 0x0009, 0x0008, 0x0007, 0x0005, 0x0004, 0x0003, 0x0001, 0x0000, 0x00ff, 
+	0x00fd, 0x00fc, 0x00fa, 0x00f8, 0x00f6, 0x00f3, 0x00f5, 0x00f6, 0x00f7, 0x00f8, 0x00fa, 0x00fb, 0x00fc, 0x00fd, 0x00ff, 0x0000, 
+	0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0008, 0x0009, 0x000a, 0x000b, 0x000c, 0x000d, 0x000e, 0x000f, 0x0010, 
+	0x0011, 0x0012, 0x0013, 0x0015, 0x0016, 0x0017, 0x0018, 0x0019, 0x001a, 0x001b, 0x001a, 0x0019, 0x0018, 0x0017, 0x0016, 0x0015, 
+	0x0014, 0x0013, 0x0012, 0x0011, 0x0010, 0x000e, 0x000d, 0x000c, 0x000b, 0x000a, 0x0009, 0x0008, 0x0007, 0x0006, 0x0005, 0x0004, 
+	0x0003, 0x0002, 0x00fd, 0x00f8, 0x00f4, 0x00ef, 0x00f1, 0x00f2, 0x00f4, 0x00f6, 0x00f8, 0x00f9, 0x00fb, 0x00fd, 0x00fe, 0x0000, 
+};
+
+
+/*******************************************************************************
+**
+*/
 static int g_ce_mode = 0;
 static struct hisi_fb_data_type *hisifd_test = NULL;
 static ssize_t get_ce_mode(struct device *dev,
@@ -1125,7 +1665,7 @@ static int mipi_jdi_panel_on(struct platform_device *pdev)
 		{0x0A, 0x9C, 0xFF, "lcd power state"},
 		{0x0E, 0x80, 0xC1, "lcd signal mode"},
 		{0x05, 0x00, 0xFF, "mipi dsi error number"},
-		{0xDA, 0x00, 0x00, "RDID1"},
+		{0xDA, 0xFF, 0x00, "RDID1"},
 	};
 #endif
 	BUG_ON(pdev == NULL);
@@ -1165,20 +1705,31 @@ static int mipi_jdi_panel_on(struct platform_device *pdev)
 		} else {
 			gpio_cmds_tx(jdi_lcd_gpio_sleep_request_cmds, \
 					ARRAY_SIZE(jdi_lcd_gpio_sleep_request_cmds));
-			msleep(50);
+			mdelay(50);
 			gpio_cmds_tx(jdi_lcd_gpio_sleep_normal_cmds, \
 					ARRAY_SIZE(jdi_lcd_gpio_sleep_normal_cmds));
 			HISI_FB_INFO("lp send sequence (gesture_func:%d)\n", gesture_func);
+			mdelay(60);
 		}
 
-		mipi_dsi_cmds_tx(jdi_display_effect_on_cmds, \
-			ARRAY_SIZE(jdi_display_effect_on_cmds), mipi_dsi0_base);
+		g_cabc_mode = 1;
+		if (0 == g_color_enhancement_mode) {
+			mipi_dsi_cmds_tx(jdi_display_effect_on_cmds, \
+				ARRAY_SIZE(jdi_display_effect_on_cmds), mipi_dsi0_base);
+		} else if (1 == g_color_enhancement_mode){
+			mipi_dsi_cmds_tx(strong_jdi_display_effect_on_cmds, \
+				ARRAY_SIZE(strong_jdi_display_effect_on_cmds), mipi_dsi0_base);
+		} else if (2 == g_color_enhancement_mode){
+			g_cabc_mode = 0;
+			mipi_dsi_cmds_tx(srgb_jdi_display_effect_on_cmds, \
+				ARRAY_SIZE(srgb_jdi_display_effect_on_cmds), mipi_dsi0_base);
+		}
 
 		mipi_dsi_cmds_tx(jdi_display_on_cmds, \
 			ARRAY_SIZE(jdi_display_on_cmds), mipi_dsi0_base);
 			
-		g_cabc_mode = 1;
-		g_ce_mode = 2;
+
+		g_ce_mode = 1;
 #if defined (CONFIG_HUAWEI_DSM)
 		panel_check_status_and_report_by_dsm(lcd_status_reg, \
 			ARRAY_SIZE(lcd_status_reg), mipi_dsi0_base);
@@ -1322,7 +1873,7 @@ static int mipi_jdi_panel_set_backlight(struct platform_device *pdev)
 
 	HISI_FB_DEBUG("fb%d, -.\n", hisifd->index);
 
-	HISI_FB_ERR("mipi_jdi_panel_set_backlight wxh exit %d.\n",bl_cmd[0].payload[1]);
+	HISI_FB_INFO("mipi_jdi_panel_set_backlight wxh exit %d.\n",bl_cmd[0].payload[1]);
 
 	return ret;
 }
@@ -1373,6 +1924,12 @@ static ssize_t mipi_jdi_panel_lcd_cabc_mode_store(struct platform_device *pdev,
                return ret;
 
 	flag=(int)val;
+
+	if (2 == g_color_enhancement_mode){
+              g_cabc_mode = 0;
+              return snprintf((char *)buf, count, "%d\n", g_cabc_mode);
+	}
+    
 	if (flag==CABC_OFF ){
               g_cabc_mode=0;
               mipi_dsi_cmds_tx(jdi_cabc_off_cmds, \
@@ -1395,6 +1952,132 @@ static ssize_t mipi_jdi_panel_lcd_cabc_mode_store(struct platform_device *pdev,
                                mipi_dsi0_base);
 	}
 	return snprintf((char *)buf, count, "%d\n", g_cabc_mode);
+}
+
+static ssize_t mipi_jdi_panel_lcd_ic_color_enhancement_mode_show(struct platform_device *pdev,
+	char *buf)
+{
+	struct hisi_fb_data_type *hisifd = NULL;
+	ssize_t ret = 0;
+
+	BUG_ON(pdev == NULL);
+	hisifd = platform_get_drvdata(pdev);
+	BUG_ON(hisifd == NULL);
+
+	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
+
+	
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", g_color_enhancement_mode);
+
+	HISI_FB_DEBUG("fb%d, -.\n", hisifd->index);
+
+	return ret;
+}
+
+static ssize_t mipi_jdi_panel_lcd_ic_color_enhancement_mode_store(struct platform_device *pdev,
+	const char *buf, size_t count)
+{
+	int ret = 0;
+	unsigned long val = 0;
+	int flag=-1;
+	struct hisi_fb_data_type *hisifd = NULL;
+	char __iomem *mipi_dsi0_base = NULL;
+
+	char ce_disable[] = {0x55, 0x00};
+
+	struct dsi_cmd_desc ce_disable_cmd[] = {
+		{DTYPE_DCS_WRITE1, 0,10, WAIT_TYPE_US, sizeof(ce_disable), ce_disable},
+	};
+
+
+	BUG_ON(pdev == NULL);
+	hisifd = platform_get_drvdata(pdev);
+	BUG_ON(hisifd == NULL);
+	mipi_dsi0_base =hisifd->mipi_dsi0_base;
+
+	ret = strict_strtoul(buf, 0, &val);
+	if (ret)
+               return ret;
+
+	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
+
+	flag=(int)val;
+	if (flag==COLOR_EN_WEAK){
+		g_color_enhancement_mode=0;
+		g_cabc_mode=1;
+		mdelay(50);
+		mipi_dsi_cmds_tx(jdi_display_effect_on_cmds, \
+				ARRAY_SIZE(jdi_display_effect_on_cmds), mipi_dsi0_base);          
+	} else if (flag==COLOR_EN_STRONG){
+		g_color_enhancement_mode=1;
+		mdelay(50);
+		mipi_dsi_cmds_tx(strong_jdi_display_effect_on_cmds, \
+			ARRAY_SIZE(strong_jdi_display_effect_on_cmds), mipi_dsi0_base);
+	}else if (flag==COLOR_EN_SRGB){
+		g_color_enhancement_mode=2;
+		g_cabc_mode=0;
+		mdelay(50);
+		mipi_dsi_cmds_tx(srgb_jdi_display_effect_on_cmds, \
+				ARRAY_SIZE(srgb_jdi_display_effect_on_cmds), mipi_dsi0_base);
+	}else if (flag==COLOR_EN_CLOSE){
+		g_color_enhancement_mode=3;
+		mdelay(50);
+		mipi_dsi_cmds_tx(ce_disable_cmd, \
+				ARRAY_SIZE(ce_disable_cmd), mipi_dsi0_base);
+	}
+	else {
+		HISI_FB_DEBUG("color_enhancement no this mode!\n");
+	};
+	
+	HISI_FB_DEBUG("fb%d, -.\n", hisifd->index);
+	
+	return snprintf((char *)buf, count, "%d\n", g_color_enhancement_mode);
+}
+
+static ssize_t mipi_jdi_panel_lcd_support_mode_show(struct platform_device *pdev,
+	char *buf)
+{
+	struct hisi_fb_data_type *hisifd = NULL;
+	ssize_t ret = 0;
+
+	BUG_ON(pdev == NULL);
+	hisifd = platform_get_drvdata(pdev);
+	BUG_ON(hisifd == NULL);
+
+	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", g_support_mode);
+
+	HISI_FB_DEBUG("fb%d, -.\n", hisifd->index);
+
+	return ret;
+}
+
+static ssize_t mipi_jdi_panel_lcd_support_mode_store(struct platform_device *pdev,
+	const char *buf, size_t count)
+{
+	int ret = 0;
+	unsigned long val = 0;
+	int flag=-1;
+	struct hisi_fb_data_type *hisifd = NULL;
+	BUG_ON(pdev == NULL);
+	hisifd = platform_get_drvdata(pdev);
+	BUG_ON(hisifd == NULL);
+
+	ret = strict_strtoul(buf, 0, &val);
+	if (ret)
+               return ret;
+
+	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
+
+	flag=(int)val;
+
+	g_support_mode = flag;
+	
+	HISI_FB_DEBUG("fb%d, -.\n", hisifd->index);
+	
+	return snprintf((char *)buf, count, "%d\n", g_support_mode);
 }
 
 static ssize_t mipi_jdi_panel_lcd_check_reg_show(struct platform_device *pdev, char *buf)
@@ -1767,6 +2450,8 @@ static char lcd_disp_y[] = {
 };
 
 static struct dsi_cmd_desc set_display_address[] = {
+	{DTYPE_DCS_WRITE1, 0, 5, WAIT_TYPE_US,
+		sizeof(cmd1_0xFF), cmd1_0xFF},	
 	{DTYPE_DCS_LWRITE, 0, 5, WAIT_TYPE_US,
 		sizeof(lcd_disp_x), lcd_disp_x},
 	{DTYPE_DCS_LWRITE, 0, 5, WAIT_TYPE_US,
@@ -1777,7 +2462,7 @@ static int mipi_jdi_panel_set_display_region(struct platform_device *pdev,
 	struct dss_rect *dirty)
 {
 	struct hisi_fb_data_type *hisifd = NULL;
-    HISI_FB_ERR("%s enter succ!dss_rect = {%d, %d, %d, %d}\n", __func__, 
+	HISI_FB_INFO("%s enter succ!dss_rect = {%d, %d, %d, %d}\n", __func__, 
 	dirty->x, dirty->y, dirty->w, dirty->h);
 
 	BUG_ON(pdev == NULL || dirty == NULL);
@@ -1812,6 +2497,10 @@ static struct hisi_fb_panel_data jdi_panel_data = {
 	.lcd_model_show = mipi_jdi_panel_lcd_model_show,
 	.lcd_cabc_mode_show = mipi_jdi_panel_lcd_cabc_mode_show,
 	.lcd_cabc_mode_store = mipi_jdi_panel_lcd_cabc_mode_store,
+	.lcd_ic_color_enhancement_mode_show = mipi_jdi_panel_lcd_ic_color_enhancement_mode_show,
+	.lcd_ic_color_enhancement_mode_store = mipi_jdi_panel_lcd_ic_color_enhancement_mode_store,
+	.lcd_support_mode_show = mipi_jdi_panel_lcd_support_mode_show,
+	.lcd_support_mode_store = mipi_jdi_panel_lcd_support_mode_store,
 	.lcd_check_reg = mipi_jdi_panel_lcd_check_reg_show,
 	.lcd_mipi_detect = mipi_jdi_panel_lcd_mipi_detect_show,
 	.lcd_hkadc_debug_show = mipi_jdi_panel_lcd_hkadc_debug_show,
@@ -1833,6 +2522,7 @@ static int mipi_jdi_probe(struct platform_device *pdev)
 	struct hisi_panel_info *pinfo = NULL;
 	struct device_node *np = NULL;
 	uint32_t bl_type = 0;
+	int support_mode = 0;
 	struct platform_device *this_dev = NULL;
 
 	if (hisi_fb_device_probe_defer(PANEL_MIPI_CMD))
@@ -1889,32 +2579,61 @@ static int mipi_jdi_probe(struct platform_device *pdev)
 
 	pinfo->frc_enable = 0;
 	pinfo->esd_enable = 0;
-	pinfo->dirty_region_updt_support = 1;
+	pinfo->dirty_region_updt_support = 0;
 
-    pinfo->dirty_region_info.left_align = -1;
-    pinfo->dirty_region_info.right_align = -1;
-    pinfo->dirty_region_info.top_align = 8;
-    pinfo->dirty_region_info.bottom_align = 8;
-    pinfo->dirty_region_info.w_align = -1;
-    pinfo->dirty_region_info.h_align = -1;
-    pinfo->dirty_region_info.w_min = 1080;
-    pinfo->dirty_region_info.h_min = -1;
-    pinfo->dirty_region_info.top_start = -1;
-    pinfo->dirty_region_info.bottom_start = -1;
+	pinfo->dirty_region_info.left_align = -1;
+	pinfo->dirty_region_info.right_align = -1;
+	pinfo->dirty_region_info.top_align = 8;
+	pinfo->dirty_region_info.bottom_align = 8;
+	pinfo->dirty_region_info.w_align = -1;
+	pinfo->dirty_region_info.h_align = -1;
+	pinfo->dirty_region_info.w_min = 1080;
+	pinfo->dirty_region_info.h_min = -1;
+	pinfo->dirty_region_info.top_start = -1;
+	pinfo->dirty_region_info.bottom_start = -1;
+	pinfo->dirty_region_info.extra_line_num = 8;
+	g_enable_extra_data = true;
 
 	if(runmode_is_factory()) {
 		pinfo->sbl_support = 0;
 		pinfo->dsi_bit_clk_upt_support = 0;
 		pinfo->acm_support = 0;
+		pinfo->acm_color_enhancement_mode_support = 0;
+		pinfo->lcd_ic_color_enhancement_mode_support = 0;
 		pinfo->prefix_sharpness_support = 0;
 	} else {
 		pinfo->sbl_support = 1;
 		pinfo->dsi_bit_clk_upt_support = 1;
-		pinfo->acm_support = 0;
+		pinfo->acm_support = 1;
+		pinfo->acm_color_enhancement_mode_support = 0;
+		pinfo->lcd_ic_color_enhancement_mode_support = 1;
 		pinfo->prefix_sharpness_support = 0;
 	}
 
 	pinfo->color_temperature_support = 1;
+	pinfo->comform_mode_support = 1;
+
+	
+	if(pinfo->comform_mode_support == 1){  
+		support_mode = (support_mode | 1);
+	}
+	if(pinfo->acm_color_enhancement_mode_support == 1){
+		support_mode = (support_mode | 2);
+	}
+	if(pinfo->lcd_ic_color_enhancement_mode_support == 1){
+		support_mode = (support_mode | 4);
+	}
+	g_support_mode =   support_mode;
+	if(pinfo->acm_support == 1){
+		pinfo->acm_lut_hue_table = acm_lut_hue_table;
+		pinfo->acm_lut_hue_table_len = sizeof(acm_lut_hue_table) / sizeof(acm_lut_hue_table[0]);
+		pinfo->acm_lut_value_table = acm_lut_value_table;
+		pinfo->acm_lut_value_table_len = sizeof(acm_lut_value_table) / sizeof(acm_lut_value_table[0]);
+		pinfo->acm_lut_sata_table = acm_lut_sata_table;
+		pinfo->acm_lut_sata_table_len = sizeof(acm_lut_sata_table) / sizeof(acm_lut_sata_table[0]);
+		pinfo->acm_lut_satr_table = acm_lut_satr_table;
+		pinfo->acm_lut_satr_table_len = sizeof(acm_lut_satr_table) / sizeof(acm_lut_satr_table[0]);
+	}
 	pinfo->smart_bl.strength_limit = 128;
 	pinfo->smart_bl.calibration_a = 60;
 	pinfo->smart_bl.calibration_b = 95;

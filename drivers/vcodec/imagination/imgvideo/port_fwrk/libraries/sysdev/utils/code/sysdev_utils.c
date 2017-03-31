@@ -636,5 +636,5 @@ IMG_VOID SYSDEVU_ApmDeviceResume(
         return;
     }
 
-    DMANKM_ResumeDevice(hDevHandle);
+    DMANKM_ResumeDevice(hDevHandle, IMG_TRUE);
 }

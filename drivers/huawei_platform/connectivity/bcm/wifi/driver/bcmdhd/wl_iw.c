@@ -836,7 +836,11 @@ static int
 init_ap_profile_from_string(char *param_str, struct ap_profile *ap_cfg)
 {
 	char *str_ptr = param_str;
+#ifdef HW_MEM_OVERFLOW_BUGFIX
+	char sub_cmd[SSID_LEN + 1];
+#else
 	char sub_cmd[16];
+#endif
 	int ret = 0;
 	memset(sub_cmd, 0, sizeof(sub_cmd));
 	memset(ap_cfg, 0, sizeof(struct ap_profile));
@@ -1684,7 +1688,7 @@ wl_iw_get_aplist(
 
 	WL_TRACE(("%s: SIOCGIWAPLIST\n", dev->name));
 
-	if (!extra)
+	if (!extra || (buflen < sizeof(struct wl_scan_results)))
 		return -EINVAL;
 
 	/* Get scan results (too large to put on the stack) */
@@ -2105,6 +2109,8 @@ wl_iw_get_scan(
 	ci.scan_channel = dtoh32(ci.scan_channel);
 	if (ci.scan_channel)
 		return -EAGAIN;
+	if (buflen < sizeof(struct wl_scan_results))
+		return -EINVAL;
 
 	/* Get scan results (too large to put on the stack) */
 	list = kmalloc(buflen, GFP_KERNEL);
@@ -2388,7 +2394,7 @@ wl_iw_get_essid(
 		return error;
 	}
 
-	ssid.SSID_len = dtoh32(ssid.SSID_len);
+	ssid.SSID_len = MIN(dtoh32(ssid.SSID_len), IW_ESSID_MAX_SIZE);
 
 	/* Get the current SSID */
 	memcpy(extra, ssid.SSID, ssid.SSID_len);
@@ -2993,8 +2999,13 @@ wl_iw_set_wpaie(
 
 	if (extra[0] == DOT11_MNG_WAPI_ID)
 	{
+#ifdef HW_MEM_OVERFLOW_BUGFIX
+		wapi_ie_size = MIN(WLC_IOCTL_SMLEN - 1, iwp->length);
+		memcpy(p, extra, wapi_ie_size);
+#else
 		wapi_ie_size = iwp->length;
 		memcpy(p, extra, iwp->length);
+#endif
 		dev_wlc_bufvar_set(dev, "wapiie", buf, wapi_ie_size);
 	}
 	else

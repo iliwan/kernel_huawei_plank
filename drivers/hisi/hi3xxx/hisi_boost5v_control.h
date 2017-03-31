@@ -61,5 +61,6 @@ extern void boost5v_headphone_enable(bool enable);
 extern void boost5v_classd_enable(bool enable);
 extern void boost5v_hdmi_enable(bool enable);
 extern void boost5v_denoise_headphone_enable(bool enable);
+extern void boost5v_extern_audio_speaker_pa_enable(bool enable);
 
 #endif		/* __HISI_BOOST5V_CONTROL_H */

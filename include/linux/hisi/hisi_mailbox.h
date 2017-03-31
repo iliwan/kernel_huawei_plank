@@ -123,7 +123,6 @@ struct hisi_mbox_device {
 	struct completion		complete;
 	spinlock_t			complete_lock;
 	int				completed;
-	struct work_struct		tx_work;
 	struct hisi_mbox_task		*tx_task;
 
 	/* rx attributes */
@@ -131,6 +130,9 @@ struct hisi_mbox_device {
 	mbox_msg_t			*ack_buffer;
 	struct atomic_notifier_head	notifier;
 	struct tasklet_struct		rx_bh;
+	struct task_struct * tx_kthread;
+
+	wait_queue_head_t tx_wait;
 };
 
 struct hisi_mbox_dev_ops {

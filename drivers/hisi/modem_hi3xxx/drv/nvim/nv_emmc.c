@@ -575,7 +575,7 @@ nv_flash_write_err:
 }
 
 s32 nv_emmc_seek(FILE* fp,s32 offset,s32 whence)
-{
+{
     u32 ret = 0;
     struct nv_emmc_file_header_stru* fd = (struct nv_emmc_file_header_stru*)fp;
 

@@ -35,7 +35,9 @@ typedef enum
 {
     LPHY_REQ_CHANCTRL_TM_REQUEST           = OM_CMD_ID(LPHY_CHANCTRL_MID, OM_TYPE_REQ, 0x1),
     LPHY_REQ_CHANCTRL_CP_REQUEST,
+    /* BEGIN: Added by yushujing, 2013/8/28   PN:chan_om*/
     LPHY_REQ_CHANCTRL_CELL_STAT_REQUEST,
+    /* END:   Added by yushujing, 2013/8/28 */
 
     LPHY_REQ_TAS_STAT_REQUEST,
     LPHY_REQ_DPDT_STAT_REQUEST,
@@ -50,6 +52,7 @@ typedef struct
     OM_REQ_ENABLE_ENUM enOmTmSwitch;
     OM_REQ_ENABLE_ENUM enOmCpSwitch;
 }LPHY_OM_REQ_CHANCTRL_STRU;
+/* BEGIN: Added by yushujing, 2013/8/28   PN:chan_om*/
 typedef struct
 {
     OM_REQ_ENABLE_ENUM enRptChanEna;
@@ -60,6 +63,7 @@ typedef struct
     LPHY_OM_REQ_CHANCTRL_STAT_ENA_STRU stRptChanEna;
     UINT32 ulRptPeriodCnt;
 }LPHY_OM_REQ_CHANCTRL_STAT_STRU;
+/* END:   Added by yushujing, 2013/8/28 */
 
 typedef struct
 {
@@ -89,7 +93,9 @@ typedef enum
 {
     LPHY_IND_CHANCTRL_TM_REPORT           = OM_CMD_ID(LPHY_CHANCTRL_MID, OM_TYPE_IND, 0x1),
     LPHY_IND_CHANCTRL_CP_REPORT,
+    /* BEGIN: Added by yushujing, 2013/8/28   PN:chan_om*/
     LPHY_IND_CHANCTRL_CELL_STAT,
+    /* END:   Added by yushujing, 2013/8/28   PN:chan_om*/
 
 	LPHY_IND_TAS_ASU_STAT,
 	LPHY_IND_TAS_DPDT_SWITCH_STAT,
@@ -114,6 +120,7 @@ typedef struct
     UINT32      ulData3;
     UINT32      ulData4;
 }LPHY_OM_IND_CHANCTRL_STRU;
+/* BEGIN: Added by yushujing, 2013/8/28   PN:chan_om*/
 enum LPHY_CHANCTRL_BAND_WIDTH_ENUM
 {
     LPHY_BAND_WIDTH_6RB              = 0,                /* 带宽为6RB */
@@ -178,6 +185,7 @@ typedef struct
     LPHY_OM_CHANCTRL_CELL_STAT_STRU astCellStat[2];
     LPHY_OM_CHANCTRL_CELL_CA_STAT_STRU stCaStat;
 }LPHY_OM_IND_CHANCTRL_STAT_STRU;
+/* END:   Added by yushujing, 2013/8/28   PN:chan_om*/
 /************************************************************
                     4. TRACE数据结构定义
 ************************************************************/
@@ -202,10 +210,12 @@ typedef enum
     LPHY_TRACE_CHANCTRL_TC_RNTI_CONFIG,
     LPHY_TRACE_CHANCTRL_TC_RNTI_TO_C_RNTI,
     LPHY_TRACE_CHANCTRL_PCH_STOP_BY_NC_BCH,
+    /* BEGIN: Added by yushujing, 2012/1/5   PN:ANR_MOD*/
     LPHY_TRACE_CHANCTRL_ANR_READY,
     LPHY_TRACE_CHANCTRL_ANR_START,
     LPHY_TRACE_CHANCTRL_ANR_HOLD,
     LPHY_TRACE_CHANCTRL_ANR_TIME_OK,
+    /* END:   Added by yushujing, 2012/1/5 */
     LPHY_TRACE_CHANCTRL_BLIND_HANDOVER,
     LPHY_TRACE_CHANCTRL_RELEASE_ALL,
     LPHY_TRACE_CHANCTRL_CHANNEL_RECONFIG,
@@ -217,8 +227,11 @@ typedef enum
     LPHY_TRACE_CHANCTRL_MAINCELL_BCCH_SETUP,
     LPHY_TRACE_CHANCTRL_TRANSMISSION_MODE_UPDATA,
     LPHY_TRACE_CHANCTRL_CALLING_RFE_CHANGE,
+    /* END:   Added by sunyanjie, 2012/3/20 */
+    /* BEGIN: Added by yushujing, 2013/8/29   PN:chan_om*/
     LPHY_TRACE_CHANCTRL_SCELL_ACT,
     LPHY_TRACE_CHANCTRL_SCELL_INACT,
+    /* END:   Added by yushujing, 2013/8/29   PN:chan_om*/
 
 }LPHY_CHANCTRL_TRACE_ENUM;
 

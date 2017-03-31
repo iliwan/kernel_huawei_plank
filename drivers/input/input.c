@@ -241,7 +241,7 @@ static int input_handle_abs_event(struct input_dev *dev,
 	if (pold) {
 		*pval = input_defuzz_abs_event(*pval, *pold,
 						dev->absinfo[code].fuzz);
-		if (*pold == *pval)
+		if ((*pold == *pval)&&strncmp(dev->name, "ps_input",strlen("ps_input")))
 			return INPUT_IGNORE_EVENT;
 
 		*pold = *pval;
@@ -674,7 +674,7 @@ static void input_dev_release_keys(struct input_dev *dev)
 			if (unlikely(code == KEY_VOLUMEDOWN))
                                 continue;
 			if (unlikely(code == KEY_F24))
-                                continue;
+				continue;
 			if (is_event_supported(code, dev->keybit, KEY_MAX) &&
 			    __test_and_clear_bit(code, dev->key)) {
 				input_pass_event(dev, EV_KEY, code, 0);

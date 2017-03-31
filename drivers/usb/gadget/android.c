@@ -32,6 +32,7 @@
 
 #include "f_fs.c"
 #include "f_audio_source.c"
+#include "f_midi.c"
 #include "f_mass_storage.c"
 #include "f_adb.c"
 #include "f_mtp.c"
@@ -42,17 +43,13 @@
 #include "u_ether.c"
 #include <linux/rtc.h>
 
+#include <chipset_common/hwusb/hw_usb_rwswitch.h>
+#include <chipset_common/hwusb/hw_usb_sync_host_time.h>
 #if defined (CONFIG_HUAWEI_DSM)
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #endif
 
 #include "f_hdb.c"
-
-#ifdef FINAL_RELEASE_MODE
-#undef HW_USB_TIME_SYNC_PC
-#else
-#define HW_USB_TIME_SYNC_PC
-#endif
 
 MODULE_AUTHOR("Mike Lockwood");
 MODULE_DESCRIPTION("Android Composite USB Driver");
@@ -71,6 +68,12 @@ static int setup_string_id;
 #define USB_DEVIEC_PLUGOUT 2
 #define USB_REQ_SEND_HOST_TIME    0xA2
 #define USB_DEVICE_BCD_CODE 0x9999
+
+/* f_midi configuration */
+#define MIDI_INPUT_PORTS    1
+#define MIDI_OUTPUT_PORTS   1
+#define MIDI_BUFFER_SIZE    256
+#define MIDI_QUEUE_LENGTH   32
 
 struct android_usb_function {
     char *name;
@@ -111,6 +114,8 @@ struct android_dev {
     struct usb_composite_dev *cdev;
     struct device *dev;
 
+    void (*setup_complete)(struct usb_ep *ep, struct usb_request *req);
+
     bool enabled;
     int disable_depth;
     struct mutex mutex;
@@ -134,26 +139,6 @@ struct _time {
     unsigned short millisecond;
     unsigned short weekday;
 };
-
-#if defined (CONFIG_HUAWEI_DSM)
-static struct dsm_dev dsm_usb = {
-	.name = "dsm_usb",
-	.device_name = NULL,
-	.ic_name = NULL,
-	.module_name = NULL,
-	.fops = NULL,
-	.buff_size = 1024,
-};
-static struct dsm_client *usb_dclient = NULL;
-
-#define USB_DSM(error_found,dsm_info,func) do{ \
-        if (error_found >= 0){\
-            dsm_client_record(usb_dclient, dsm_info,\
-				func);\
-            error_found++;\
-        }\
-}while(0)
-#endif
 
 static struct class *android_class;
 static struct android_dev *_android_dev;
@@ -300,6 +285,9 @@ static void android_disable(struct android_dev *dev)
         usb_ep_dequeue(cdev->gadget->ep0, cdev->req);
         printk(KERN_DEBUG "usb_remove_config +\n");
         usb_remove_config(cdev, &android_config_driver);
+
+	usb_ep_autoconfig_reset(cdev->gadget);
+
 	cdev->next_string_id = setup_string_id;
     }
     printk(KERN_DEBUG "%s -\n",__func__);
@@ -1493,6 +1481,60 @@ static struct android_usb_function audio_source_function = {
     .attributes    = audio_source_function_attributes,
 };
 
+static int midi_function_init(struct android_usb_function *f,
+					struct usb_composite_dev *cdev)
+{
+	struct midi_alsa_config *config;
+
+	config = kzalloc(sizeof(struct midi_alsa_config), GFP_KERNEL);
+	f->config = config;
+	if (!config)
+		return -ENOMEM;
+	config->card = -1;
+	config->device = -1;
+	return 0;
+}
+
+static void midi_function_cleanup(struct android_usb_function *f)
+{
+	kfree(f->config);
+}
+
+static int midi_function_bind_config(struct android_usb_function *f,
+						struct usb_configuration *c)
+{
+	struct midi_alsa_config *config = f->config;
+
+	return f_midi_bind_config(c, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
+			MIDI_INPUT_PORTS, MIDI_OUTPUT_PORTS, MIDI_BUFFER_SIZE,
+			MIDI_QUEUE_LENGTH, config);
+}
+
+static ssize_t midi_alsa_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct android_usb_function *f = dev_get_drvdata(dev);
+	struct midi_alsa_config *config = f->config;
+
+	/* print ALSA card and device numbers */
+	return sprintf(buf, "%d %d\n", config->card, config->device);
+}
+
+static DEVICE_ATTR(alsa, S_IRUGO, midi_alsa_show, NULL);
+
+static struct device_attribute *midi_function_attributes[] = {
+	&dev_attr_alsa,
+	NULL
+};
+
+static struct android_usb_function midi_function = {
+	.name		= "midi",
+	.init		= midi_function_init,
+	.cleanup	= midi_function_cleanup,
+	.bind_config	= midi_function_bind_config,
+	.attributes	= midi_function_attributes,
+};
+
 #include "hw_acm_functions.c"
 #include "hw_modem_serial.c"
 
@@ -1508,7 +1550,7 @@ static struct android_usb_function *supported_functions[] = {
     &mass_storage_function,
     &accessory_function,
     &audio_source_function,
-
+	&midi_function,
 #ifdef CONFIG_USB_F_SERIAL
     &nmea_function,
     &modem_function,
@@ -1938,8 +1980,6 @@ static DEVICE_ATTR(portNum, S_IRUGO | S_IWUSR, portNum_show, portNum_store);
  * write 0 to clear the request flag
  */
 
-#include "hw_rwswitch.c"
-
 static struct device_attribute *android_usb_attributes[] = {
     &dev_attr_idVendor,
     &dev_attr_idProduct,
@@ -1954,86 +1994,8 @@ static struct device_attribute *android_usb_attributes[] = {
     &dev_attr_enable,
     &dev_attr_state,
     &dev_attr_portNum,
-    &dev_attr_switch_request,
-    &dev_attr_port_mode,
-    &dev_attr_switch_index,
     NULL
 };
-#ifdef HW_USB_TIME_SYNC_PC
-    #define AFTER_BOOT_TO_1970YEAR ((1971-1970)*365*24*60*60)
-    #define BEIJING_TIME_ZONE 8
-
-struct gFlush_PC_Data {
-    struct timespec tv;
-	struct delayed_work pc_data_work;
-};
-
-struct gFlush_PC_Data flush_pc_data;
-
-static void flushPcDataWork(struct work_struct *work)
-{
-    struct gFlush_PC_Data *pc_data = container_of(work,
-            struct gFlush_PC_Data, pc_data_work.work);
-    struct rtc_device *rtc;
-    struct rtc_time new_rtc_tm;
-    int rv = 0;
-
-    if(do_settimeofday(&pc_data->tv) < 0)
-    {
-        printk(KERN_INFO "[USB_DEBUG]set system time Fail!\n");
-    }
-    rtc = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
-    if (rtc == NULL) {
-        printk(KERN_INFO "%s: unable to open rtc device (%s)\n",
-                __FILE__, CONFIG_RTC_HCTOSYS_DEVICE);
-        return;
-    }
-
-    rtc_time_to_tm(pc_data->tv.tv_sec, &new_rtc_tm);
-    rv = rtc_set_time(rtc, &new_rtc_tm);
-    if(rv!=0)
-    {
-        printk(KERN_INFO "[USB_DEBUG]set RTC time Fail!\n");
-    }
-    printk(KERN_INFO "[USB_DEBUG]set system time ok!\n");
-    //	spin_lock_irqsave(&alarm_slock, flags);
-    //	alarm_pending |= ANDROID_ALARM_TIME_CHANGE_MASK;
-    //	wake_up(&alarm_wait_queue);
-    //	spin_unlock_irqrestore(&alarm_slock, flags);
-}
-#endif
-/*-------------------------------------------------------------------------*/
-/* Composite driver */
-static void android_handle_host_time(struct usb_ep *ep, struct usb_request *req)
-{
-    struct _time *host_time;
-#ifdef HW_USB_TIME_SYNC_PC
-    struct timeval tvNow;
-#endif
-
-    host_time = (struct _time *)req->buf;
-
-    printk(KERN_INFO "Time Bias:%d minutes\n", host_time->time_bias);
-
-    printk(KERN_INFO "Host Time:[%d:%d:%d %d:%d:%d:%d Weekday:%d]\n", host_time->year,
-            host_time->month, host_time->day, host_time->hour, host_time->minute,
-            host_time->second, host_time->millisecond, host_time->weekday);
-#ifdef HW_USB_TIME_SYNC_PC
-    do_gettimeofday(&tvNow);
-    if(AFTER_BOOT_TO_1970YEAR < (tvNow.tv_sec))
-        return;
-
-    flush_pc_data.tv.tv_nsec = NSEC_PER_SEC >> 1;
-    flush_pc_data.tv.tv_sec = (unsigned long) mktime (host_time->year,
-                    host_time->month,
-                    host_time->day,
-                    (host_time->hour+BEIJING_TIME_ZONE),
-                    host_time->minute,
-                    host_time->second);
-    schedule_delayed_work(&(flush_pc_data.pc_data_work), 0);
-#endif
-    return;
-}
 
 static int android_bind_config(struct usb_configuration *c)
 {
@@ -2080,7 +2042,7 @@ static int android_setup_config(struct usb_configuration *c,
             memcpy((void *)&android_ctrl_request, (void *)ctrl,
                     sizeof(struct usb_ctrlrequest));
             req->context = &android_ctrl_request;
-            req->complete = android_handle_host_time;
+            req->complete = hw_usb_handle_host_time;
             cdev->gadget->ep0->driver_data = cdev;
             value = w_length;
             break;
@@ -2118,6 +2080,10 @@ static int android_bind(struct usb_composite_dev *cdev)
     int            id, ret;
 
     printk(KERN_INFO "%s +\n",__func__);
+
+    /* Save the default handler */
+    dev->setup_complete = cdev->req->complete;
+
     /*
      * Start disconnected. Userspace will connect the gadget once
      * it is done configuring the functions.
@@ -2206,13 +2172,6 @@ android_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *c)
     struct android_usb_function    *f;
     int value = -EOPNOTSUPP;
     unsigned long flags;
-    #if defined (CONFIG_HUAWEI_DSM)
-    int dsm_usb_error_found = -1;
-
-    if (!dsm_client_ocuppy(usb_dclient)) {
-		dsm_usb_error_found++;
-	}
-    #endif
 	
     cdev = get_gadget_data(gadget);
     if (!cdev) {
@@ -2222,6 +2181,7 @@ android_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *c)
     req = cdev->req;
     req->zero = 0;
     req->length = 0;
+    req->complete = dev->setup_complete;
     gadget->ep0->driver_data = cdev;
 
     list_for_each_entry(f, &dev->enabled_functions, enabled_list) {
@@ -2255,16 +2215,6 @@ android_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *c)
         dev->event = USB_DEVIEC_PLUGIN;
         schedule_work(&dev->notify_work);
         pr_info("android_setup configured\n");
-		
-	#if defined (CONFIG_HUAWEI_DSM)
-	USB_DSM(dsm_usb_error_found, "[%s]schedule android_work with configured\n", 
-                            __func__);
-	if (dsm_usb_error_found > 0) {
-        dsm_client_notify(usb_dclient, DSM_USB_ERROR_NO);
-        } else if (!dsm_usb_error_found) {
-    	dsm_client_unocuppy(usb_dclient);
-       }
-       #endif
     }
     spin_unlock_irqrestore(&cdev->lock, flags);
     return value;
@@ -2273,13 +2223,6 @@ android_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *c)
 static void android_disconnect(struct usb_composite_dev *cdev)
 {
     struct android_dev *dev = _android_dev;
-    #if defined (CONFIG_HUAWEI_DSM)
-    int dsm_usb_error_found = -1;
-
-    if (!dsm_client_ocuppy(usb_dclient)) {
-		dsm_usb_error_found++;
-	}
-    #endif
 
     printk(KERN_INFO "%s +\n",__func__);
 
@@ -2304,16 +2247,6 @@ static void android_disconnect(struct usb_composite_dev *cdev)
        so we need to inform it when we are disconnected.
      */
     acc_disconnect();
-
-	#if defined (CONFIG_HUAWEI_DSM)
-	USB_DSM(dsm_usb_error_found, "[%s]android_disconnect \n", 
-                            __func__);
-	if (dsm_usb_error_found > 0) {
-        dsm_client_notify(usb_dclient, DSM_USB_ERROR_NO);
-        } else if (!dsm_usb_error_found) {
-    	dsm_client_unocuppy(usb_dclient);
-       }
-       #endif
 
     pr_info("android_disconnect \n");
     printk(KERN_INFO "%s -\n",__func__);
@@ -2408,20 +2341,21 @@ static int __init init(void)
 
     INIT_WORK(&dev->notify_work, android_notify);
     dev->event = 0;
-#ifdef HW_USB_TIME_SYNC_PC
-    memset(&flush_pc_data, 0, sizeof(struct gFlush_PC_Data) );
-    INIT_DELAYED_WORK(&(flush_pc_data.pc_data_work), flushPcDataWork);
-#endif
+    hw_usb_sync_host_time_init();
 
     err = android_create_device(dev);
     if (err) {
         pr_err("%s: failed to create android device %d", __func__, err);
         goto err_create;
     }
-
+	err = hw_rwswitch_create_device(dev->dev,android_class);
+    if (err) {
+        pr_err("%s: failed to create android device %d", __func__, err);
+        goto err_create;
+    }
     dev->disabled = 0;
     _android_dev = dev;
-
+    hw_usb_get_device(_android_dev->dev);
     err = usb_composite_probe(&android_usb_driver);
     if (err) {
         pr_err("%s: failed to probe driver %d", __func__, err);
@@ -2433,11 +2367,6 @@ static int __init init(void)
     android_usb_driver.gadget_driver.setup = android_setup;
 
     printk(KERN_INFO "%s -\n",__func__);
-    #if defined (CONFIG_HUAWEI_DSM)
-	if (!usb_dclient) {
-		usb_dclient = dsm_register_client(&dsm_usb);
-	}
-    #endif
 
     return 0;
 

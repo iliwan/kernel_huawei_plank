@@ -612,29 +612,7 @@ struct sctp_chunk *sctp_make_cookie_ack(const struct sctp_association *asoc,
 	return retval;
 }
 
-/*
- *  Appendix A: Explicit Congestion Notification:
- *  CWR:
- *
- *  RFC 2481 details a specific bit for a sender to send in the header of
- *  its next outbound TCP segment to indicate to its peer that it has
- *  reduced its congestion window.  This is termed the CWR bit.  For
- *  SCTP the same indication is made by including the CWR chunk.
- *  This chunk contains one data element, i.e. the TSN number that
- *  was sent in the ECNE chunk.  This element represents the lowest
- *  TSN number in the datagram that was originally marked with the
- *  CE bit.
- *
- *     0                   1                   2                   3
- *     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *    | Chunk Type=13 | Flags=00000000|    Chunk Length = 8           |
- *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *    |                      Lowest TSN Number                        |
- *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *
- *     Note: The CWR is considered a Control chunk.
- */
+
 struct sctp_chunk *sctp_make_cwr(const struct sctp_association *asoc,
 			    const __u32 lowest_tsn,
 			    const struct sctp_chunk *chunk)
@@ -2595,7 +2573,7 @@ do_addr_param:
 
 		addr_param = param.v + sizeof(sctp_addip_param_t);
 
-		af = sctp_get_af_specific(param_type2af(param.p->type));
+		af = sctp_get_af_specific(param_type2af(addr_param->p.type));
 		if (af == NULL)
 			break;
 

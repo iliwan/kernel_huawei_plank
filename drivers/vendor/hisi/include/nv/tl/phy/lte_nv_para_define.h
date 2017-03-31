@@ -40,6 +40,7 @@ extern "C"{
 
 #define    RF_9361_HW_TYPE              10
 #define    RF_6360_HW_TYPE              11
+/* BEGIN: Added by luliwu,  2012/1/13  PN: DTS_V210_12345678 */
 #define    UL_APT_VBIAS_NUM             16
 
 /*ET功能涉及的宏定义*/
@@ -66,12 +67,14 @@ extern "C"{
 
 #define    NV_RFIC_BALONGV7_MULTIBAN_BAND7
 /* #define NV_RFIC_BALONGV7_MULTIBAN_BAND38 */
+/* BEGIN: Added by shijiahong, 2011/12/23   PN:DTS201112302952*/
 #define    MAX_HI6360_INITIAL_REG_NUM       40
 #define    MAX_DSP_CFG_REG_RESV_NUM         4
 
 #define    RF_TX_FREQ_NUM (32)
 #define    RF_RX_FREQ_NUM (32)
 #define    RF_TX_GAIN_NUM 16
+/* END:   Added by shijiahong, 2011/12/23   PN:DTS201112302952*/
 /*PBCH  噪声白化*/
 
 #define    PD_PWR_CUR_MAX_NUM         16   /*PD功率曲线点个数*/
@@ -87,6 +90,8 @@ extern "C"{
 /*k3v3+全频段特性*/
 #define MAX_PCC_BAND_NUM  		32
 #define MAX_SCC_BAND_NUM          6
+/*seattle GL interference feature: close Diversity RFIC and LNA*/
+#define MAX_INTERFERENCE_BAND_COMB_NUM  		10
 
 #define    MAX_RF_BAND_NUM                  (MAX_PCC_BAND_NUM + 4)
 
@@ -481,6 +486,8 @@ typedef struct
     //UL_APC_TABLE_ITEM_STRU astApcTable[APC_TABLE_NUM][APC_TABLE_LEN];
 }NV_UL_PARA_STRU;
 
+/* BEGIN: Added by shijiahong, 2011/12/23   PN:DTS201112302952*/
+
 typedef struct
 {
     UINT32 ulRegAddr;
@@ -499,6 +506,7 @@ typedef struct
     UINT8 enSingleReceiverChnSel;
     INT8  cRsv[7];
 }NV_PHY_FUNC_VERIFY_STUB_STRU;
+/* END:   Added by luliwu,  2012/2/3  PN: DTS_TISTISTIS */
 /*****************************************************************************
  结构名    : DRX_CTRL_FLAG_BIT_STRU
  协议表格  :
@@ -608,12 +616,16 @@ typedef struct
               UINT16 usDACOpenTime;         /*ABB DAC打开提前量*/
               UINT16 usT7UL;                /*UL_RFIC_T7(TDD上行模式切换配置提前量)*/
               UINT16 usT7DL;                /*RFIC_T7(TDD下行模式切换配置提前量)*/
+              /* BEGIN: Added by yushujing, 2013/12/23   PN:t8ul_mod*/
               UINT16 usT8ULFDD[7];          /*UL_FDD_T8_COMPENSATE*/
               UINT16 usT8ULTDD[7];          /*UL_TDD_T8_COMPENSATE*/
+              /* END:   Added by yushujing, 2013/12/23   PN:t8ul_mod*/
               UINT16 usT9;                  /*T9(TDD下行模式切换配置提前量)*/
               UINT16 usT10VGASPICfgTime;    /*T10上行VGA的SPI配置时间*/
               UINT16 usT15;                 /*T15*/
+              /* BEGIN: Added by yushujing, 2013/12/23   PN:t8ul_mod*/
               UINT16 usTul[7];              /*上行通道延时*/
+              /* END:   Added by yushujing, 2013/12/23   PN:t8ul_mod*/
               UINT16 usPaOpenTime;          /*PA打开时间，基于PA特性*/
               UINT16 usPaAttTime;           /*PA ATT打开时间，基于PA特性*/
               UINT16 usAntSelTime;          /*ANT打开时间，基于ANT特性*/
@@ -650,6 +662,13 @@ typedef struct
 	INT16 sMid2LowThre;
 	INT16 sLow2MidThre;
 }NV_PA_LEVEL_THRE_STRU;
+
+typedef struct
+{
+    INT16  ssPhyHkadcCh;
+    INT16  ssRsv;
+}NV_LTE_PA_TEMP_DET_CHANNEL_STRU;
+
 typedef struct
 {
     UINT32 ulDbbAttRegVal;
@@ -1113,10 +1132,11 @@ typedef struct
 	INT16 sRsv[15];
 }NV_TX_CMP_RSV_STRU;
 #endif
+
 typedef struct
 {
     NV_PA_LEVEL_THRE_STRU stPaThre;          /*PA档位门限*/
-
+    NV_LTE_PA_TEMP_DET_CHANNEL_STRU stPaTempDetCh;
     UINT16 usTxCalibrFreqList[RF_TX_FREQ_NUM];           /*TX校准频点，由低到高放置*/
     INT16 asTxMaxPwr[4];                     /*校准max power值*/
     INT16 asPaHighCalPwr[4];                 /*PA高档校准功率值*/
@@ -1134,8 +1154,10 @@ typedef struct
     UINT16 ausMprVal[4];
     /*MPR end*/
     UL_AMPR_STRU astAMprVal[LPHY_MAX_BANDWIDTH_NUM];
+    /* END:   Added by xueqiuyan, 2012/5/17 */
     UINT32 ulAmprValNS05;
     UINT16 usAmprValNS09[2];
+    /* END:   Added by xueqiuyan, 2012/10/10 */
     INT16  asAptPaHighCmp[UL_APT_VBIAS_NUM];             /*APT PA增益补偿*/
     INT16  asAptPaMidCmp[UL_APT_VBIAS_NUM];              /*APT PA增益补偿*/
     INT16  asAptPaLowCmp[UL_APT_VBIAS_NUM];              /*APT PA增益补偿*/
@@ -1206,6 +1228,7 @@ typedef struct
 #define MAX_CA_COUPLE           20
 #define MAX_DEBUG_NUM           (12)
 #define ANT_MIPI_NUM            (3)
+#define EXTERNAL_LNA_MIPI_NUM   (3)
 #define PA_MIPI_NUM             (4)
 
 typedef struct
@@ -1465,6 +1488,7 @@ typedef struct
     UINT16 usCh1ExtTcxoValidFlg;
 }NV_EXT_TCXO_STATE_STRU;
 
+/* Begin: Added by luzhejun, 2014-03-17 PN:LTE_WIFI*/
 typedef struct
 {
     UINT16 		 usLWCoexEnbale;
@@ -1475,6 +1499,7 @@ typedef struct
     UINT16		Reserved;
 }NV_LPHY_LWCOEX_INIT_PARA_STRU;
 
+/* END: Added by luzhejun, 2014-03-17 PN:LTE_WIFI*/
 
 
 typedef struct
@@ -1511,6 +1536,44 @@ typedef struct
 {
 	NV_GU_TRI_MODE_CHAN_PARA_STRU stPara[8];
 }NV_GU_TRI_MODE_CHAN_PARA_PROFILE_STRU;
+
+/*seattle GL interference feature: close Diversity RFIC and LNA*/
+typedef struct
+{
+	LRRC_LPHY_BAND_IND_ENUM_UINT16				enGSMBandInd;
+	LRRC_LPHY_MODEM1_COUNTRY_ENUM_UINT16		enBandCountryInd;               /* 国内国外指示 */
+	UINT32				                        aulLTEBandInd[2];
+}NV_RF_GL_INTERFERENCE_BAND_COMB_STRU;
+
+typedef struct
+{
+	UINT16   usInterferenceEnable;
+	UINT16   usNumInterferenceBandComb;
+	NV_RF_GL_INTERFERENCE_BAND_COMB_STRU	stBandInfo[MAX_INTERFERENCE_BAND_COMB_NUM];
+	
+}NV_RF_GL_INTERFERENCE_INFO_STRU;
+
+typedef struct
+{
+	UINT16 										usBandExtLNAEnFlg;
+	LRRC_LPHY_BAND_IND_ENUM_UINT16				enBandInd;
+	UINT16 										usGpioCfgFlg;
+	UINT16   									uResvered;
+	UINT32 										ulGpioCfg;
+    LPHY_MIPIDEV_CMD_STRU      					stAnt0LNAMipiRxEnable[EXTERNAL_LNA_MIPI_NUM]; /*ANT0接收天线LNA开关使能*/
+    LPHY_MIPIDEV_CMD_STRU      					stAnt1LNAMipiRxEnable[EXTERNAL_LNA_MIPI_NUM]; /*ANT1接收天线LNA开关使能*/
+    LPHY_MIPIDEV_CMD_STRU      					stAnt0LNAMipiRxDisable[EXTERNAL_LNA_MIPI_NUM]; /*ANT0接收天线LNA开关关闭*/
+    LPHY_MIPIDEV_CMD_STRU      					stAnt1LNAMipiRxDisable[EXTERNAL_LNA_MIPI_NUM]; /*ANT1接收天线LNA开关关闭*/
+}NV_RF_BAND_EXTERNAL_LNA_INFO_STRU;
+
+typedef struct
+{
+	UINT16   							usNumBandLNA;                         /**/
+	UINT16   							uResvered;
+	NV_RF_BAND_EXTERNAL_LNA_INFO_STRU	stBandLNAInfo[MAX_PCC_BAND_NUM];
+	
+}NV_RF_LTE_BAND_EXTERNAL_LNA_CFG_STRU;
+/* end seattle interference feature*/
 
 /****************************************************************************************/
 
@@ -1554,6 +1617,7 @@ typedef struct
     NV_FE_CA_TUNER_INFO_STRU            stCaTunerCfg;
 
     NV_PHY_FUNC_VERIFY_STUB_STRU       stPhyFuncDebugPara;
+    /* END:   Added by luliwu,  2012/2/3  PN: DTS_TISTISTIS */
     NV_RX_BT_LEVEL_MAP_TABLE_STRU stRxBtMapTable;
 
     VOS_UINT32                    ulSleepAddr;
@@ -1569,7 +1633,9 @@ typedef struct
 
     /*RFIC校准使用NV*/
     NV_RF_CA_RCCAL_CFG_STRU       stRfRCcalCfg;                /*RFIC CA 校准参数*/
+    /* Begin: Added by luzhejun, 2014-03-17 PN:LTE_WIFI*/
     NV_LPHY_LWCOEX_INIT_PARA_STRU  stLWCoexInitPara;
+    /* END: Added by luzhejun, 2014-03-17 PN:LTE_WIFI*/
 
 	/*+tas gpio nv by lijiuyong 20141024 begin*/
 	UINT16 stTasEna;
@@ -1591,6 +1657,9 @@ typedef struct
 	NV_GU_TRI_MODE_CHAN_PARA_PROFILE_STRU   stGuChanPara;
 	UL_AMPR_BAND26_STRU astAmprValBand26;
     UL_AMPR_BAND28_STRU astAmprValBand28;
+	/*seattle GL interference feature: close Diversity RFIC and LNA*/
+	NV_RF_GL_INTERFERENCE_INFO_STRU					stRfGLInterferenceInfo;
+	NV_RF_LTE_BAND_EXTERNAL_LNA_CFG_STRU			stRfLTEBandExtLNACfg;
 
 
 }LTE_NV_PARA_STRU;

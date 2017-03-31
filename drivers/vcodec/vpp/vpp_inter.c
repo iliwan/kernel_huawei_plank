@@ -37,12 +37,19 @@ do{                                  \
     pstVpp = &(s_stVPPLayer[(int)enLayer]); \
 }while(0)
 
-static int alloc_vpp_reserved_mem(struct k3_vpp_addr *k3vpp, unsigned int buf_size){
+static int alloc_vpp_reserved_mem(struct k3_vpp_addr *k3vpp, unsigned int buf_size)
+{
 
     struct ion_client *client = NULL;
     struct ion_handle *handle = NULL;
     size_t len = 0;
     unsigned long phys_addr = 0;
+
+    if (NULL == k3vpp)
+    {
+        loge("k3vpp is null \n");
+        return 0;
+    }
     client = (struct ion_client *)hisi_ion_client_create("k3_vpp_ion");
     if (NULL == client){
         loge("failed to create ion client!\n");
@@ -73,7 +80,8 @@ err_ion_alloc:
 err_ion_client_create:
     return 0;
 }
-static void vpp_free_buffer(struct k3_vpp_addr *k3vpp){
+static void vpp_free_buffer(struct k3_vpp_addr *k3vpp)
+{
     if (k3vpp->ion_client != NULL && k3vpp->ion_handle != NULL) {
         ion_unmap_kernel(k3vpp->ion_client, k3vpp->ion_handle);
         ion_free(k3vpp->ion_client, k3vpp->ion_handle);
@@ -201,7 +209,8 @@ static __inline int inter_bitvalue(int s32Value)
 static int inter_init_dieinfo(VPP_DIE_ADDR_S *pstDieModule)
 {
     int i = 0;
-    unsigned int phy_addr;
+    unsigned int phy_addr = 0;
+
     if(NULL == pstDieModule){
         loge("pstDieModule is null!\n");
         return K3_FAILURE;
@@ -211,11 +220,17 @@ static int inter_init_dieinfo(VPP_DIE_ADDR_S *pstDieModule)
     pstDieModule->die_size = ( ((((DIE_FRAME_MAX_WIDTH -1) >> 6) + 1)) << 4)*DIE_FRAME_MAX_HEIGHT*10;
 
     phy_addr = alloc_vpp_reserved_mem(&k3vpp, VPP_RESERVED_BASE_SIZE);
+
+    if(NULL == phy_addr){
+        loge("allocate memory failure!\n");
+        return K3_FAILURE;
+    }
+
     pstDieModule->die_BusAddr = &phy_addr;
     logi("in inter_init_dieinfo:phy_addr=%#0x\n",phy_addr);
     for(i=0; i<10; i++)
     {
-                s_u32DieAddrCtrl[i] = phy_addr + pstDieModule->die_size/10*i;
+        s_u32DieAddrCtrl[i] = phy_addr + pstDieModule->die_size/10*i;
     }
     return K3_SUCCESS;
 }
@@ -235,6 +250,12 @@ int inter_acm_mycheck(HAL_ACMBLKINFO_S *psgl_a, int ap, HAL_ACMBLKINFO_S *psgl_b
 {
     int indexUa=0, indexUb=0;
     int indexVa=0, indexVb=0;
+
+    if ((NULL == psgl_a) || (NULL == psgl_b))
+    {
+            loge("parameter is invalid, psgl_a = %p,psgl_b = %p\n",psgl_a, psgl_b);
+                return -1;
+    }
 
     switch(ap)
     {
@@ -316,6 +337,12 @@ int inter_acm_infocheck(HAL_ACMINFO_S * pacm_info, int num_a, int num_b)
     HAL_ACMBLKINFO_S * psgl_b = NULL;
     int indexUa=0, indexVa=0;
     int indexUb=0, indexVb=0;
+
+    if (NULL == pacm_info)
+    {
+        loge("pacm_info is null\n");
+        return -1;
+    }
 
     switch(num_a)
     {
@@ -491,6 +518,12 @@ int inter_acm_infocheck(HAL_ACMINFO_S * pacm_info, int num_a, int num_b)
 
 void inter_acm_boundcheck(HAL_ACMBLKINFO_S *psgl)
 {
+    if (NULL == psgl)
+    {
+        loge("psgl is null \n");
+        return;
+    }
+
     int indexU = psgl->u8_uIndex;
     int indexV = psgl->u8_vIndex;
 
@@ -719,7 +752,11 @@ void inter_set_pddef (HAL_LAYER_E enLayer){
 
 static void inter_deinit_dieinfo(VPP_DIE_ADDR_S *pstDieModule)
 {
-    BUG_ON(NULL == pstDieModule);
+    if (NULL == pstDieModule)
+    {
+        loge("paremeter pstDieModule is null\n");
+        return;
+    }
 
     //释放DIE_INFO缓冲区
     if (pstDieModule->die_VirtAddr!= NULL)
@@ -735,8 +772,9 @@ static void  inter_calc_inputaddrinfo( VPP_INIMAGE_S *pInImg ,VPP_ADDRINFO_S * p
 {
     int stride = 0;
 
-    if((NULL == pInImg) || (NULL == pVppAddrInfo)){
-        loge("input parameter is null!\n");
+    if((NULL == pInImg) || (NULL == pVppAddrInfo))
+    {
+        loge("input parameter is null!,pInImg = %p,pVppAddrInfo =%p\n",pInImg, pVppAddrInfo);
         return;
     }
 
@@ -831,9 +869,13 @@ static void  inter_calc_inputaddrinfo( VPP_INIMAGE_S *pInImg ,VPP_ADDRINFO_S * p
 ***********************************************************************************/
 static void inter_set_inputaddr(VPP_PIXELFORMAT_E pixformat, VPP_ADDRINFO_S *pVppAddrInfo,HAL_LAYER_E enLayer)
 {
-    BUG_ON(pixformat >= VPP_PIXELFORMAT_BUTT);
-    BUG_ON(NULL == pVppAddrInfo);
-    BUG_ON(enLayer != HAL_LAYER_VIDEO1);
+    if((pixformat >= VPP_PIXELFORMAT_BUTT)
+             ||(NULL == pVppAddrInfo)
+             ||(enLayer != HAL_LAYER_VIDEO1))
+    {
+        loge("invalid parameter,pixformat = %d, pVppAddrInfo = %p,enLayer = %d\n",pixformat, pVppAddrInfo, enLayer);
+        return ;
+    }
 
     logd();
     switch(pixformat)
@@ -854,7 +896,6 @@ static void inter_set_inputaddr(VPP_PIXELFORMAT_E pixformat, VPP_ADDRINFO_S *pVp
         default:
         {
             loge("Input format is not supported, 0x%x\n", pixformat);
-            BUG_ON(NULL == NULL);
             break;
         }
     }
@@ -876,8 +917,11 @@ static void inter_set_inputaddr(VPP_PIXELFORMAT_E pixformat, VPP_ADDRINFO_S *pVp
 ***********************************************************************************/
 static void inter_set_wbcconfig(HAL_LAYER_E enLayer, bool bEnable, VPP_OUTIMAGE_S *pVppOutImage)
 {
-    BUG_ON(NULL == pVppOutImage);
-    BUG_ON(HAL_LAYER_WBC1 != enLayer);
+    if ((NULL == pVppOutImage)||(HAL_LAYER_WBC1 != enLayer))
+    {
+         loge("invalid parameter, pVppOutImage = %p,enLayer = %d\n",pVppOutImage, enLayer);
+         return ;
+    }
 
     logd();
 
@@ -903,8 +947,8 @@ static void inter_set_wbcconfig(HAL_LAYER_E enLayer, bool bEnable, VPP_OUTIMAGE_
 
 static int inter_check_para( VPP_INIMAGE_S * pInImg, VPP_ADDRINFO_S *pVppAddrInfo)
 {
-    if((NULL == pInImg) || (NULL == pVppAddrInfo)){
-        loge("input parameter is null!\n");
+    if ((NULL == pInImg) || (NULL == pVppAddrInfo)){
+        loge("input parameter is null!, pInImg = %p, pVppAddrInfo = %p\n",pInImg, pVppAddrInfo);
         return K3_FAILURE;
     }
     /*数据格式相关检测*/
@@ -1098,7 +1142,7 @@ int inter_start(VPP_CONFIG_S* pVppConfig)
     HAL_ACMINFO_S *pstAcmInfo = NULL;
 
     logd("enter inter start \n");
-    if(NULL == pVppConfig){
+    if (NULL == pVppConfig){
         loge("pVppConfig is null!\n");
         return K3_FAILURE;
     }
@@ -1133,7 +1177,8 @@ int inter_start(VPP_CONFIG_S* pVppConfig)
         vhdrect.u32InHeight  = pInCrop->height;
     }
     inter_set_inputaddr(pInImage->pixformat, &addrInfo, HAL_LAYER_VIDEO1);
-    if(0 == pVppConfig->bdie_enbale){
+    if(0 == pVppConfig->bdie_enbale)
+    {
         pVppConfig->vpp_die_addrinfo.cluma_addr = addrInfo.vhd_clum_addr;
         pVppConfig->vpp_die_addrinfo.cchroma_addr= addrInfo.vhd_cchm_addr;
     }
@@ -1155,7 +1200,8 @@ int inter_start(VPP_CONFIG_S* pVppConfig)
 
     /***********************acm******start*************************************/
     pstAcmInfo = (HAL_ACMINFO_S*)kmalloc(sizeof(HAL_ACMINFO_S),GFP_KERNEL);
-    if(NULL == pstAcmInfo){
+    if(NULL == pstAcmInfo)
+    {
         loge("kmalloc pstAcmInfo is fail!\n");
         return K3_FAILURE;
     }
@@ -1214,15 +1260,17 @@ int inter_start(VPP_CONFIG_S* pVppConfig)
         hal_set_acm_enable(HAL_ACMBLK_ID2, 0);
         hal_set_acm_enable(HAL_ACMBLK_ID3, 0);
     }
-	if(NULL != pstAcmInfo){
+    if(NULL != pstAcmInfo)
+    {
         kfree(pstAcmInfo);
         pstAcmInfo = NULL;
-	}
+    }
     /******************acm end***********************************/
 
     /**************************mmu start****************************************/
 
-    if(1 == pVppConfig->mmu_enable){
+    if(1 == pVppConfig->mmu_enable)
+    {
 
         logd("MMU Type Mode Enable!\n");
         hal_set_mmu_enable(HAL_LAYER_VIDEO1,pVppConfig->edie_mode,pVppConfig->vpp_in_img.pixformat,pVppConfig->bdie_enbale,1);
@@ -1231,11 +1279,13 @@ int inter_start(VPP_CONFIG_S* pVppConfig)
         hal_set_mmu_cfg(2);
         hal_set_mmu_in_tile_enb(pVppConfig->vpp_in_img.in_mem_mode);
         hal_set_mmu_out_tile_enb(pVppConfig->vpp_out_img.out_mem_mode);
-        if(VPP_TILE == pVppConfig->vpp_in_img.in_mem_mode){
+        if(VPP_TILE == pVppConfig->vpp_in_img.in_mem_mode)
+        {
             hal_set_mmu_bit7_xor(1,0);
             hal_set_mmu_tile_num(pVppConfig->vpp_in_img.stride,0);
         }
-        if(VPP_TILE == pVppConfig->vpp_out_img.out_mem_mode){
+        if(VPP_TILE == pVppConfig->vpp_out_img.out_mem_mode)
+        {
             hal_set_mmu_bit7_xor(1,1);
             hal_set_mmu_tile_num(pVppConfig->vpp_out_img.stride,1);
         }
@@ -1289,7 +1339,8 @@ int inter_start(VPP_CONFIG_S* pVppConfig)
             bTop = 1;
         }*/
     }
-    if(1 == pVppConfig->pd_enable){
+    if(1 == pVppConfig->pd_enable)
+    {
         logi("====pd-enable==\n");
         inter_set_pddef (HAL_LAYER_VIDEO1);
     }

@@ -42,7 +42,7 @@
 #include "hi6402_hifi_debug.h"
 
 #include <linux/hisi/hi6402_hifi_misc.h>
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 
 #ifdef CONFIG_HISI_RDR
 #include <linux/huawei/rdr.h>
@@ -54,6 +54,10 @@ extern u32 rdr_nv_get_value(enum rdr_nv_e nv_option);
 #define MAX_PARA_SIZE 4096
 #define RESULT_SIZE 4
 #define MAX_OUT_PARA_SIZE ((RESULT_SIZE) + (MAX_PARA_SIZE))
+#define MAX_USR_INPUT_SIZE (MAX_MSG_SIZE + MAX_PARA_SIZE)
+
+#define HI6402_EXCEPTION_RETRY 3
+#define MAX_STR_LEN 64
 
 #define HI6402DEBUG_LEVEL_PROC_FILE   "hi6402debuglevel"
 #define HI6402DEBUG_PROC_FILE         "hi6402debug"
@@ -92,7 +96,7 @@ enum {
 enum {
 	HIFI_STATE_UNINIT,
 	HIFI_STATE_INIT,
-	HIFI_STATE__BUTT,
+	HIFI_STATE_BUTT,
 };
 
 /*XXX: change to 4 to enbale debug print*/
@@ -101,7 +105,9 @@ unsigned long hi6402_dsp_debug_level = 3;
 static const unsigned int DSP_MSG_START_ADDR = HI6402_OCRAM1_BASE + HI6402_MSG_START_ADDR_OFFSET;
 static const unsigned int DSP_MLIB_PARA_ADDR = HI6402_OCRAM1_BASE;
 
+#ifdef ENABLE_HI6402_HIFI_DEBUG
 static struct proc_dir_entry *hi6402_debug_dir = NULL;
+#endif
 
 struct reg_rw_struct {
 	unsigned int	reg;
@@ -510,7 +516,7 @@ static int hi6402_write_msg(const unsigned char *arg, const unsigned int len)
 }
 
 static int hi6402_get_input_param(unsigned int usr_para_size,
-				  void *usr_para_addr,
+				  void __user *usr_para_addr,
 				  unsigned int *krn_para_size,
 				  void **krn_para_addr)
 {
@@ -519,20 +525,26 @@ static int hi6402_get_input_param(unsigned int usr_para_size,
 
 	IN_FUNCTION;
 
+	if (NULL == usr_para_addr) {
+		HI6402_DSP_ERROR("usr_para_addr is null no user data\n");
+		goto ERR;
+	}
+
+	if ((0 == usr_para_size) || (usr_para_size > MAX_USR_INPUT_SIZE)) {
+		HI6402_DSP_ERROR("usr buffer size:%u out of range\n", usr_para_size);
+		goto ERR;
+	}
+
 	para_size_in = roundup(usr_para_size, 4);
+
 	para_in = kzalloc(para_size_in, GFP_KERNEL);
 	if (para_in == NULL) {
 		HI6402_DSP_ERROR("kzalloc fail\n");
 		goto ERR;
 	}
 
-	if (usr_para_addr != NULL) {
-		if (copy_from_user(para_in , usr_para_addr, usr_para_size)) {
-			HI6402_DSP_ERROR("copy_from_user fail\n");
-			goto ERR;
-		}
-	} else {
-		HI6402_DSP_ERROR("usr_para_addr is null no user data\n");
+	if (copy_from_user(para_in, usr_para_addr, usr_para_size)) {
+		HI6402_DSP_ERROR("copy_from_user fail\n");
 		goto ERR;
 	}
 
@@ -571,9 +583,9 @@ static void hi6402_param_free(void **krn_para_addr)
 }
 
 static int hi6402_alloc_output_param_buffer(unsigned int usr_para_size,
-					    void *usr_para_addr,
-					    unsigned int *krn_para_size,
-					    void **krn_para_addr)
+					    void __user *usr_para_addr,
+						unsigned int *krn_para_size,
+						void **krn_para_addr)
 {
 	BUG_ON(*krn_para_addr != NULL);
 
@@ -600,7 +612,7 @@ static int hi6402_alloc_output_param_buffer(unsigned int usr_para_size,
 }
 
 static int hi6402_put_output_param(unsigned int usr_para_size,
-				   void *usr_para_addr,
+				   void __user *usr_para_addr,
 				   unsigned int krn_para_size,
 				   void *krn_para_addr)
 {
@@ -652,10 +664,10 @@ static int hi6402_sync_write(const unsigned char *arg, const unsigned int len)
 		count++;
 		HI6402_DSP_ERROR("cmd timeout retry %d\n",count);
 
-		if(count > 3)
+		if(count > HI6402_EXCEPTION_RETRY)
 			break;
 	}
-	if(count > 3){
+	if(count > HI6402_EXCEPTION_RETRY) {
 		HI6402_DSP_ERROR("cmd timeout\n");
 #ifdef HI6402_RDR
 		if (!(priv.is_watchdog_coming) && !(priv.is_sync_write_timeout)) {
@@ -770,6 +782,7 @@ static unsigned int hi6402_sc_src_lr_ctrls_m[] = {
 	HI6402_SC_S2_SRC_LR_CTRL_M,
 	HI6402_SC_S3_SRC_LR_CTRL_M,
 	HI6402_SC_S4_SRC_LR_CTRL_M,
+	HI6402_SC_MISC_SRC_CTRL_H,
 };
 
 /* dsp_if io sample rate config */
@@ -778,21 +791,45 @@ static unsigned int hi6402_sc_fs_ctrls_h[] = {
 	HI6402_SC_FS_S2_CTRL_H,
 	HI6402_SC_FS_S3_CTRL_H,
 	HI6402_SC_FS_S4_CTRL_H,
+	HI6402_SC_FS_MISC_CTRL,
 };
 
-/* check for parameters used by misc only */
-static int hi6402_dsp_if_para_check(const char *arg)
+/* check for parameters used by misc, only for if_open/if_close */
+static int hi6402_dsp_if_para_check(const struct krn_param_io_buf *param)
 {
 	unsigned int i = 0;
+	unsigned int message_size = 0;
+	DSP_IF_OPEN_REQ_STRU *dsp_if_open_req = NULL;
+	PCM_PROCESS_DMA_MSG_STRU *dma_msg_stru = NULL;
 
-	PCM_IF_MSG_STRU *pcm_if_msg = NULL;
-	DSP_IF_OPEN_REQ_STRU *dsp_if_open_req = (DSP_IF_OPEN_REQ_STRU *)arg;
-	PCM_PROCESS_DMA_MSG_STRU *dma_msg_stru = &dsp_if_open_req->stProcessDMA;
+	BUG_ON(param == NULL);
+	BUG_ON(param->buf_in == NULL);
+	BUG_ON(param->buf_size_in == 0);
 
-	for (i=0; i<dma_msg_stru->uwIFCount; i++) {
-		pcm_if_msg = &dma_msg_stru->stIFCfgList[i];
+	if (param->buf_size_in < sizeof(DSP_IF_OPEN_REQ_STRU)) {
+		HI6402_DSP_ERROR("input size:%u invalid\n", param->buf_size_in);
+		return ERROR;
+	}
 
-		if (pcm_if_msg->uwIFId >= DSP_IF_NUM) {
+	dsp_if_open_req = (DSP_IF_OPEN_REQ_STRU *)(param->buf_in);
+	dma_msg_stru = &dsp_if_open_req->stProcessDMA;
+
+	if (dma_msg_stru->uwIFCount >= DSP_IF_NUM) {
+		HI6402_DSP_ERROR("try to open too many ifs\n");
+		return ERROR;
+	}
+
+	message_size = sizeof(PCM_IF_MSG_STRU) * (dma_msg_stru->uwIFCount)
+			+ sizeof(DSP_IF_OPEN_REQ_STRU);
+	if (param->buf_size_in < message_size) {
+		HI6402_DSP_ERROR("input size:%u invalid\n", param->buf_size_in);
+		return ERROR;
+	}
+
+	for (i = 0; i < dma_msg_stru->uwIFCount; i++) {
+		PCM_IF_MSG_STRU *pcm_if_msg = &dma_msg_stru->stIFCfgList[i];
+
+		if (pcm_if_msg->uwIFId >= HI6402_HIFI_DSP_IF_PORT_BUTT) {
 			HI6402_DSP_ERROR("dsp if ID %d is out of range\n",
 					pcm_if_msg->uwIFId);
 			return ERROR;
@@ -866,7 +903,11 @@ static int hi6402_dsp_if_set_sample_rate(unsigned int dsp_if_id,
 	mask = (direct == HI6402_HIFI_PCM_IN) ? 0xf : 0xf0;
 	sample_rate_index = (direct == HI6402_HIFI_PCM_IN)
 		                ? sample_rate_index : sample_rate_index << 4;
-
+	/* Todo: dac dspif sample rate maybe different */
+	if(dsp_if_id == HI6402_HIFI_DSP_IF_PORT_8){
+		mask = 0x7c;
+		sample_rate_index = sample_rate_index << 4;
+	}
 	hi6402_hifi_reg_write_bits(addr, sample_rate_index, mask);
 
 	OUT_FUNCTION;
@@ -888,6 +929,8 @@ static void hi6402_dsp_if_set_bypass(unsigned int dsp_if_id, bool enable)
 	BUG_ON(i2s_id >= ARRAY_SIZE(hi6402_sc_src_lr_ctrls_m));
 
 	bit = (direct == HI6402_HIFI_PCM_IN) ? 6 : 7;
+	if(dsp_if_id == HI6402_HIFI_DSP_IF_PORT_8)
+		bit = 4;
 	addr = hi6402_sc_src_lr_ctrls_m[i2s_id];
 
 	if (enable) {
@@ -904,14 +947,14 @@ static void hi6402_dsp_if_sample_rate_set(const char *arg)
 {
 	unsigned int i = 0;
 
-	PCM_IF_MSG_STRU *pcm_if_msg = NULL;
 	DSP_IF_OPEN_REQ_STRU *dsp_if_open_req = (DSP_IF_OPEN_REQ_STRU *)arg;
 	PCM_PROCESS_DMA_MSG_STRU *dma_msg_stru = &dsp_if_open_req->stProcessDMA;
 
 	IN_FUNCTION;
 
-	for (i=0; i<dma_msg_stru->uwIFCount; i++) {
-		pcm_if_msg = &dma_msg_stru->stIFCfgList[i];
+	for (i = 0; i < dma_msg_stru->uwIFCount; i++) {
+		PCM_IF_MSG_STRU *pcm_if_msg = &dma_msg_stru->stIFCfgList[i];
+
 		hi6402_dsp_if_set_sample_rate(pcm_if_msg->uwIFId,
 				pcm_if_msg->uwSampleRateIn);
 	}
@@ -1072,27 +1115,31 @@ static int hi6402_release_low_pll_resource(unsigned int scene_id)
 static int hi6402_func_if_open(struct krn_param_io_buf *param)
 {
 	int ret = 0;
-	DSP_IF_OPEN_REQ_STRU *dsp_if_open_req =
-		(DSP_IF_OPEN_REQ_STRU *)(param->buf_in);
-	PCM_PROCESS_DMA_MSG_STRU *dma_msg_stru = &dsp_if_open_req->stProcessDMA;
+
+	DSP_IF_OPEN_REQ_STRU *dsp_if_open_req = NULL;
+	PCM_PROCESS_DMA_MSG_STRU *dma_msg_stru = NULL;
 
 	IN_FUNCTION;
 
-	ret = hi6402_dsp_if_para_check(param->buf_in);
-	if(ret != OK) {
+	ret = hi6402_dsp_if_para_check(param);
+	if (ret != OK) {
 		HI6402_DSP_ERROR("dsp if parameter invalid\n");
 		goto end;
 	}
 
-	switch(dma_msg_stru->uwProcessId) {
+	dsp_if_open_req = (DSP_IF_OPEN_REQ_STRU *)(param->buf_in);
+	dma_msg_stru = &dsp_if_open_req->stProcessDMA;
 
+	switch (dma_msg_stru->uwProcessId) {
+// current not support HOOK
+#if 0
 	case MLIB_PATH_DATA_HOOK:
 		ret = hi6402_request_pll_resource(HI_FREQ_SCENE_HOOK);
 		if (ret != OK) {
 			goto end;
 		}
 		break;
-
+#endif
 	case MLIB_PATH_WAKEUP:
 		ret = hi6402_request_low_pll_resource(LOW_FREQ_SCENE_WAKE_UP);
 		if (ret != OK) {
@@ -1106,22 +1153,20 @@ static int hi6402_func_if_open(struct krn_param_io_buf *param)
 			goto end;
 		}
 		break;
-
 	default:
-		break;
+		HI6402_DSP_ERROR("ProcessId:%u unsupport\n", dma_msg_stru->uwProcessId);
+		ret = ERROR;
+		goto end;
 	}
+
 	hi6402_dsp_if_sample_rate_set(param->buf_in);
 	hi6402_hifi_write_reg(HI6402_DSP_CMD1, priv.pll_state);
 	ret = hi6402_sync_write(param->buf_in, param->buf_size_in);
 	if (ret != OK) {
-		goto err;
+		goto end;
 	}
 
 end:
-	OUT_FUNCTION;
-	return ret;
-
-err:
 	OUT_FUNCTION;
 	return ret;
 }
@@ -1129,11 +1174,19 @@ err:
 static int hi6402_func_if_close(struct krn_param_io_buf *param)
 {
 	int ret = 0;
-	DSP_IF_OPEN_REQ_STRU *dsp_if_open_req =
-						(DSP_IF_OPEN_REQ_STRU *)(param->buf_in);
-	PCM_PROCESS_DMA_MSG_STRU *dma_msg_stru = &dsp_if_open_req->stProcessDMA;
+	DSP_IF_OPEN_REQ_STRU *dsp_if_open_req = NULL;
+	PCM_PROCESS_DMA_MSG_STRU *dma_msg_stru = NULL;
 
 	IN_FUNCTION;
+
+	ret = hi6402_dsp_if_para_check(param);
+	if (ret != OK) {
+		HI6402_DSP_ERROR("dsp if parameter invalid\n");
+		goto end;
+	}
+
+	dsp_if_open_req = (DSP_IF_OPEN_REQ_STRU *)(param->buf_in);
+	dma_msg_stru = &dsp_if_open_req->stProcessDMA;
 
 	if (dma_msg_stru->uwProcessId == MLIB_PATH_WAKEUP) {
 		/* TODO: if scene is not open, just return. */
@@ -1142,6 +1195,8 @@ static int hi6402_func_if_close(struct krn_param_io_buf *param)
 			ret = ERROR;
 			goto end;
 		}
+// current not support HOOK
+#if 0
 	} else if (dma_msg_stru->uwProcessId == MLIB_PATH_DATA_HOOK) {
 		/* TODO: if scene is not open, just return. */
 		if ((priv.high_freq_scene_status & (1 << HI_FREQ_SCENE_HOOK)) == 0) {
@@ -1149,6 +1204,7 @@ static int hi6402_func_if_close(struct krn_param_io_buf *param)
 			ret = ERROR;
 			goto end;
 		}
+#endif
 	} else if (dma_msg_stru->uwProcessId == MLIB_PATH_SMARTPA) {
 		/* TODO: if scene is not open, just return. */
 		if ((priv.high_freq_scene_status & (1 << HI_FREQ_SCENE_PA)) == 0) {
@@ -1156,13 +1212,12 @@ static int hi6402_func_if_close(struct krn_param_io_buf *param)
 			ret = ERROR;
 			goto end;
 		}
-	}
-
-	ret = hi6402_dsp_if_para_check(param->buf_in);
-	if (ret != OK) {
-		HI6402_DSP_ERROR("dsp if parameter invalid\n");
+	} else {
+		HI6402_DSP_ERROR("ProcessId:%u unsupport\n", dma_msg_stru->uwProcessId);
+		ret = ERROR;
 		goto end;
 	}
+
 	hi6402_hifi_write_reg(HI6402_DSP_CMD1, priv.pll_state);
 	ret = hi6402_sync_write(param->buf_in, param->buf_size_in);
 	if (ret != OK) {
@@ -1170,10 +1225,13 @@ static int hi6402_func_if_close(struct krn_param_io_buf *param)
 		goto end;
 	}
 
-	if(dma_msg_stru->uwProcessId == MLIB_PATH_WAKEUP) {
+	if (dma_msg_stru->uwProcessId == MLIB_PATH_WAKEUP) {
 		hi6402_release_low_pll_resource(LOW_FREQ_SCENE_WAKE_UP);
+// current not support HOOK
+#if 0
 	} else if (dma_msg_stru->uwProcessId == MLIB_PATH_DATA_HOOK) {
 		hi6402_release_pll_resource(HI_FREQ_SCENE_HOOK);
+#endif
 	} else if (dma_msg_stru->uwProcessId == MLIB_PATH_SMARTPA) {
 		hi6402_release_pll_resource(HI_FREQ_SCENE_PA);
 	}
@@ -1195,19 +1253,30 @@ static int hi6402_func_para_set(struct krn_param_io_buf *param)
 	BUG_ON(param->buf_in == NULL);
 	BUG_ON(param->buf_size_in == 0);
 
+	if (param->buf_size_in < sizeof(MLIB_PARA_SET_REQ_STRU)) {
+		HI6402_DSP_ERROR("input size:%u invalid\n", param->buf_size_in);
+		return ERROR;
+	}
+
 	mlib_para = (MLIB_PARA_SET_REQ_STRU *)param->buf_in;
 
 	mlib_para_content= (struct MlibParameterST *)mlib_para->aucData;
-	BUG_ON(mlib_para_content == NULL);
+
+	if (0 == mlib_para->uwSize
+	|| mlib_para->uwSize > (param->buf_size_in - sizeof(MLIB_PARA_SET_REQ_STRU))) {
+		HI6402_DSP_ERROR("mlib_para size is out of range.\n");
+		return ERROR;
+	}
 
 	if (MLIB_ST_PARA_TRANSACTION == mlib_para_content->key) {
 		hi6402_request_low_pll_resource(LOW_FREQ_SCENE_SET_PARA);
 	} else {
 		hi6402_request_pll_resource(HI_FREQ_SCENE_SET_PARA);
 	}
+
 	ret = hi6402_write_mlib_para(mlib_para->aucData, mlib_para->uwSize);
 
-	if(ret != OK) {
+	if (ret != OK) {
 		HI6402_DSP_ERROR("write mlib para failed\n");
 		goto end;
 	}
@@ -1224,6 +1293,7 @@ end:
 	} else {
 		hi6402_release_pll_resource(HI_FREQ_SCENE_SET_PARA);
 	}
+
 	OUT_FUNCTION;
 	return ret;
 }
@@ -1239,6 +1309,11 @@ static int hi6402_func_para_get(struct krn_param_io_buf *param)
 	BUG_ON(param->buf_size_in == 0);
 	BUG_ON(param->buf_out == NULL);
 	BUG_ON(param->buf_size_out == 0);
+
+	if (param->buf_size_out <= RESULT_SIZE) {
+		HI6402_DSP_ERROR("not enough space for para get\n");
+		return ERROR;
+	}
 
 	hi6402_request_pll_resource(HI_FREQ_SCENE_GET_PARA);
 	/* send request */
@@ -1263,6 +1338,7 @@ end:
 	return ret;
 }
 
+#ifdef ENABLE_HI6402_HIFI_DEBUG
 static int hi6402_func_om(struct krn_param_io_buf *param)
 {
 	int ret = OK;
@@ -1286,6 +1362,7 @@ end:
 	OUT_FUNCTION;
 	return ret;
 }
+#endif /* ENABLE_HI6402_HIFI_DEBUG */
 
 /*
  *  dsp img download
@@ -1329,6 +1406,133 @@ static int hi6402_hifi_fw_head_check(struct drv_hifi_image_head *head)
 	}
 
 exit:
+	return ret;
+}
+
+static int hi6402_hifi_download_check(const struct firmware *fw)
+{
+	struct drv_hifi_image_head	  *head = NULL;
+	int i = 0;
+	int ret = 0;
+
+	/* load firmware */
+	HI6402_DSP_INFO("size [%zu]\n", fw->size);
+	head = (struct drv_hifi_image_head *)fw->data;
+
+	ret = hi6402_hifi_fw_head_check(head);
+	if(ret != 0) {
+		HI6402_DSP_ERROR("6402 image head check error\n");
+		goto out;
+	}
+
+	for (i = 0; i < head->sections_num; i++) {
+
+		unsigned int des_addr;
+		unsigned int *src_addr;
+		unsigned int reg_val = 0;
+		int j = 0;
+
+		src_addr = (unsigned int *)((char *)head + head->sections[i].src_offset);
+		des_addr = head->sections[i].des_addr;
+
+		HI6402_DSP_INFO("hifi: sections_num = %d,des_addr = 0x%x, load_attib = %d, size = 0x%x,"
+			     " sn = %d, src_offset = 0x%x, type = %d\n", \
+				 head->sections_num,\
+				 head->sections[i].des_addr,\
+				 head->sections[i].load_attib,\
+				 head->sections[i].size,\
+				 head->sections[i].sn,\
+				 head->sections[i].src_offset,\
+				 head->sections[i].type);
+
+		HI6402_DSP_INFO("[0x%p]->[0x%x] [0x%x]\n", src_addr, des_addr, *src_addr);
+		if(head->sections[i].type == DRV_HIFI_IMAGE_SEC_TYPE_BSS) {
+			for(j = 0; j < head->sections[i].size; j = j + 4) {
+				/* copy the sections */
+				hi6402_hifi_write_reg(des_addr, 0x0);
+				reg_val = hi6402_hifi_read_reg(des_addr);
+				if(reg_val != 0x0) {
+					HI6402_DSP_ERROR("download BSS sec error!addr[0x%x],val[0x%x]\n",des_addr,reg_val);
+					ret = ERROR;
+					goto out;
+				}
+				des_addr += 4;
+			}
+		} else {
+			for(j = 0; j < head->sections[i].size; j = j + 4) {
+				/* copy the sections */
+				hi6402_hifi_write_reg(des_addr, *(src_addr));
+				reg_val = hi6402_hifi_read_reg(des_addr);
+				if (reg_val != *(src_addr)) {
+					HI6402_DSP_ERROR("addr[0x%x],val[0x%x],real val[0x%x]\n",des_addr, *(src_addr), reg_val);
+					ret = ERROR;
+					goto out;
+				}
+				src_addr++;
+				des_addr += 4;
+			}
+		}
+	}
+
+out:
+	return ret;
+}
+
+static int hi6402_fw_download_check(void)
+{
+	int ret = 0;
+	int i = 0;
+
+	char *fw_name = "hifi_6402.img";
+	const struct firmware *fw = NULL;
+
+	IN_FUNCTION;
+
+	/* download dsp image */
+	ret = request_firmware(&fw, fw_name, priv.dev);
+
+	if (ret != 0) {
+		dev_err(priv.dev, "Failed to request application(%s): %d\n",
+			fw_name, ret);
+		return ret;
+	}
+	BUG_ON(fw == NULL);
+
+	hi6402_hifi_set_pll(true);
+
+	hi6402_hifi_runstall_cfg(false);
+	hi6402_hifi_deinit();
+	hi6402_hifi_init();
+	hi6402_hifi_clk_enable(true);
+	hi6402_ram2axi_cfg_with_hifi(true);
+
+	/* download dsp image and check every section */
+	ret = hi6402_hifi_download_check(fw);
+	if(0 != ret) {
+		HI6402_DSP_ERROR("image download error\n");
+		goto out;
+	}
+
+	/* notify dsp pwr on */
+	hi6402_hifi_write_reg(HI6402_DSP_CMD0, HIFI_POWER_ON);
+	priv.dsp_pwron_done = HIFI_STATE_UNINIT;
+	hi6402_hifi_runstall_cfg(true);
+
+	/*wait 1s for dsp power on */
+	if (wait_event_interruptible_timeout(priv.dsp_pwron_wq,
+					(priv.dsp_pwron_done == HIFI_STATE_INIT), HZ) == 0) {
+			HI6402_DSP_ERROR("wait for dsp pwron timeout\n");
+	}
+	msleep(1);
+
+out:
+	hi6402_ram2axi_cfg_with_hifi(false);
+	hi6402_hifi_clk_enable(false);
+	hi6402_hifi_set_pll(false);
+
+	release_firmware(fw);
+
+	OUT_FUNCTION;
 	return ret;
 }
 
@@ -1381,13 +1585,27 @@ static void hi6402_hifi_download(const struct firmware *fw)
 	}
 
 }
+
+#ifdef ENABLE_HI6402_HIFI_DEBUG
 static void hi6402_reset_codec(void)
 {
 	unsigned int* addr_gpio = NULL;
 	unsigned int* addr_gpio_dir = NULL;
 
 	addr_gpio = (unsigned int*)ioremap_wc(0xfff0e3fc, 0x4);
+
+	if (NULL == addr_gpio) {
+		HI6402_DSP_INFO("HI6402 RESET GPIO ADDR REMAP ERROR\n");
+		return;
+	}
+
 	addr_gpio_dir = (unsigned int*)ioremap_wc(0xfff0e400, 0x4);
+
+	if (NULL == addr_gpio_dir) {
+		iounmap(addr_gpio);
+		HI6402_DSP_INFO("HI6402 RESET GPIO DIR ADDR REMAP ERROR\n");
+		return;
+	}
 
 	*(unsigned int *)(addr_gpio_dir) = 0x02;
 	*(unsigned int *)(addr_gpio) = 0x5a;
@@ -1429,68 +1647,99 @@ static int hi6402_func_uartmode(struct krn_param_io_buf *param)
 
 	return OK;
 }
+#endif /* ENABLE_HI6402_HIFI_DEBUG */
 
+static void release_requested_pll(void)
+{
+	int i = 0;
+
+	for(i = 0; i < HI_FREQ_SCENE_BUTT; i++) {
+		hi6402_release_pll_resource(i);
+	}
+
+	for(i = 0; i < LOW_FREQ_SCENE_BUTT; i++) {
+		hi6402_release_low_pll_resource(i);
+	}
+
+}
 static int hi6402_func_fw_download(struct krn_param_io_buf *param)
 {
+	char *fw_name = NULL;
+	const struct firmware *fw = NULL;
+	FW_DOWNLOAD_STRU *dsp_fw_download = NULL;
+
 	int ret = 0;
 	int i = 0;
-	FW_DOWNLOAD_STRU *dsp_fw_download =
-				(FW_DOWNLOAD_STRU *)(param->buf_in);
-	char *fw_name = dsp_fw_download->chwname;
-
-	const struct firmware *fw = NULL;
 
 	IN_FUNCTION;
 
-	/* download dsp image */
-	ret = request_firmware(&fw, fw_name, priv.dev);
+	/* request dsp firmware */
+	BUG_ON(param == NULL);
+	dsp_fw_download = (FW_DOWNLOAD_STRU *)(param->buf_in);
 
+	BUG_ON(dsp_fw_download == NULL);
+	fw_name = dsp_fw_download->chwname;
+
+	ret = request_firmware(&fw, fw_name, priv.dev);
 	if (ret != 0) {
-		dev_err(priv.dev, "Failed to request application(%s): %d\n",
-			fw_name, ret);
+		dev_err(priv.dev, "Failed to request dsp image(%s): %d\n", fw_name, ret);
 		return ret;
 	}
 	BUG_ON(fw == NULL);
 
-	hi6402_release_low_pll_resource(LOW_FREQ_SCENE_WAKE_UP);
-	hi6402_release_low_pll_resource(LOW_FREQ_SCENE_SET_PARA);
-	hi6402_release_pll_resource(HI_FREQ_SCENE_PA);
-	hi6402_release_pll_resource(HI_FREQ_SCENE_HOOK);
-	hi6402_release_pll_resource(HI_FREQ_SCENE_GET_PARA);
-	hi6402_release_pll_resource(HI_FREQ_SCENE_SET_PARA);
-	hi6402_release_pll_resource(HI_FREQ_SCENE_OM);
-
+	/* release all requeseted PLL first beacuse 6402 maybe request PLL but didn't release when exception */
+	release_requested_pll();
 	hi6402_hifi_set_pll(true);
 
-	/*TODO: need reset APB reg? */
-	for(i = 0; i < 8;i++)
+	/* restore dsp_if work status */
+	for(i = 0; i < HI6402_HIFI_DSP_IF_PORT_BUTT;i++) {
 		hi6402_dsp_if_set_bypass(i,true);
-	hi6402_hifi_runstall_cfg(false);
-	hi6402_hifi_deinit();
-	hi6402_hifi_init();
-	/* MAD set param */
-	hi6402_mad_set_param();
-	hi6402_hifi_clk_enable(true);
-	hi6402_ram2axi_cfg_with_hifi(true);
+	}
 
-	/* set 6402 dsp uart Baud rate before power up dsp */
+	/* set 6402 dsp uart Baud before power up dsp */
 	hi6402_hifi_write_reg(HI6402_UART_MODE, priv.uart_mode);
 
-	/* download dsp image */
-	hi6402_hifi_download(fw);
+	/* MAD set param */
+	hi6402_mad_set_param();
+
+
+	/* download dsp firmware */
+	for(i = 0; i < HI6402_EXCEPTION_RETRY; i++) {
+
+		hi6402_hifi_runstall_cfg(false);
+		hi6402_hifi_deinit();
+		hi6402_hifi_init();
+		hi6402_hifi_clk_enable(true);
+		hi6402_ram2axi_cfg_with_hifi(true);
+
+		hi6402_hifi_download(fw);
+
+		/* notify dsp pwr on */
+		hi6402_hifi_write_reg(HI6402_DSP_CMD0, HIFI_POWER_ON);
+		priv.dsp_pwron_done = HIFI_STATE_UNINIT;
+
+		/* pull down hifi runstall */
+		hi6402_hifi_runstall_cfg(true);
+
+		/*wait 1s for dsp power on */
+		if (wait_event_interruptible_timeout(priv.dsp_pwron_wq,
+					(priv.dsp_pwron_done == HIFI_STATE_INIT), HZ) == 0) {
+			HI6402_DSP_INFO("wait for dsp pwron timeout retry %d\n",i);
+		} else {
+			/* wait 1ms for dsp enter wfi */
+			msleep(1);
+			break;
+		}
+	}
+
+	if(i >= HI6402_EXCEPTION_RETRY) {
+		ret = ERROR;
+		HI6402_DSP_INFO("dsp image download error %d\n");
+	}
+
+	/* release dsp firmware */
 	release_firmware(fw);
 
-	/* notify dsp pwr on */
-	hi6402_hifi_write_reg(HI6402_DSP_CMD0, HIFI_POWER_ON);
-	priv.dsp_pwron_done = HIFI_STATE_UNINIT;
-	hi6402_hifi_runstall_cfg(true);
-	/*wait 1s for dsp power on */
-	/* todo : add a new wq */
-	if (wait_event_interruptible_timeout(priv.dsp_pwron_wq,
-					(priv.dsp_pwron_done == HIFI_STATE_INIT), HZ) == 0) {
-		HI6402_DSP_ERROR("wait for dsp pwron timeout\n");
-	}
-	msleep(1);
 	hi6402_ram2axi_cfg_with_hifi(false);
 	hi6402_hifi_clk_enable(false);
 	hi6402_hifi_set_pll(false);
@@ -1499,6 +1748,7 @@ static int hi6402_func_fw_download(struct krn_param_io_buf *param)
 	return ret;
 }
 
+#ifdef ENABLE_HI6402_HIFI_DEBUG
 static int hi6402_func_mad_test_start(struct krn_param_io_buf *param)
 {
 	int ret = OK;
@@ -1551,6 +1801,7 @@ end:
 	OUT_FUNCTION;
 	return ret;
 }
+#endif /* ENABLE_HI6402_HIFI_DEBUG */
 
 static cmd_process_func hi6402_select_func(const unsigned char *arg,
 					   const struct cmd_func_pair *func_map,
@@ -1566,7 +1817,7 @@ static cmd_process_func hi6402_select_func(const unsigned char *arg,
 	IN_FUNCTION;
 	for (i = 0; i < func_map_size; i++) {
 		if (func_map[i].cmd_id == msg_id) {
-			HI6402_DSP_INFO("cmd:%s\n",func_map[i].cmd_name);
+			HI6402_DSP_INFO("cmd:%s\n", func_map[i].cmd_name);
 			return func_map[i].func;
 		}
 	}
@@ -1577,6 +1828,8 @@ static cmd_process_func hi6402_select_func(const unsigned char *arg,
 	return (cmd_process_func)NULL;
 }
 
+/* not sure whether async commond would be used in future */
+#if 0
 static struct cmd_func_pair async_cmd_func_map[] = {
 };
 
@@ -1630,16 +1883,19 @@ end:
 
 	return ret;
 }
+#endif
 
 static struct cmd_func_pair sync_cmd_func_map[] = {
 	{ ID_AP_DSP_IF_OPEN,         hi6402_func_if_open,        "ID_AP_DSP_IF_OPEN"       },
 	{ ID_AP_DSP_IF_CLOSE,        hi6402_func_if_close,       "ID_AP_DSP_IF_CLOSE"      },
 	{ ID_AP_DSP_PARAMETER_SET,   hi6402_func_para_set,       "ID_AP_DSP_PARAMETER_SET" },
 	{ ID_AP_DSP_PARAMETER_GET,   hi6402_func_para_get,       "ID_AP_DSP_PARAMETER_GET" },
+#ifdef ENABLE_HI6402_HIFI_DEBUG
 	{ ID_AP_DSP_OM,              hi6402_func_om,             "ID_AP_DSP_OM"            },
 	{ ID_AP_DSP_MADTEST_START,   hi6402_func_mad_test_start, "ID_AP_DSP_MADTEST_START" },
 	{ ID_AP_DSP_MADTEST_STOP,    hi6402_func_mad_test_stop,  "ID_AP_DSP_MADTEST_STOP"  },
 	{ ID_AP_DSP_UARTMODE,        hi6402_func_uartmode,       "ID_AP_DSP_UARTMODE"      },
+#endif
 	{ ID_AP_IMGAE_DOWNLOAD,      hi6402_func_fw_download,    "ID_AP_IMGAE_DOWNLOAD"    },
 };
 
@@ -1656,8 +1912,7 @@ static int hi6402_hifi_sync_cmd(unsigned long arg)
 	memset(&param, 0, sizeof(param));
 	memset(&krn_param, 0, sizeof(krn_param));
 
-	//FIXME: should check arg not be NULL?
-	if (copy_from_user(&param, (void*)arg,
+	if (copy_from_user(&param, (void __user *)arg,
 			   sizeof(struct misc_io_sync_param))) {
 		HI6402_DSP_ERROR("copy_from_user fail.\n");
 		ret = ERROR;
@@ -1752,13 +2007,21 @@ static long hi6402_hifi_misc_ioctl(struct file *fd,
 
 	IN_FUNCTION;
 
+	if (NULL == (void __user *)arg) {
+		HI6402_DSP_ERROR("input error: arg is NULL\n");
+		return -EINVAL;
+	}
+
 	switch(cmd) {
+/* not sure whether async commond would be used in future */
+#if 0
 		case HI6402_HIFI_MISC_IOCTL_ASYNCMSG:
 			HI6402_DSP_DEBUG("ioctl: HIFI_MISC_IOCTL_ASYNCMSG\n");
 			mutex_lock(&priv.msg_mutex);
 			ret = hi6402_hifi_async_cmd(arg);
 			mutex_unlock(&priv.msg_mutex);
 			break;
+#endif
 		case HI6402_HIFI_MISC_IOCTL_SYNCMSG:
 			HI6402_DSP_DEBUG("ioctl: HIFI_MISC_IOCTL_SYNCMSG\n");
 			mutex_lock(&priv.msg_mutex);
@@ -1777,11 +2040,33 @@ static long hi6402_hifi_misc_ioctl(struct file *fd,
 	return (long)ret;
 }
 
+static long hi6402_hifi_misc_ioctl32(struct file *fd,
+                                   unsigned int cmd,
+                                   unsigned long arg)
+{
+	void __user *user_ptr = (void __user *)compat_ptr(arg);
+
+	return hi6402_hifi_misc_ioctl(fd, cmd, (unsigned long)user_ptr);
+}
+
+#ifdef ENABLE_HI6402_HIFI_DEBUG
 static ssize_t hi6402_hifi_misc_read(struct file *file, char __user *buf,
                                      size_t nbytes, loff_t *pos)
 {
 	struct reg_rw_struct kern_buf;
-	if (copy_from_user(&kern_buf, (void  __user *)buf, nbytes)) {
+
+	if (NULL == buf) {
+		HI6402_DSP_ERROR("input error: buf is NULL\n");
+		return -EFAULT;
+	}
+
+	if (nbytes != sizeof(kern_buf)) {
+		HI6402_DSP_ERROR("nbytes:%zu from user space not equal to" \
+			"sizeof(kern_buf):%zu\n", nbytes, sizeof(kern_buf));
+		return -EFAULT;
+	}
+
+	if (copy_from_user(&kern_buf, buf, nbytes)) {
 		HI6402_DSP_ERROR("copy_from_user fail.\n");
 		return -EFAULT;
 	}
@@ -1792,7 +2077,7 @@ static ssize_t hi6402_hifi_misc_read(struct file *file, char __user *buf,
 		return -EFAULT;
 	}
 
-	return 0;
+	return sizeof(kern_buf);
 }
 
 static ssize_t hi6402_hifi_misc_write(struct file *file,
@@ -1800,26 +2085,40 @@ static ssize_t hi6402_hifi_misc_write(struct file *file,
 				      size_t nbytes, loff_t *pos)
 {
 	struct reg_rw_struct kern_buf;
-	if (copy_from_user(&kern_buf, (void  __user *)buf, nbytes)) {
+
+	if (NULL == buf) {
+		HI6402_DSP_ERROR("input error: buf is NULL\n");
+		return -EFAULT;
+	}
+
+	if (nbytes != sizeof(kern_buf)) {
+		HI6402_DSP_ERROR("nbytes:%zu from user space not equal to" \
+			"sizeof(kern_buf):%zu\n", nbytes, sizeof(kern_buf));
+		return -EFAULT;
+	}
+
+	if (copy_from_user(&kern_buf, buf, nbytes)) {
 		HI6402_DSP_ERROR("copy_from_user fail.\n");
 		return -EFAULT;
 	}
 
 	hi6402_hifi_write_reg(kern_buf.reg, kern_buf.val);
 
-	return 0;
+	return sizeof(kern_buf);
 }
-
+#endif /* ENABLE_HI6402_HIFI_DEBUG */
 
 static const struct file_operations hi6402_hifi_misc_fops = {
 	.owner			= THIS_MODULE,
 	.open			= hi6402_hifi_misc_open,
 	.release		= hi6402_hifi_misc_release,
+#ifdef ENABLE_HI6402_HIFI_DEBUG
 	.read			= hi6402_hifi_misc_read,
 	.write			= hi6402_hifi_misc_write,
+#endif /* ENABLE_HI6402_HIFI_DEBUG */
 	.unlocked_ioctl 	= hi6402_hifi_misc_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl 		= hi6402_hifi_misc_ioctl,
+	.compat_ioctl 		= hi6402_hifi_misc_ioctl32,
 #endif
 };
 
@@ -1829,7 +2128,7 @@ static struct miscdevice hi6402_hifi_misc_device = {
 	.fops	= &hi6402_hifi_misc_fops,
 };
 
-
+#ifdef ENABLE_HI6402_HIFI_DEBUG
 static void hi6402_hifi_enable_jtag(void)
 {
 	hi6402_hifi_write_reg(HI6402_DSP_IOS_IOM_I2S2_SDO, 0x1c4);
@@ -1848,83 +2147,112 @@ static void hi6402_hifi_enable_uart(void)
 /* ********************************************************************
  * sysfs device, for debugging
  * ********************************************************************/
-static ssize_t hi6402_debug_show(struct file *file, char *buf,
+static ssize_t hi6402_debug_show(struct file *file, char __user *buf,
 				size_t size, loff_t *data)
-
 {
+	loff_t ppos = 0;
 	char *help_info = "1 : pwron \n2 : pwroff  \n3 : run \n4 : stop \n"
 			  "5 : jtag \n6 : uart\n7 : enable pll\n"
 			  "8 : disable pll\n0 : download\n";
-	return snprintf(buf, PAGE_SIZE, "%s\n", help_info);
+
+	if (NULL == buf) {
+		HI6402_DSP_ERROR("input error: buf is NULL\n");
+		return -EINVAL;
+	}
+
+	return simple_read_from_buffer(buf, PAGE_SIZE, &ppos, help_info, strlen(help_info));
 }
 
-static ssize_t hi6402_debug_store(struct file *file, const char *buf,
+static ssize_t hi6402_debug_store(struct file *file, const char __user *buf,
 				size_t size, loff_t *data)
 {
 	unsigned long cmd = 0;
-	unsigned int* addr;
+	unsigned int* addr = NULL;
+	ssize_t ret = 0;
+	char level_str[MAX_STR_LEN] = {0};
+	loff_t pos = 0;
 
 	if (buf == NULL) {
 		HI6402_DSP_ERROR("buf is NULL\n");
 		return -EINVAL;
 	}
 
-	if (strict_strtoul(buf, 0, &cmd) != 0) {
+	ret = simple_write_to_buffer(level_str, MAX_STR_LEN - 1 , &pos, buf, size);
+	if (ret != size) {
+		HI6402_DSP_ERROR("Input param buf read error, return value: %zd\n", ret);
+		return -EINVAL;
+	}
+
+	if (strict_strtoul(level_str, 0, &cmd) != 0) {
 		HI6402_DSP_ERROR("input para is error\n");
 		return -EINVAL;
 	}
 
 	switch (cmd) {
-	case 0:
+	case HI6402_HIFI_IMG_DOWNLOAD:
 		hi6402_fw_download();
 		break;
-	case 1:
+	case HI6402_HIFI_INIT:
 		hi6402_hifi_init();
 		break;
-	case 2:
+	case HI6402_HIFI_DEINIT:
 		hi6402_hifi_deinit();
 		break;
-	case 3:
+	case HI6402_HIFI_RUNSTALL_PULL_DOWN:
 		hi6402_hifi_runstall_cfg(true);
 		break;
-	case 4:
+	case HI6402_HIFI_RUNSTALL_PULL_UP:
 		hi6402_hifi_runstall_cfg(false);
 		break;
-	case 5:
+	case HI6402_HIFI_JTAG_ENABLE:
 		hi6402_hifi_enable_jtag();
 		break;
-	case 6:
+	case HI6402_HIFI_UART_ENABLE:
 		hi6402_hifi_enable_uart();
 		break;
-	case 7:
+	case HI6402_HIFI_HIPLL_ENABLE:
 		hi6402_hifi_set_pll(true);
 		break;
-	case 8:
+	case HI6402_HIFI_HIPLL_DIAABLE:
 		hi6402_hifi_set_pll(false);
 		break;
-	case 9:
+	case HI6402_HIFI_LOWPLL_ENABLE:
 		hi6402_hifi_set_low_pll(true);
 		break;
-	case 10:
+	case HI6402_HIFI_LOWPLL_DIAABLE:
 		hi6402_hifi_set_low_pll(false);
 		break;
-	case 11:
+
+	/* this case just for assic and FPGA test */
+	case HI6402_HIFI_FPGA_CODEC_RESET:
 		hi6402_reset_codec();
 		break;
-	/* this case just for assic and FPGA test */
-	case 12:
+	case HI6402_HIFI_FPGA_PWRON_TEST:
 		hi6402_hifi_runstall_cfg(false);
 		hi6402_hifi_deinit();
 		hi6402_hifi_init();
 		hi6402_fw_download();
 		hi6402_hifi_runstall_cfg(true);
 		break;
+
 	/* this case just for om set GPIO */
-	case 13:
-		addr = (unsigned int*)ioremap_wc(0xE86120D4, 0x4);
+	case HI6402_HIFI_FPGA_OM_TEST:
+		addr = (unsigned int *)ioremap_wc(0xE86120D4, 0x4);
+
+		if (NULL == addr) {
+			HI6402_DSP_INFO("HI6402_HIFI_FPGA_OM_TEST ADDR REMAP ERROR\n");
+			return -EINVAL;
+		}
+
 		*(unsigned int *)(addr) = 0x2;
 		iounmap(addr);
 		break;
+
+	/* this case for check dsp memory */
+	case HI6402_HIFI_FACTORY_TEST:
+		hi6402_fw_download_check();
+		break;
+
 	default:
 		break;
 	}
@@ -1938,17 +2266,35 @@ static const struct file_operations hi6402debug_proc_ops = {
 	.write = hi6402_debug_store,
 };
 
-static ssize_t hi6402_debuglevel_show(struct file *file, char *buf,
+static ssize_t hi6402_debuglevel_show(struct file *file, char __user *buf,
 				size_t size, loff_t *data)
 {
+	ssize_t ret;
+	loff_t pos = 0;
+	char level_str[MAX_STR_LEN] = {0};
+
 	IN_FUNCTION;
 
-	return snprintf(buf, PAGE_SIZE, "%ld\n", hi6402_dsp_debug_level);
+	if (NULL == buf) {
+		HI6402_DSP_ERROR("input error: buf is NULL\n");
+		return -EINVAL;
+	}
+
+	snprintf(level_str, MAX_STR_LEN-1, "%lu\n", hi6402_dsp_debug_level);
+	ret = simple_read_from_buffer(buf, size, &pos, level_str, strlen(level_str));
+
+	OUT_FUNCTION;
+
+	return ret;
 }
 
-static ssize_t hi6402_debuglevel_store(struct file *file, const char *buf,
+static ssize_t hi6402_debuglevel_store(struct file *file, const char __user *buf,
 				size_t size, loff_t *data)
 {
+	ssize_t ret;
+	char level_str[MAX_STR_LEN] = {0};
+	loff_t pos = 0;
+
 	IN_FUNCTION;
 
 	if (buf == NULL) {
@@ -1956,7 +2302,13 @@ static ssize_t hi6402_debuglevel_store(struct file *file, const char *buf,
 		return -EINVAL;
 	}
 
-	if (strict_strtoul(buf, 0, &hi6402_dsp_debug_level) != 0) {
+	ret = simple_write_to_buffer(level_str, MAX_STR_LEN - 1 , &pos, buf, size);
+	if (ret != size) {
+		HI6402_DSP_ERROR("Input param buf read error, return value: %zd\n", ret);
+		return -EINVAL;
+	}
+
+	if (strict_strtoul(level_str, 0, &hi6402_dsp_debug_level) != 0) {
 		HI6402_DSP_ERROR("input para is error\n");
 		return -EINVAL;
 	}
@@ -2013,10 +2365,12 @@ static void hi6402_remove_procfs(void)
 
 	return;
 }
+#endif /* ENABLE_HI6402_HIFI_DEBUG */
 
 #ifdef CONFIG_PM
 static int hi6402_sr_event(struct notifier_block *this,
-		unsigned long event, void *ptr) {
+		unsigned long event, void *ptr)
+{
 	switch (event) {
 	case PM_POST_HIBERNATION:
 	case PM_POST_SUSPEND:
@@ -2349,6 +2703,7 @@ static int hi6402_hifi_misc_probe (struct platform_device *pdev)
 					"wd_irq", &priv);
 	if (0 > ret) {
 		HI6402_DSP_ERROR("error: request_irq failed! \n");
+		free_irq(priv.irq_cmd_valid, &priv);
 		return -1;
 	}
 #endif
@@ -2365,8 +2720,9 @@ static int hi6402_hifi_misc_probe (struct platform_device *pdev)
 	mutex_init(&priv.state_mutex);
 
 	misc_register(&hi6402_hifi_misc_device);
+#ifdef ENABLE_HI6402_HIFI_DEBUG
 	hi6402_create_procfs();
-
+#endif /* ENABLE_HI6402_HIFI_DEBUG */
 	priv.p_irq->hifi_misc_probe = true;
 
 	OUT_FUNCTION;
@@ -2385,10 +2741,13 @@ static int hi6402_hifi_misc_remove(struct platform_device *pdev)
 #endif
 	unregister_reboot_notifier(&hi6402_reboot_nb);
 
+	free_irq(priv.irq_cmd_valid, &priv);
+	free_irq(priv.irq_wtd, &priv);
 	hi6402_hifi_deinit();
 	(void)misc_deregister(&hi6402_hifi_misc_device);
-
+#ifdef ENABLE_HI6402_HIFI_DEBUG
 	hi6402_remove_procfs();
+#endif /* ENABLE_HI6402_HIFI_DEBUG */
 
 	OUT_FUNCTION;
 

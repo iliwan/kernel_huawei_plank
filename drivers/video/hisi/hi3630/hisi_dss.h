@@ -20,16 +20,16 @@
 #include <linux/fb.h>
 #include <linux/hisi_fb_common.h>
 
-#define HISIFB_LINE_LENGTH_GET _IOW(HISIFB_IOCTL_MAGIC, 0x01, struct hisi_fb_line_length)
+//#define HISIFB_LINE_LENGTH_GET _IOW(HISIFB_IOCTL_MAGIC, 0x01, struct hisi_fb_line_length)
 #define HISIFB_VSYNC_CTRL _IOW(HISIFB_IOCTL_MAGIC, 0x02, unsigned int)
-#define HISIFB_DSS_CLK_RATE_SET _IOW(HISIFB_IOCTL_MAGIC, 0x04, struct dss_clk_rate)
+//#define HISIFB_DSS_CLK_RATE_SET _IOW(HISIFB_IOCTL_MAGIC, 0x04, struct dss_clk_rate)
 #define HISIFB_PIXCLK_RATE_SET _IOW(HISIFB_IOCTL_MAGIC, 0x05, struct fb_var_screeninfo)
 #define HISIFB_DIRTY_REGION_UPDT_SET _IOW(HISIFB_IOCTL_MAGIC, 0x06, int)
 
-#define HISIFB_OV_TEST _IOW(HISIFB_IOCTL_MAGIC, 0x20, struct dss_overlay_test)
+//#define HISIFB_OV_TEST _IOW(HISIFB_IOCTL_MAGIC, 0x20, struct dss_overlay_test)
 #define HISIFB_OV_ONLINE_PLAY _IOW(HISIFB_IOCTL_MAGIC, 0x21, struct dss_overlay)
 #define HISIFB_OV_OFFLINE_PLAY _IOW(HISIFB_IOCTL_MAGIC, 0x22, struct dss_overlay)
-#define HISIFB_OV_ONLINE_WB _IOW(HISIFB_IOCTL_MAGIC, 0x23, struct dss_overlay)
+//#define HISIFB_OV_ONLINE_WB _IOW(HISIFB_IOCTL_MAGIC, 0x23, struct dss_overlay)
 #define HISIFB_OV_ONLINE_WB_CTRL _IOW(HISIFB_IOCTL_MAGIC, 0x24, int)
 
 #define HISIFB_PURE_LAYER_CHECK _IOW(HISIFB_IOCTL_MAGIC, 0x40, struct dss_pure_layer_check)

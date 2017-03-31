@@ -68,6 +68,7 @@ Problem NO.         Name        Time         Reason
 #include	<linux/slab.h>
 #include <huawei_platform/sensor/sensor_info.h>
 #include    "lis3dh.h"
+#include	<linux/sensors.h>
 #include <linux/board_sensors.h>
 #include	<asm/io.h>
 #ifdef CONFIG_HUAWEI_HW_DEV_DCT
@@ -94,6 +95,7 @@ extern bool DT_tset;
 extern int Gsensor_data_count;
 static int16_t accl_data[3] = {0, 0, 0};
 static struct  Gsensor_excep st_excep;
+static unsigned long  jiffies_save= 0;
 
 struct  lis3dh_odr_table{
 	unsigned int cutoff_ms;
@@ -109,15 +111,37 @@ static struct lis3dh_odr_table lis3dh_acc_odr_table[] = {
 		{  100, ODR10   },
 		{ 1000, ODR1    },
 };
+/*sensor class*/
+static struct sensors_classdev lis3dh_acc_cdev = {
+       .path_name="acc_sensor",
+	.name = "3-axis Accelerometer sensor",
+	.vendor = "ST_LIS3DH",
+	.version = 1,
+	.handle = SENSORS_ACCELERATION_HANDLE,
+	.type = SENSOR_TYPE_ACCELEROMETER,
+	.max_range = "39.02266",
+	.resolution = "0.009576807",
+	.sensor_power = "0.23",
+	.min_delay = 10000,
+	.delay_msec = 200,
+	.fifo_reserved_event_count = 0,
+	.fifo_max_event_count = 0,
+	.enabled = 0,
+	.sensors_enable = NULL,
+	.sensors_poll_delay = NULL,
+};
 
 struct lis3dh_acc_data {
 	struct i2c_client *client;
 	struct lis3dh_acc_platform_data *pdata;
+	struct workqueue_struct *accel_workqueue;
+	struct hrtimer poll_timer;
 
 	struct mutex lock;
 	struct delayed_work input_work;
 
 	struct input_dev *input_dev;
+    struct sensors_classdev cdev;
 
 	int hw_initialized;
 
@@ -127,7 +151,6 @@ struct lis3dh_acc_data {
 	u8 sensitivity;
 
 	u8 resume_state[RESUME_ENTRIES];
-
 	int irq1;
 	struct work_struct irq1_work;
 	struct workqueue_struct *irq1_work_queue;
@@ -606,13 +629,58 @@ static int lis3dh_acc_get_acceleration_data(struct lis3dh_acc_data *acc,
 static void lis3dh_acc_report_values(struct lis3dh_acc_data *acc,
 					int *xyz)
 {
+	static int last_accdata[3]={0,0,0};
+	unsigned int same_data_flag = 0;
+
+	if (last_accdata[0] == xyz[0])
+	{
+		xyz[0]++;
+		same_data_flag |= 0x01;
+	}
+	if (last_accdata[1] == xyz[1])
+	{
+		xyz[1]++;
+		same_data_flag |= 0x02;
+	}
+	if (last_accdata[2] == xyz[2])
+	{
+		xyz[2]++;
+		same_data_flag |= 0x03;
+	}
+
 	accl_data[0] = xyz[0];
 	accl_data[1] = xyz[1];
 	accl_data[2] = xyz[2];
+
 	input_report_abs(acc->input_dev, ABS_X, xyz[0]);
 	input_report_abs(acc->input_dev, ABS_Y, xyz[1]);
 	input_report_abs(acc->input_dev, ABS_Z, xyz[2]);
 	input_sync(acc->input_dev);
+
+	if (time_after_eq(jiffies, jiffies_save + PRINT_ACCDATA_PERIOD * HZ ))
+	{
+		 jiffies_save = jiffies;
+		 gs_INFO("[GS]%s: ACC data is X= %d,Y = %d,Z = %d\n",__func__, xyz[0],xyz[1],xyz[2]);
+	}
+	last_accdata[0] = xyz[0];
+	last_accdata[1] = xyz[1];
+	last_accdata[2] = xyz[2];
+	if (same_data_flag & 0x01)
+	{
+		xyz[0]--;
+	}
+	if (same_data_flag & 0x02)
+	{
+		xyz[1]--;
+	}
+	if (same_data_flag & 0x03)
+	{
+		xyz[2]--;
+	}
+	same_data_flag = 0;
+
+	gs_DBG("[GS]%s acc data is  x=%d mg, y=%d mg, z=%d mg\n",
+			__func__, xyz[0], xyz[1], xyz[2]);
 }
 
 static int lis3dh_acc_enable(struct lis3dh_acc_data *acc)
@@ -639,8 +707,16 @@ static int lis3dh_acc_enable(struct lis3dh_acc_data *acc)
 			goto err_power_on;
 		}
 
+		gs_INFO("[GS]%s,lis3dh enable in hrtimer mode, poll_interval = %d\n",__func__,acc->pdata->poll_interval);
+		err = hrtimer_start(&acc->poll_timer, ns_to_ktime(acc->pdata->poll_interval * 1000000), HRTIMER_MODE_REL);
+		if (err != 0) {
+			gs_ERR("[GS]%s, hrtimer_start fail,msec=%d\n",__func__, acc->pdata->poll_interval);
+		}
+
+#if 0
 		schedule_delayed_work(&acc->input_work,
 			msecs_to_jiffies(acc->pdata->poll_interval));
+#endif
 	}
 
 	return err;
@@ -658,7 +734,12 @@ static int lis3dh_acc_disable(struct lis3dh_acc_data *acc)
 {
 
 	if (atomic_cmpxchg(&acc->enabled, 1, 0)) {
+		gs_INFO("[GS]%s:lis3dh diable with hrtimer mode , acc->enabled=%d.\n",__func__, atomic_read(&acc->enabled));
+		hrtimer_cancel(&acc->poll_timer);
+		cancel_work_sync(&acc->input_work.work);
+#if 0
 		cancel_delayed_work_sync(&acc->input_work);
+#endif
 		lis3dh_acc_device_power_off(acc);
 
 		if ((acc->pdata->gpio_int1 >= 0)
@@ -1145,10 +1226,13 @@ static void lis3dh_acc_input_work_func(struct work_struct *work)
 	if (err < 0)
 		gs_ERR("[GS]get_acceleration_data failed\n");
 	else
+	{
 		lis3dh_acc_report_values(acc, xyz);
-
+	}
+#if 0
 	schedule_delayed_work(&acc->input_work, msecs_to_jiffies(
 			acc->pdata->poll_interval));
+#endif
 
 	mutex_unlock(&acc->lock);
 	if(DT_tset)
@@ -1204,12 +1288,35 @@ static int lis3dh_acc_validate_pdata(struct lis3dh_acc_data *acc)
 
 	return 0;
 }
+static enum hrtimer_restart lis3dh_accel_timer_func(struct hrtimer *timer)
+{
+	struct lis3dh_acc_data *acc = container_of(timer, struct lis3dh_acc_data, poll_timer);
+
+	gs_DBG("[GS]%s:lis3dh  hrtimer_restart.\n",__func__);
+	queue_work(acc->accel_workqueue, &acc->input_work.work);
+	hrtimer_forward_now(&acc->poll_timer, ns_to_ktime((acc->pdata->poll_interval)* 1000000 ));
+
+	return HRTIMER_RESTART;
+}
 
 static int lis3dh_acc_input_init(struct lis3dh_acc_data *acc)
 {
 	int err;
-
+#if 0
 	INIT_DELAYED_WORK(&acc->input_work, lis3dh_acc_input_work_func);
+#endif
+	hrtimer_init(&acc->poll_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	gs_INFO("[GS]%s,lis3dh hrtimer_init init.\n",__func__);
+
+	acc->poll_timer.function = lis3dh_accel_timer_func;
+	acc->accel_workqueue = alloc_workqueue("lis3dh Accel Workqueue", WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_HIGHPRI, 1);
+	if (!acc->accel_workqueue )
+	{
+		gs_ERR("[GS]%s: Unable to create accel_workqueue.\n",__func__);
+		return -ENOMEM;
+	}
+	INIT_WORK(&acc->input_work.work, lis3dh_acc_input_work_func);
+
 	acc->input_dev = input_allocate_device();
 	if (!acc->input_dev) {
 		err = -ENOMEM;
@@ -1336,6 +1443,38 @@ err_block_config:
 
 	return ret;
 #endif
+}
+static int lis3dh_acc_poll_delay_set(struct sensors_classdev *sensors_cdev,unsigned int delay_msec)
+{
+    struct lis3dh_acc_data *acc = container_of(sensors_cdev,struct lis3dh_acc_data, cdev);
+    int err;
+    mutex_lock(&acc->lock);
+    if(delay_msec < 10) 
+    {
+        delay_msec = 10;
+    }
+    acc->pdata->poll_interval = delay_msec;
+    gs_INFO("[GS]%s,acc->pdata->poll_interval  = %d",__func__,acc->pdata->poll_interval );
+    err=lis3dh_acc_update_odr(acc, delay_msec);
+    mutex_unlock(&acc->lock);
+    return err;
+}
+
+static int lis3dh_acc_enable_set(struct sensors_classdev *sensors_cdev,unsigned int enable)
+{
+    struct lis3dh_acc_data *acc = container_of(sensors_cdev,struct lis3dh_acc_data, cdev);
+    int err;
+    gs_INFO("[GS]%s: enable=%d\n", __func__, enable);
+
+    if (enable)
+    {
+        err = lis3dh_acc_enable(acc);
+    }
+    else
+    {
+        err = lis3dh_acc_disable(acc);
+    }
+    return err;
 }
 #if defined(CONFIG_FB)
 static int lis3dh_acc_resume(struct i2c_client *client)
@@ -1651,7 +1790,14 @@ static int lis3dh_acc_probe(struct i2c_client *client,
 		gs_ERR("[GS]input init failed\n");
 		goto err_power_off;
 	}
-
+       acc->cdev=lis3dh_acc_cdev;
+       acc->cdev.sensors_enable=lis3dh_acc_enable_set;
+       acc->cdev.sensors_poll_delay=lis3dh_acc_poll_delay_set;
+       err = sensors_classdev_register(&client->dev, &acc->cdev);
+	if (err) 
+      {
+	    gs_ERR("[GS]unable to register sensors_classdev: %d\n",err);
+	}
 #if defined(CONFIG_FB)
 		fb_lis_acc.fb_notify.notifier_call = fb_notifier_callback;
 		err = fb_register_client(&fb_lis_acc.fb_notify);
@@ -1768,6 +1914,9 @@ static int lis3dh_acc_remove(struct i2c_client *client)
 {
 	struct lis3dh_acc_data *acc = i2c_get_clientdata(client);
 
+	hrtimer_cancel(&acc->poll_timer);
+	cancel_work_sync(&acc->input_work.work);
+
 	if (acc->pdata->gpio_int1 >= 0) {
 		free_irq(acc->irq1, acc);
 		gpio_free(acc->pdata->gpio_int1);
@@ -1795,6 +1944,7 @@ static int lis3dh_acc_remove(struct i2c_client *client)
 	acc = NULL;
 
 	i2c_set_clientdata(client, NULL);
+	gs_INFO("%s: lis3dh Driver remove.\n", __func__);
 
 	return 0;
 }

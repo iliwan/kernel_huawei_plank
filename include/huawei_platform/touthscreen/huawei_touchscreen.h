@@ -31,6 +31,8 @@
 #define ROI_HEAD_DATA_LENGTH		4
 #define ROI_DATA_READ_LENGTH 		102
 #define ROI_DATA_SEND_LENGTH 		(ROI_DATA_READ_LENGTH-ROI_HEAD_DATA_LENGTH)
+#define ROI_CTRL_DEFAULT_OFFSET		0x2D
+#define ROI_DATA_DEFAULT_OFFSET		0x18
 #endif
 #define TS_DEV_NAME "huawei,touchscreen"
 #define RAW_DATA_SIZE 8192
@@ -45,7 +47,7 @@
 #define TS_MAX_FINGER 10
 #define TS_ERR_NEST_LEVEL  5
 #define TS_RAWDATA_BUFF_MAX 1600
-#define TS_RAWDATA_RESULT_MAX	50
+#define TS_RAWDATA_RESULT_MAX	80
 #define TS_FB_LOOP_COUNTS 100
 #define TS_FB_WAIT_TIME 5
 
@@ -86,6 +88,7 @@
 #define TS_GESTURE_INVALID_CONTROL_NO 0xFF
 
 #define CHIP_INFO_LENGTH	16
+#define CHIP_PROJECT_ID_LENGTH 10
 #define RAWDATA_NUM 8
 #define MAX_POSITON_NUMS 6
 #ifndef CONFIG_OF
@@ -145,6 +148,7 @@ enum ts_cmd{
 	TS_POWER_CONTROL,
 	TS_FW_UPDATE_BOOT,
 	TS_FW_UPDATE_SD,
+	TS_GET_CHIP_PROJECT_ID,
 	TS_GET_CHIP_INFO,
 	TS_READ_RAW_DATA,
 	TS_CALIBRATE_DEVICE,
@@ -157,11 +161,14 @@ enum ts_cmd{
 	TS_CHECK_STATUS,
 	TS_TEST_CMD,
 	TS_HOLSTER_SWITCH,
+	TS_WAKEUP_GESTURE_ENABLE,
 	TS_ROI_SWITCH,
 	TS_TOUCH_WINDOW,
 	TS_PALM_SWITCH,
 	TS_REGS_STORE,
 	TS_SET_INFO_FLAG,
+	TS_TEST_TYPE,
+	TS_TOUCH_WEIGHT_SWITCH,
 	TS_INVAILD_CMD = 255,
 };
 
@@ -307,6 +314,11 @@ struct ts_rawdata_info{
 	char result[TS_RAWDATA_RESULT_MAX];
 };
 
+struct ts_chip_project_id_param{
+	int status;
+	char project_id[CHIP_PROJECT_ID_LENGTH + 1];
+};
+
 struct ts_chip_info_param{
 	int status;
 	u8 chip_name[CHIP_INFO_LENGTH*2];
@@ -343,8 +355,31 @@ struct ts_roi_info{
 	u8 roi_switch;
 	int op_action;
 	int status;
+	u16 roi_control_addr_offset;
+	u16 roi_data_addr_offset;
 };
 
+enum ts_sleep_mode {
+	TS_POWER_OFF_MODE = 0,
+	TS_GESTURE_MODE,
+};
+
+struct ts_easy_wakeup_info{
+	enum ts_sleep_mode sleep_mode;
+	int off_motion_on;
+	int easy_wakeup_gesture;
+	int easy_wakeup_flag;
+	int palm_cover_flag;
+	int palm_cover_control;
+	unsigned char easy_wakeup_fastrate;
+	unsigned int easywake_position[MAX_POSITON_NUMS];
+};
+
+struct ts_wakeup_gesture_enable_info{
+	u8 switch_value;
+	int op_action;
+	int status;
+};
 
 struct ts_regs_info{
 	unsigned int fhandler;
@@ -362,6 +397,12 @@ struct ts_window_info{
 	int top_left_y0;
 	int bottom_right_x1;
 	int bottom_right_y1;
+	int status;
+};
+
+struct ts_test_type_info{
+	char tp_test_type[MAX_STR_LEN];
+	int op_action;
 	int status;
 };
 
@@ -384,6 +425,7 @@ struct ts_hand_info{
 struct ts_feature_info {
 	struct ts_holster_info holster_info;
 	struct ts_window_info window_info;
+	struct ts_wakeup_gesture_enable_info wakeup_gesture_enable_info ;
 	struct ts_roi_info roi_info;
 };
 
@@ -409,6 +451,11 @@ struct ts_palm_info{
 	int status;
 };
 
+struct ts_single_touch_info{
+	u16 single_touch_switch;
+	int op_action;
+	int status;
+};
 struct ts_cmd_sync {
 	atomic_t timeout_flag;
 	struct completion done;
@@ -440,6 +487,7 @@ struct ts_device_ops{
 	int (*chip_irq_bottom_half)(struct ts_cmd_node *in_cmd, struct ts_cmd_node *out_cmd);
 	int (*chip_reset)(void);
 	void (*chip_shutdown)(void);
+	int (*chip_get_project_id)(struct ts_chip_project_id_param *info);
 	int (*chip_get_info)(struct ts_chip_info_param *info);
 	int (*chip_set_info_flag)(struct ts_data *info);
 	int (*chip_fw_update_boot)(char *file_name);
@@ -449,6 +497,8 @@ struct ts_device_ops{
 	int (*chip_get_rawdata)(struct ts_rawdata_info *info, struct ts_cmd_node *out_cmd);
 	int (*chip_glove_switch)(struct ts_glove_info *info);
 	int (*chip_palm_switch)(struct ts_palm_info *info);
+	int (*chip_single_touch_switch)(struct ts_single_touch_info *info);
+	int (*chip_wakeup_gesture_enable_switch)(struct ts_wakeup_gesture_enable_info *info);
 	int (*chip_holster_switch)(struct ts_holster_info *info);
 	int (*chip_roi_switch)(struct ts_roi_info *info);
 	unsigned char* (*chip_roi_rawdata)(void);
@@ -461,30 +511,18 @@ struct ts_device_ops{
 	int (*chip_check_status)(void);
 	int (*chip_hw_reset)(void);
 	int (*chip_regs_operate)(struct ts_regs_info *info);
-};
-
-enum ts_sleep_mode {
-	TS_POWER_OFF_MODE = 0,
-	TS_GESTURE_MODE,
-};
-
-struct ts_easy_wakeup_info{
-	enum ts_sleep_mode sleep_mode;
-	int off_motion_on;
-	int easy_wakeup_gesture;
-	int easy_wakeup_flag;
-	int palm_cover_flag;
-	int palm_cover_control;
-	unsigned char easy_wakeup_fastrate;
-	unsigned int easywake_position[MAX_POSITON_NUMS];
+	int (*chip_get_capacitance_test_type)(struct ts_test_type_info *info);
 };
 
 struct ts_device_data{
 	bool is_in_cell;
+	int rawdata_arrange_swap;
+	int rawdata_disp_format;
 	int has_virtualkey;
 	char chip_name[MAX_STR_LEN];
 	char module_name[MAX_STR_LEN];
 	char version_name[MAX_STR_LEN];
+	char tp_test_type[MAX_STR_LEN];
 	int raw_limit_buf[RAWDATA_NUM];
 	u8 reg_values[TS_MAX_REG_VALUE_NUM];
 	struct device_node *cnode;
@@ -497,6 +535,7 @@ struct ts_device_data{
 	int vddio_gpio_type;
 	int vddio_regulator_type;
 	int vddio_gpio_ctrl;
+	unsigned short tp_func_flag;
 	int reset_gpio;
 	int algo_size;
 	int algo_id;
@@ -525,7 +564,6 @@ struct ts_bus_info{
 	int bus_id;
 	int (*bus_write) (u8 *buf, u16 length);
 	int (*bus_read) (u8 *reg_addr, u16 reg_len, u8 *buf, u16 len);
-	int (*bus_read_nodsm) (u8 *reg_addr, u16 reg_len, u8 *buf, u16 len);
 };
 
 struct ts_data{

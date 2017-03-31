@@ -144,7 +144,7 @@ typedef struct
 typedef struct
 {
     VOS_UINT32                  ulModuleNum;
-    LOG_MODULE_LEVEL_STRU       astModuleLev[1];
+    LOG_MODULE_LEVEL_STRU       astModuleLev[1];
 }LOG_ID_LEVEL_STRU;
 
 /*日志文件的信息结构*/

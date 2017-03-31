@@ -108,7 +108,7 @@
 		huawei,reset_valid = <1>;
 		huawei,vcmpd_valid = <0>;
 		huawei,i2c-index = <1>;
-		huawei,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		huawei,i2c-speed = <0x0a>;
 		huawei,i2c-addr = <0x6c>;
 		huawei,i2c-addr_bits = <1>;
 		huawei,i2c-val_bits = <0>;
@@ -145,7 +145,7 @@
 		huawei,reset_valid = <1>;
 		huawei,vcmpd_valid = <0>;
 		huawei,i2c-index = <1>;
-		huawei,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		huawei,i2c-speed = <0x0a>;
 		huawei,i2c-addr = <0x6c>;
 		huawei,i2c-addr_bits = <1>;
 		huawei,i2c-val_bits = <0>;
@@ -182,7 +182,7 @@
 		huawei,reset_valid = <1>;
 		huawei,vcmpd_valid = <0>;
 		huawei,i2c-index = <0>;
-		huawei,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		huawei,i2c-speed = <0x0a>;
 		huawei,i2c-addr = <0x34>;
 		huawei,i2c-addr_bits = <1>;
 		huawei,i2c-val_bits = <0>;
@@ -215,7 +215,7 @@
 		huawei,reset_valid = <1>;
 		huawei,vcmpd_valid = <0>;
 		huawei,i2c-index = <0>;
-		huawei,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		huawei,i2c-speed = <0x0a>;
 		huawei,i2c-addr = <0x34>;
 		huawei,i2c-addr_bits = <1>;
 		huawei,i2c-val_bits = <0>;
@@ -251,7 +251,7 @@
 		huawei,reset_valid = <1>;
 		huawei,vcmpd_valid = <0>;
 		huawei,i2c-index = <0>;
-		huawei,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		huawei,i2c-speed = <0x0a>;
 		huawei,i2c-addr = <0x20>;
 		huawei,i2c-addr_bits = <1>;
 		huawei,i2c-val_bits = <0>;
@@ -285,7 +285,7 @@
 		huawei,reset_valid = <1>;
 		huawei,vcmpd_valid = <0>;
 		huawei,i2c-index = <0>;
-		huawei,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		huawei,i2c-speed = <0x0a>;
 		huawei,i2c-addr = <0x20>;
 		huawei,i2c-addr_bits = <1>;
 		huawei,i2c-val_bits = <0>;
@@ -319,7 +319,7 @@
 		huawei,reset_valid = <1>;
 		huawei,vcmpd_valid = <0>;
 		huawei,i2c-index = <1>;
-		huawei,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		huawei,i2c-speed = <0x0a>;
 		huawei,i2c-addr = <0x6c>;
 		huawei,i2c-addr_bits = <1>;
 		huawei,i2c-val_bits = <0>;
@@ -350,7 +350,7 @@
 		huawei,reset_valid = <1>;
 		huawei,vcmpd_valid = <0>;
 		huawei,i2c-index = <1>;
-		huawei,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		huawei,i2c-speed = <0x0a>;
 		huawei,i2c-addr = <0x6c>;
 		huawei,i2c-addr_bits = <1>;
 		huawei,i2c-val_bits = <1>;
@@ -381,7 +381,7 @@
 		huawei,reset_valid = <1>;
 		huawei,vcmpd_valid = <0>;
 		huawei,i2c-index = <0>;
-		huawei,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		huawei,i2c-speed = <0x0a>;
 		huawei,i2c-addr = <0x34>;
 		huawei,i2c-addr_bits = <1>;
 		huawei,i2c-val_bits = <0>;
@@ -415,7 +415,7 @@
 		huawei,reset_valid = <1>;
 		huawei,vcmpd_valid = <0>;
 		huawei,i2c-index = <0>;
-		huawei,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		huawei,i2c-speed = <0x0a>;
 		huawei,i2c-addr = <0x34>;
 		huawei,i2c-addr_bits = <1>;
 		huawei,i2c-val_bits = <0>;
@@ -436,6 +436,40 @@
 		status = "disabled";
 	};
 
+	huawei,ar1335{
+                compatible = "huawei,ar1335";
+                huawei,sensor_name = "ar1335";
+                huawei,extisp_type = <4>;
+                huawei,sensor_index = <0>;
+                huawei,interface_type = <1>;
+                huawei,csi_lane = <3>;
+                huawei,csi_index = <0>;
+                huawei,csi_mipi_clk = <0x2c>;
+                huawei,pd_valid = <1>;
+                huawei,reset_valid = <1>;
+                huawei,vcmpd_valid = <0>;
+                huawei,i2c-index = <0>;
+                huawei,i2c-speed = <0x0a>;
+                huawei,i2c-addr = <0x34>;
+                huawei,i2c-addr_bits = <1>;
+                huawei,i2c-val_bits = <0>;
+                huawei,sensor_chipid = <0x13850>;
+                huawei,camif_id = <0>;
+                huawei,vcm_name = "dw9714";
+                huawei,vcm_enable = <1>;
+                huawei,sensor_type = <0>;
+                dvdd-supply = <&ldo20>;
+                avdd-supply = <&ldo21>;
+                iopw-supply = <&lsw52>;
+                vcm-supply = <&ldo25>;
+                miniisp-supply = <&lsw51>;
+                huawei,ldo-names = "dvdd", "avdd", "iopw", "vcm","miniisp";
+                /* RESETB, FSIN, PWDN, PWDN2 */
+                gpios = <&gpio3 1 0  &gpio3 3 0 &gpio2 5 0 &gpio2 6 0 &gpio3 6 0 &gpio4 1 0>;
+                huawei,gpio-ctrl-types = "reset", "fsin", "suspend", "reset2", "pwdn", "vcm_pwdn";
+                status = "disabled";
+        };
+
 	huawei,s5k4e1ga_sunny {
 		compatible = "huawei,s5k4e1ga_sunny";
 		huawei,sensor_name = "s5k4e1ga";
@@ -449,7 +483,7 @@
 		huawei,reset_valid = <1>;
 		huawei,vcmpd_valid = <0>;
 		huawei,i2c-index = <1>;
-		huawei,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		huawei,i2c-speed = <0x0a>;
 		huawei,i2c-addr = <0x6c>;
 		huawei,i2c-addr_bits = <1>;
 		huawei,i2c-val_bits = <0>;
@@ -481,7 +515,7 @@
 		huawei,reset_valid = <1>;
 		huawei,vcmpd_valid = <0>;
 		huawei,i2c-index = <1>;
-		huawei,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		huawei,i2c-speed = <0x0a>;
 		huawei,i2c-addr = <0x6c>;
 		huawei,i2c-addr_bits = <1>;
 		huawei,i2c-val_bits = <0>;
@@ -531,6 +565,8 @@
 	huawei,altek6045 {
 		compatible = "huawei,altek6045";
 		hisi,isp-pin = <20 23 24>;
+		/*chip-type 1:NULL  2:Al6045  4:Al6010*/
+		hisi,chip-type = <4>;
 		status = "disabled";
 	};
 

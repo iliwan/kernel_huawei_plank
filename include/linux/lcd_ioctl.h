@@ -12,5 +12,6 @@
 
 #define LCD_TUNING_DGAMMA	LCD_IOR(30, unsigned int)
 #define LCD_TUNING_CABC LCD_IOR(31, unsigned int)
+/* END:   Added by huohua, 2012/02/14 */
 #define LCD_TUNING_DCPR	LCD_IOR(34, unsigned int)
 #endif

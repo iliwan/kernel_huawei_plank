@@ -28,7 +28,6 @@
 extern void mali_kbase_pm_report_vsync(int);
 #endif
 extern int mipi_dsi_ulps_cfg(struct hisi_fb_data_type *hisifd, int enable);
-extern bool hisi_dss_check_reg_reload_status(struct hisi_fb_data_type *hisifd);
 
 void hisifb_vsync_isr_handler(struct hisi_fb_data_type *hisifd)
 {
@@ -36,7 +35,10 @@ void hisifb_vsync_isr_handler(struct hisi_fb_data_type *hisifd)
 	int buffer_updated = 0;
 	ktime_t pre_vsync_timestamp;
 
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return;
+	}
 	vsync_ctrl = &(hisifd->vsync_ctrl);
 	BUG_ON(vsync_ctrl == NULL);
 
@@ -125,11 +127,22 @@ static ssize_t vsync_show_event(struct device *dev,
 	struct hisi_fb_data_type *hisifd = NULL;
 	ktime_t prev_timestamp;
 
-	BUG_ON(dev == NULL);
+	if (NULL == dev) {
+		HISI_FB_ERR("NULL Pointer\n");
+		return -EINVAL;
+	}
+
 	fbi = dev_get_drvdata(dev);
-	BUG_ON(fbi == NULL);
+	if (NULL == fbi) {
+		HISI_FB_ERR("NULL Pointer\n");
+		return -EINVAL;
+	}
+
 	hisifd = (struct hisi_fb_data_type *)fbi->par;
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer\n");
+		return -EINVAL;
+	}
 
 	prev_timestamp = hisifd->vsync_ctrl.vsync_timestamp;
 	ret = wait_event_interruptible(
@@ -248,9 +261,15 @@ void hisifb_vsync_register(struct platform_device *pdev)
 	char name[64] = {0};
 #endif
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return;
+	}
 	vsync_ctrl = &(hisifd->vsync_ctrl);
 	BUG_ON(vsync_ctrl == NULL);
 
@@ -303,9 +322,15 @@ void hisifb_vsync_unregister(struct platform_device *pdev)
 	struct hisi_fb_data_type *hisifd = NULL;
 	struct hisifb_vsync *vsync_ctrl = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return;
+	}
 	vsync_ctrl = &(hisifd->vsync_ctrl);
 	BUG_ON(vsync_ctrl == NULL);
 
@@ -412,11 +437,21 @@ int hisifb_vsync_ctrl(struct fb_info *info, void __user *argp)
 	struct hisifb_vsync *vsync_ctrl = NULL;
 	int enable = 0;
 
-	BUG_ON(info == NULL);
+	if (NULL == info) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = (struct hisi_fb_data_type *)info->par;
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	pdata = dev_get_platdata(&hisifd->pdev->dev);
-	BUG_ON(pdata == NULL);
+	if (NULL == pdata) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
+
 	vsync_ctrl = &(hisifd->vsync_ctrl);
 	BUG_ON(vsync_ctrl == NULL);
 

@@ -32,12 +32,18 @@ hisifb-objs += ../panel/hdmi_fake_panel.o
 hisifb-objs += ../panel/lcdc_samsung_LMS350DF04.o
 hisifb-objs += ../panel/mipi_tianma_OTM9608A.o
 hisifb-objs += ../panel/mipi_toshiba_MDY90.o
-hisifb-objs += ../panel/mipi_jdi_OTM1902B.o
 hisifb-objs += ../panel/mipi_jdi_R69429.o
 hisifb-objs += ../panel/mipi_jdi_NT35695.o
+hisifb-objs += ../panel/mipi_jdi_OTM1902B.o
+ifeq ($(CONFIG_FB_3630), y)
+hisifb-objs += ../panel/mipi_jdi_NT35695_JAZZ.o
+hisifb-objs += ../panel/mipi_jdi_NT35695_PINE.o
+hisifb-objs += ../panel/mipi_tianma_OTM1906.o
+endif
 hisifb-objs += ../panel/mipi_jdi_NT36750.o
 hisifb-objs += ../panel/mipi_auo_NT51021.o
 hisifb-objs += ../panel/mipi_samsung_S6E3FA3X01.o
+hisifb-objs += ../panel/mipi_cadiz_NT51021.o
 hisifb-objs += voltage/tps65132.o
 hisifb-objs += voltage/ina231.o
 

@@ -32,13 +32,27 @@
 
 #define CLUSTER0_RESUME_BIT 	0xfff0A334
 #define CLUSTER1_RESUME_BIT 	0xfff0A338
-#define CLUSTER1_CPU4    	1 << 4
 
 static struct ion_device *idev;
 static int num_heaps;
 static struct ion_heap **heaps;
 static void __iomem * cluster0_resume_bit;
 static void __iomem * cluster1_resume_bit;
+
+#ifdef CONFIG_ARCH_HI3630
+void hisi_ionsysinfo(struct sysinfo *si)
+{
+	__kernel_ulong_t ion_free_memory = 0;
+	struct ion_heap *heap = NULL;
+	int i;
+	for (i = 0; i < num_heaps; i++) {
+		heap = heaps[i];
+		if (heap->free_memory)
+			ion_free_memory += heap->free_memory(heap);
+	}
+	si->freeram += ion_free_memory;
+}
+#endif
 
 static void ion_pm_init(void)
 {
@@ -65,7 +79,11 @@ void ion_flush_cache_all(void)
 
 	stat = ~(cluster0_stat | cluster1_stat << 4) & 0xff;
 	if(cluster1_stat == 0x0f) {
-		stat = stat | CLUSTER1_CPU4;
+		stat |= BIT(4);
+	}
+
+	if(cluster0_stat == 0x0f) {
+		stat |= BIT(0);
 	}
 
 	cpumask_clear(&mask);
@@ -90,7 +108,54 @@ static void free_pdata(const struct ion_platform_data *pdata)
 {
 	kfree(pdata);
 }
+#if defined(CONFIG_ARCH_HI3630)
+static struct ion_platform_heap hisi_ion_heaps[] = {
+	{
+		.type = ION_HEAP_TYPE_SYSTEM,
+		.id = ION_SYSTEM_HEAP_ID,
+		.name = "system-heap",
+	},
+	{
+		.type = ION_HEAP_TYPE_SYSTEM_CONTIG,
+		.id = ION_SYSTEM_CONTIG_HEAP_ID,
+		.name = "system-contig-heap",
+	},
+	{
+		.type = ION_HEAP_TYPE_CARVEOUT,
+		.id = ION_GRALLOC_HEAP_ID,
+		.name = "carveout-heap",
+		.base = 0x29600000,
+		.size = 0x2d600000-0x29600000,
+	},
+	/*
+	{
+		.type = ION_HEAP_TYPE_DMA,
+		.id = ION_DMA_HEAP_ID,
+		.name = "ion-dma-heap",
+	},
 
+	{
+		.type = ION_HEAP_TYPE_DMA_POOL,
+		.id = ION_DMA_POOL_HEAP_ID,
+		.name = "ion-dma-pool-heap",
+	},
+	*/
+	{
+		.type = ION_HEAP_TYPE_CPUDRAW,
+		.id = ION_CPU_DRAW_HEAP_ID,
+		.name = "ion-cpu-draw-heap",
+		.base = 0x38000000,
+		.size = 0x3a000000-0x38000000,
+	},
+	{
+		.type = ION_HEAP_TYPE_CARVEOUT,
+		.id = ION_MISC_HEAP_ID,
+		.name = "ion-misc-heap",
+		.base = 0x3a000000,
+		.size = 0x3aa00000-0x3a000000,
+	},
+};
+#else
 static struct ion_platform_heap hisi_ion_heaps[] = {
 	{
 		.type = ION_HEAP_TYPE_SYSTEM,
@@ -115,7 +180,7 @@ static struct ion_platform_heap hisi_ion_heaps[] = {
 		.name = "ion-dma-heap",
 	},
 };
-
+#endif
 #ifndef CONFIG_ARM64
 static int check_vaddr_bounds(unsigned long start, unsigned long end)
 {

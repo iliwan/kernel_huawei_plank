@@ -21,7 +21,9 @@
 
 #include <asm/sizes.h>
 #include <linux/mm.h>
+#ifndef CONFIG_ARCH_HI3630 /*just for compile*/
 #include <global_ddr_map.h>
+#endif
 #include "MemoryMap.h"
 #include <linux/hisi/hi6xxx-platform.h>
 

@@ -153,11 +153,11 @@ VOS_UINT OM_ComRx_ICCError_CB(VOS_UINT ulChanID, VOS_UINT ulEvent, VOS_VOID* pPa
 
     stIccErrorInfo.ulEvent = ulEvent;
 
-    if (g_astOMCCPUIccCtrlTable[OM_OM_ICC_CHANNEL].UDIHdle == ulChanID)
+    if (g_astOMCCPUIccCtrlTable[OM_OM_ICC_CHANNEL].UDIHdle == (UDI_HANDLE)ulChanID)
     {
         stIccErrorInfo.ulChannelID = OM_OM_ICC_CHANNEL;
     }
-    else if(g_astOMCCPUIccCtrlTable[OM_OSA_MSG_ICC_CHANNEL].UDIHdle == ulChanID)
+    else if(g_astOMCCPUIccCtrlTable[OM_OSA_MSG_ICC_CHANNEL].UDIHdle == (UDI_HANDLE)ulChanID)
     {
         stIccErrorInfo.ulChannelID = OM_OSA_MSG_ICC_CHANNEL;
     }

@@ -30,6 +30,8 @@ extern "C" {
 #include <linux/rtc.h>
 #include <linux/syscalls.h>
 #include <linux/dma-mapping.h>
+#include <linux/stat.h>
+#include <linux/string.h>
 
 #include "wireless_patch.h"
 #include "wireless_board.h"
@@ -1514,9 +1516,9 @@ int32 patch_number_type(uint8 *Key, uint8 *Value, int32 type)
         return SUCC;
     }
 
-
     if (!OS_STR_CMP((int8 *)Key, PLL_CMD_KEYWORD)
-        || !OS_STR_CMP((int8 *)Key, JUMP_CMD_KEYWORD))
+        || !OS_STR_CMP((int8 *)Key, JUMP_CMD_KEYWORD)
+        || !OS_STR_CMP((int8 *)Key, WMEM_CMD_KEYWORD))
     {
         l_ret = patch_int_para_send(Key, Value, type);
         if (0 > l_ret)
@@ -2289,7 +2291,7 @@ int32 patch_get_cfg(uint8 *cfg, int32 type)
 
 
 }
-
+EXPORT_SYMBOL(patch_get_cfg);
 /*****************************************************************************
  Prototype    : patch_download_info
  Description  : download patch
@@ -2509,6 +2511,81 @@ int32 patch_download_patch(int32 type)
     return SUCC;
 }
 EXPORT_SYMBOL(patch_download_patch);
+/*****************************************************************************
+ Prototype    : create_recover_file
+ Description  : create recover flag file at /data/hwlogdir
+ Input        :
+ Output       :
+ Return Value : int32. if file create succ or is exist return 0,
+              : else return 1;
+ Calls        :
+ Called By    :
+
+ History         :
+  1.Date         : 2015/07/17
+    Author       :
+    Modification : Created function
+
+*****************************************************************************/
+int32 create_recover_flag(void)
+{
+    struct file *fp;
+
+    if(is_file_exist(SDIO_RECOVER_FLAG_FILE))
+    {
+        PS_PRINT_DBG("file %s is already exist\n", SDIO_RECOVER_FLAG_FILE);
+        return 0;
+    }
+    else
+    {
+        fp = filp_open(SDIO_RECOVER_FLAG_FILE, O_RDWR | O_CREAT, 0664);
+        if(IS_ERR(fp))
+        {
+            PS_PRINT_ERR("create/open file %s failed, fd:%ld\n", SDIO_RECOVER_FLAG_FILE, fp);
+            return 1;
+        }
+        filp_close(fp, NULL);
+    }
+    PS_PRINT_DBG("create/open file %s succ\n", SDIO_RECOVER_FLAG_FILE);
+    return 0;
+}
+EXPORT_SYMBOL(create_recover_flag);
+
+/*****************************************************************************
+ Prototype    : is_file_exist
+ Description  : judge if file is exist in filesystem.
+ Input        :
+ Output       :
+ Return Value : int32. if file is exist return 1, else return 0;
+ Calls        :
+ Called By    :
+
+ History         :
+  1.Date         : 2015/07/17
+    Author       :
+    Modification : Created function
+
+*****************************************************************************/
+int32 is_file_exist(char * filename)
+{
+    int ret;
+    mm_segment_t old_fs = get_fs();
+    struct kstat kst;
+
+    set_fs(KERNEL_DS);
+    if(vfs_stat(filename, &kst))
+    {
+        PS_PRINT_WARNING("file %s not exist\n", filename);
+        ret = 0;
+    }
+    else
+    {
+        PS_PRINT_DBG("file %s is exist\n", filename);
+        ret = 1;
+    }
+    set_fs(old_fs);
+    return ret;
+}
 
 /*****************************************************************************
  Prototype    : patch_init
@@ -2536,7 +2613,16 @@ int32 patch_init(int32 type)
 
    if (ENUM_INFO_SDIO == type)
    {
-        OS_MEM_CPY(g_st_global[ENUM_INFO_SDIO].auc_Cfgpath, SDIO_CFG_FILE, OS_STR_LEN(SDIO_CFG_FILE));
+        if(is_file_exist(SDIO_RECOVER_FLAG_FILE) && is_file_exist(SDIO_RECOVER_CFG_FILE))
+        {
+            PS_PRINT_WARNING("use recover_cfg file\n");
+            OS_MEM_CPY(g_st_global[ENUM_INFO_SDIO].auc_Cfgpath, SDIO_RECOVER_CFG_FILE, OS_STR_LEN(SDIO_RECOVER_CFG_FILE));
+        }
+        else
+        {
+            PS_PRINT_WARNING("use normal cfg_file\n");
+            OS_MEM_CPY(g_st_global[ENUM_INFO_SDIO].auc_Cfgpath, SDIO_CFG_FILE, OS_STR_LEN(SDIO_CFG_FILE));
+        }
    }
    else
    {
@@ -2559,16 +2645,18 @@ int32 patch_init(int32 type)
         return -EFAIL;
     }
 
-	g_pucDataBuf = OS_KMALLOC_GFP(READ_PATCH_BUF_LEN);
-	if(NULL == g_pucDataBuf)
-	{
-		PS_PRINT_ERR("g_pucDataBuf KMALLOC failed");
-		g_pucDataBuf = NULL;
-		return -EFAIL;
-	} else {
-		PS_PRINT_DBG("g_pucDataBuf KMALLOC succ");
-	}
-
+    if(NULL == g_pucDataBuf)
+    {
+        g_pucDataBuf = OS_KMALLOC_GFP(READ_PATCH_BUF_LEN);
+        if(NULL == g_pucDataBuf)
+        {
+            PS_PRINT_ERR("g_pucDataBuf KMALLOC failed");
+            g_pucDataBuf = NULL;
+            return -EFAIL;
+        } else {
+            PS_PRINT_DBG("g_pucDataBuf KMALLOC succ");
+        }
+    }
     return SUCC;
 
 }

@@ -65,7 +65,7 @@ struct dsm_client *compass_dclient = NULL;
 #endif
 
 static unsigned int g_compass_softiron_type = 0;
-static char *sensor_binder_input[SENSOR_MAX] = {NULL};
+char *sensor_binder_input[SENSOR_MAX] = {NULL};
 static char *sensor_chip_info[SENSOR_MAX] = {NULL};
 static char *gyro_selfTest_result;
 static char *akm_selfTest_result;

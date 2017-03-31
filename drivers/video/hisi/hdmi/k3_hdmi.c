@@ -21,8 +21,8 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 
-#include "../k3_fb.h"
-#include "../k3_fb_def.h"
+#include "../hi3630/hisi_fb.h"
+#include "../hi3630/hisi_fb_def.h"
 
 //#include "k3_hdmi_hw.h"
 #include "k3_hdmi_hw_tpi.h"
@@ -738,7 +738,7 @@ static int hdmi_pw_power_on_full(void)
     IN_FUNCTION;
 
     hdmi.power_state = HDMI_POWER_FULL;
-    k3_fb1_power_ctrl(true);
+    hisi_fb1_power_ctrl(true);
     hdmi.timings = edid_get_timings_byindex(get_timings_index());
 
     logi("custom_set :%d edid_set :%d.\n", hdmi.custom_set, hdmi.edid_set);
@@ -899,7 +899,7 @@ static void hdmi_pw_power_on_min(void)
     }
 #endif
     if (hdmi.power_state ==  HDMI_POWER_FULL) {
-        k3_fb1_power_ctrl(false);
+        hisi_fb1_power_ctrl(false);
     }
 
     hdmi.work_state = HDMI_WORK_STATE_IDLE;
@@ -2940,8 +2940,8 @@ void hdmi_sys_unlock()
     mutex_unlock(&hdmi.lock);
 }
 
-static struct k3_panel_info hdmi_panel_info = {0};
-static struct k3_fb_panel_data hdmi_panel_data = {
+static struct hisi_panel_info hdmi_panel_info = {0};
+static struct hisi_fb_panel_data hdmi_panel_data = {
     .panel_info = &hdmi_panel_info,
 };
 
@@ -2957,7 +2957,7 @@ static struct k3_fb_panel_data hdmi_panel_data = {
 *******************************************************************************/
 int hdmi_regist_fb(struct platform_device *pdev)
 {
-    struct k3_panel_info *pinfo = NULL;
+    struct hisi_panel_info *pinfo = NULL;
 
     //set the fb1's timing to 1080p default
     int index = edid_get_timings_index(HDMI_DEFAULT_TIMING_MODE
@@ -2988,12 +2988,12 @@ int hdmi_regist_fb(struct platform_device *pdev)
     pinfo->ldi.data_en_plr = 0;
 
     /* alloc panel device data */
-    if (platform_device_add_data(pdev, &hdmi_panel_data, sizeof(struct k3_fb_panel_data))) {
+    if (platform_device_add_data(pdev, &hdmi_panel_data, sizeof(struct hisi_fb_panel_data))) {
         loge("k3fb, platform_device_add_data failed!\n");
         return -ENOMEM;
     }
 
-    if (NULL == k3_fb_add_device(pdev)) {
+    if (NULL == hisi_fb_add_device(pdev)) {
         loge("k3_fb_add_device error....\n");
         return -ENOMEM;
     }
@@ -3118,7 +3118,7 @@ static int k3_hdmi_event_notify(struct notifier_block *self,
 {
     struct fb_event *event = data;
     struct fb_info *info = event->info;
-    struct k3_fb_data_type *k3fd = info->par;
+    struct hisi_fb_data_type *k3fd = info->par;
 
     if (k3fd->index != K3_DSS_PDP)
         return 0;
@@ -3206,8 +3206,7 @@ int k3_hdmi_remove(struct platform_device* dev)
 int k3_hdmi_probe(struct platform_device *pdev)
 {
     int ret = 0;
-
-    if (k3_fb_device_probe_defer(PANEL_HDMI)) {
+    if (hisi_fb_device_probe_defer(PANEL_HDMI)) {
         goto err_probe_defer;
     }
 
@@ -3445,7 +3444,7 @@ static int __init k3_hdmi_init(void)
 
     ret = platform_driver_register(&this_driver);
     if (ret) {
-        K3_FB_ERR("platform_driver_register failed, error=%d!\n", ret);
+        loge("platform_driver_register failed, error=%d!\n", ret);
         return ret;
     }
 

@@ -409,7 +409,7 @@ static int __init early_param_boottype(char * p)
             datamount_flag = DATAMOUNT_FLAG_FAIL;
         }
     }
-	//printk(KERN_ALERT "kernel_log: func = %s, doubledata p = %s, datamount_flag = %d\n", __FUNCTION__, p, datamount_flag);
+    printk(KERN_ALERT "emergency: func = %s, doubledata p = %s, datamount_flag = %d\n", __FUNCTION__, p, datamount_flag);
     return 0;
 }
 early_param("normal_reset_type", early_param_boottype);

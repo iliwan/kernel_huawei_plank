@@ -48,9 +48,11 @@ extern "C" {
 /* UE支持的同频或异频小区最大数目 */
 #define    LRRC_LPHY_MAX_FREQ_CELL_NUM                        33
 
+/* Begin: add inter meas ferq num */
 /* 主模非LTE模时，UE支持的异频的最大数目是6，
    主模为LTE模时，UE支持的异频的最大数目是5 */
 #define    LRRC_LPHY_MAX_ADDITIONAL_CARRIER_NUM               6
+/* End: add inter meas ferq num */
 
 /* UE 配置 SI 消息的最大数目 */
 #define LRRC_LPHY_MAX_SI_CONFIG_NUM                           32
@@ -113,6 +115,7 @@ extern "C" {
 /* sunyanjie begin */
 #define LRRC_LPHY_MAX_CELL_NUM            5
 /* sunyanjie end */
+#define LRRC_LPHY_FREQ_RSSI_MAX_SCAN_NUM                      64
 /*****************************************************************************
   3 Massage Declare
 *****************************************************************************/
@@ -182,14 +185,20 @@ enum LRRC_LPHY_MSG_ID_ENUM
     /*寻呼下移特性begin*/
     ID_LRRC_LPHY_PAGING_INFO_REQ                 = (ERRC_LPHY_MSG_HDR + 0x22), /* _H2ASN_MsgChoice LRRC_LPHY_UE_ID_INFO_STRU */
     /*寻呼下移特性end*/
-	
+
 	/* MTC NOTCH add begin */
     ID_LRRC_LPHY_NOTCH_REQ                       = (ERRC_LPHY_MSG_HDR + 0x23), /* _H2ASN_MsgChoice LRRC_LPHY_NOTCH_BYPASS_REQ_STRU */
     /* MTC NOTCH add end */
 
     ID_LRRC_LPHY_DPDT_CMD_REQ                   = (ERRC_LPHY_MSG_HDR + 0x24),
 
+    /*begin: hifi sync switch */
     ID_LRRC_LPHY_HIFI_SYNC_SWITCH_IND           = (ERRC_LPHY_MSG_HDR + 0x25),   /* _H2ASN_MsgChoice LRRC_LPHY_HIFI_SYNC_SWITCH_IND_STRU */
+    /*end: hifi sync switch */
+
+    ID_LRRC_LPHY_FREQ_RSSI_SCAN_REQ               = (ERMM_LPHY_MSG_HDR + 0x26),   /* _H2ASN_MsgChoice LRRC_LPHY_FREQ_RSSI_SCAN_REQ_STRU */
+	
+    ID_LRRC_LPHY_MODEM1_INFO_IND                = (ERRC_LPHY_MSG_HDR + 0x27),   /* _H2ASN_MsgChoice LRRC_LPHY_MODEM1_INFO_IND_STRU */
 
 	/* 物理层发给RRC的原语 */
     ID_LRRC_LPHY_CELL_SEARCHING_IND               = (LPHY_ERMM_MSG_HDR + 0x00), /* _H2ASN_MsgChoice LRRC_LPHY_CELL_SEARCHING_IND_STRU */
@@ -253,7 +262,11 @@ enum LRRC_LPHY_MSG_ID_ENUM
 
     ID_LRRC_LPHY_DPDT_CMD_IND                     = (LPHY_ERRC_MSG_HDR + 0x28),
 
+    /*begin: hifi sync switch */
     ID_LRRC_LPHY_VOICE_SYNC_IND                  = (LPHY_ERRC_MSG_HDR + 0x29),   /* _H2ASN_MsgChoice LRRC_LPHY_VOICE_SYNC_IND_STRU */
+    /*end: hifi sync switch */
+    ID_LRRC_LPHY_FREQ_RSSI_SCAN_IND              = (LPHY_ERMM_MSG_HDR + 0x2A),    /* _H2ASN_MsgChoice LRRC_LPHY_FREQ_RSSI_SCAN_IND_STRU */
+    ID_LRRC_LPHY_IRAT_SCAN_IND              = (LPHY_ERRC_MSG_HDR + 0x2f),    /* _H2ASN_MsgChoice LRRC_LPHY_FREQ_RSSI_SCAN_IND_STRU */
 
     ID_LRRC_LPHY_BUTT
 };
@@ -1442,6 +1455,7 @@ enum LRRC_LPHY_BAND_SCAN_TYPE_ENUM
 {
     LRRC_LPHY_BAND_SCAN_TYPE_INIT                  = 0,                         /* 初始扫频 */
     LRRC_LPHY_BAND_SCAN_TYPE_CONT                  = 1,                         /* 后续扫频 */
+    LRRC_LPHY_BAND_SCAN_TYPE_IRAT                  = 2,
     LRRC_LPHY_BAND_SCAN_TYPE_BUTT
 };
 typedef VOS_UINT16 LRRC_LPHY_BAND_SCAN_TYPE_ENUM_UINT16;
@@ -2175,6 +2189,34 @@ enum LRRC_LPHY_DPDT_CMD_ENUM
 typedef VOS_UINT16  LRRC_LPHY_DPDT_CMD_ENUM_UINT16;
 
 /*****************************************************************************
+ 枚举名    : LRRC_LPHY_SECOND_SIM_REGISTER_COUNTRY_ENUM
+ 协议表格  :
+ ASN.1描述 :
+ 枚举说明  : 通知物理层启动副卡工作状态
+*****************************************************************************/
+enum LRRC_LPHY_MODEM1_STATE_ENUM
+{
+    LRRC_LPHY_MODEM1_IDLE_MODE          = 0,    /* 空闲态 */
+    LRRC_LPHY_MODEM1_CONNECT_MODE       = 1,    /* 连接态 */
+    LRRC_LPHY_MODEM1_MODE_BUTT
+};
+typedef VOS_UINT16  LRRC_LPHY_MODEM1_STATE_ENUM_UINT16;
+
+/*****************************************************************************
+ 枚举名    : LRRC_LPHY_SECOND_SIM_STATE_ENUM
+ 协议表格  :
+ ASN.1描述 :
+ 枚举说明  : 通知物理层启动副卡工作状态
+*****************************************************************************/
+enum LRRC_LPHY_BAND_COUNTRY_ENUM
+{
+    LRRC_LPHY_MODEM1_COUNTRY_UNKNOWN     = 0,    /* 未知 */
+    LRRC_LPHY_MODEM1_COUNTRY_CHINA       = 1,    /* 国内 */
+    LRRC_LPHY_MODEM1_COUNTRY_BUTT
+};
+typedef VOS_UINT16  LRRC_LPHY_MODEM1_COUNTRY_ENUM_UINT16;
+
+/*****************************************************************************
  结构名    : RRC_PHY_NOTCH_REQ_STRU
  协议表格  :
  ASN.1描述 :
@@ -2307,6 +2349,40 @@ typedef struct
     VOS_UINT16                                    usReserved;                   /* 保留字段 */
     LRRC_LPHY_BAND_SCAN_RESULT_LIST_STRU          stBandScanResult;             /* 扫频结果 */
 }LRRC_LPHY_BAND_SCAN_IND_STRU;
+
+typedef LRRC_LPHY_BAND_SCAN_IND_STRU LRRC_LPHY_IRAT_SCAN_IND_STRU;
+
+/*****************************************************************************
+ 结构名    : LRRC_LPHY_FREQ_RSSI_MEAS_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 协议栈指示物理层扫描指定的各个中心频点1.4M带宽的RSSI的具体频点信息
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT16                                    usFreqInfo;                   /* 搜索到的小区的频点 */
+    LRRC_LPHY_BAND_IND_ENUM_UINT16                enBandInd;                    /* 频带指示 */
+    VOS_INT16                                     sRssi;                        /* RSRP测量值 */
+    VOS_UINT16                                    usRsv;
+}LRRC_LPHY_FREQ_RSSI_MEAS_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : LRRC_LPHY_FREQ_RSSI_SCAN_REQ_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 协议栈指示物理层扫描指定的各个中心频点1.4M带宽的RSSI
+*****************************************************************************/
+typedef struct
+{
+    VOS_MSG_HEADER                                                              /*_H2ASN_Skip*/
+    LRRC_LPHY_MSG_ID_ENUM_UINT32                  enMsgId;                      /*_H2ASN_Skip*/     /* 原语消息ID */
+    VOS_UINT16                                    usOpId;                       /* 操作标识符 */
+    LRRC_LPHY_LTE_BAND_WIDTH_ENUM_UINT16          enScanBandWith;
+    VOS_UINT16                                    usNoRfValid;
+    VOS_UINT16                                    usRsv;
+    VOS_UINT32                                    ulValidNum;
+    LRRC_LPHY_FREQ_RSSI_MEAS_INFO_STRU            astMeasInfo[LRRC_LPHY_FREQ_RSSI_MAX_SCAN_NUM];
+}LRRC_LPHY_FREQ_RSSI_SCAN_REQ_STRU;
 
 /*****************************************************************************
  结构名    : LRRC_LPHY_TDD_CONFIG_INFO_STRU
@@ -4951,6 +5027,7 @@ typedef struct
 }LRRC_LPHY_SWITCH_IND_STRU;
 
 
+/* add by lishangfeng bg begin */
 /*****************************************************************************
  结构名    : LRRC_LPHY_BG_SEARCH_START_REQ_STRU
  协议表格  :
@@ -5066,8 +5143,10 @@ typedef struct
 }LRRC_LPHY_BG_SEARCH_RESUME_CNF_STRU;
 
 
+/* add by lishangfeng bg end */
 
 
+/* add by lishangfeng anr begin */
 
 /*****************************************************************************
  结构名    : LRRC_LPHY_ANR_START_REQ_STRU
@@ -5126,6 +5205,7 @@ typedef struct
     VOS_UINT16                                          usOpId;
     LRRC_LPHY_RESULT_ENUM_UINT16                        enResult;
 }LRRC_LPHY_ANR_STOP_CNF_STRU;
+/* add by lishangfeng anr end */
 
 /*****************************************************************************
  结构名    : LRRC_LPHY_RF_IIP2_DATA_PARA_STRU
@@ -5324,6 +5404,7 @@ typedef struct
 
 /* v7r2 interface end */
 
+/*begin: hifi sync switch */
 /*****************************************************************************
  结构名    : LRRC_LPHY_HIFI_SYNC_SWITCH_IND_STRU
  协议表格  :
@@ -5335,7 +5416,8 @@ typedef struct
     VOS_MSG_HEADER                                                              /*_H2ASN_Skip*/
     LRRC_LPHY_MSG_ID_ENUM_UINT32                        enMsgId;                /*_H2ASN_Skip*/
     VOS_UINT8                                           ucHifiSyncEnabled;      /* 0: 关闭; 1: 打开; */
-    VOS_UINT8                                           aucReserved[3];
+    VOS_UINT8                                           ucPowerState;         /* Modem1 开关机状态，0 : 表示关闭 1: 表示打开  */
+    VOS_UINT8                                           aucReserved[2];
 }LRRC_LPHY_HIFI_SYNC_SWITCH_IND_STRU;
 
 /*****************************************************************************
@@ -5362,8 +5444,25 @@ typedef struct
     VOS_UINT16                          usSendOffset;                           /* 以uwOnDurationSlice为基点，HIFI发送语音包前量 */
 }LRRC_LPHY_VOICE_SYNC_IND_STRU;
 
+/*end: hifi sync switch */
 
+/*****************************************************************************
+ 结构名    : LRRC_LPHY_MODEM1_INFO_IND_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : RRC透传副卡干扰信息指示
+*****************************************************************************/
+typedef struct
+{
+    VOS_MSG_HEADER                                                      /*_H2ASN_Skip*/
+    LRRC_LPHY_MSG_ID_ENUM_UINT32                enMsgID;                /*_H2ASN_Skip*/
+    LRRC_LPHY_MODEM1_STATE_ENUM_UINT16          enWorkState;            /* 工作状态 */
+    LRRC_LPHY_BAND_IND_ENUM_UINT16              enBandInd;              /* 频带指示 */
+    LRRC_LPHY_MODEM1_COUNTRY_ENUM_UINT16        enModem1CountryInd;     /* 国家指示 */  
+    VOS_UINT8                                   ucRev[2];               /* 保留字段 */
+}LRRC_LPHY_MODEM1_INFO_IND_STRU;
 
+typedef LRRC_LPHY_FREQ_RSSI_SCAN_REQ_STRU LRRC_LPHY_FREQ_RSSI_SCAN_IND_STRU;
 /*****************************************************************************
   6 UNION
 *****************************************************************************/

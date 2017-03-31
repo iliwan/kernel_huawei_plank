@@ -104,7 +104,7 @@ struct hisi_sensor_fn_t ov8830_func_tbl = {
 
 static int32_t ov8830_sensor_probe(struct platform_device *pdev)
 {
-	int32_t rc = 0;
+	int32_t rc = -1;
 	struct hisi_sensor_t *sensor = NULL;
 
 	cam_info("%s pdev name %s\n", __func__, pdev->name);
@@ -122,19 +122,26 @@ static int32_t ov8830_sensor_probe(struct platform_device *pdev)
 		rc = hisi_sensor_get_dt_data(pdev, sensor);
 		if (rc < 0) {
 			cam_err("%s failed line %d\n", __func__, __LINE__);
-			return rc;
+			goto ov8830_sensor_probe_fail;
 		}
 	} else {
 		cam_err("%s ov8830 of_node is NULL.\n", __func__);
+		goto ov8830_sensor_probe_fail;
 	}
 
 	rc = hisi_sensor_add(sensor);
 	if (rc < 0) {
 		cam_err("%s fail to add sensor into sensor array.\n", __func__);
+		goto ov8830_sensor_probe_fail;
 	}
 	if (!dev_get_drvdata(&pdev->dev)) {
 		dev_set_drvdata(&pdev->dev, (void *)sensor);
 	}
+	return rc;
+ov8830_sensor_probe_fail:
+	cam_err("%s error exit.\n", __func__);
+	kfree(sensor);
+	sensor = NULL;
 	return rc;
 }
 
@@ -171,7 +178,7 @@ static int __init ov8830_module_init(void)
 	rc = platform_driver_probe(&ov8830_platform_driver,
 		ov8830_platform_probe);
 	if (rc < 0) {
-		cam_err("%s platform_driver_probe error(%d).\n", __func__, rc);
+		cam_notice("%s platform_driver_probe error(%d).\n", __func__, rc);
 	}
 	return rc;
 }

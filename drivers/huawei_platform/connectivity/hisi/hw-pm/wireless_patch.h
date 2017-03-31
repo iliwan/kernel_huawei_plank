@@ -76,6 +76,8 @@ extern "C" {
 #else
 #define UART_CFG_FILE               "/system/vendor/firmware/uart_cfg"
 #define SDIO_CFG_FILE               "/system/vendor/firmware/sdio_cfg"
+#define SDIO_RECOVER_CFG_FILE       "/system/vendor/firmware/sdio_recover_cfg"
+#define SDIO_RECOVER_FLAG_FILE      "/data/hwlogdir/recoverflag"
 #endif
 
 #define VER_CMD_KEYWORD             "VERSION"
@@ -300,6 +302,7 @@ extern int32 patch_execute_cmd(int32 cmd_type, uint8 *cmd_name, uint8 *cmd_para,
 extern int32 patch_exit(void);
 extern int32 patch_file_type(uint8 *Key, uint8 *Value, int32 type);
 extern int32 patch_get_cfg(uint8 *cfg, int32 type);
+extern int32 create_recover_flag(void);
 //extern int32 patch_init(void);
 extern int32 patch_int_para_send(uint8 *name, uint8 *Value, int32 type);
 extern void *patch_malloc_cmd_buf(uint8 *buf, int32 type);
@@ -323,6 +326,7 @@ extern int32 sdio_recv_data(uint8 *data, int32 len);
 extern int32 send_msg(uint8 *data, int32 len, int32 type);
 extern int32 uart_recv_data(const uint8 *data, int32 len);
 extern int32 pm_change_patch_state(void);
+extern int32 is_file_exist(char * filename);
 
 
 #ifdef __cplusplus

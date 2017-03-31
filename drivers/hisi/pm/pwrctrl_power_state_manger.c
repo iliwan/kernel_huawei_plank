@@ -8,11 +8,6 @@
 
 
 
-#ifdef __cplusplus
-#if __cplusplus
-extern "C" {
-#endif
-#endif
 
 
 unsigned int  *g_pwrctrl_sleep_state_votemap=NULL ;

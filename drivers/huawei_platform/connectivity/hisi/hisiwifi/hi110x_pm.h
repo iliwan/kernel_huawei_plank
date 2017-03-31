@@ -51,7 +51,7 @@ extern "C" {
  * 3 Enum Type Definition
  */
 
-#define DEFAULT_WATCHDOG_TIMEOUT                3
+#define DEFAULT_WATCHDOG_TIMEOUT                (3 * 1000)
 
 #define MIN_WATCHDOG_TIMEOUT                    0
 #define HI110X_VER_MAX_TIMEOUT                  20

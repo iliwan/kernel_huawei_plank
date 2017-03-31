@@ -2,6 +2,10 @@
 # Makefile for multifunction miscellaneous devices
 #
 
+ifneq ($(TARGET_BUILD_VARIANT),user)
+EXTRA_CFLAGS += -DENABLE_HI6402_IRQ_DEBUG
+endif
+
 EXTRA_CFLAGS 	+= -I$(BALONG_TOPDIR)/include/drv/
 EXTRA_CFLAGS 	+= -I$(BALONG_TOPDIR)/modem/drv/common/include/
 EXTRA_CFLAGS 	+= -I$(BALONG_TOPDIR)/config/product/$(OBB_PRODUCT_NAME)/config/

@@ -2346,6 +2346,7 @@ VOS_VOID BSP_SOCP_GetEncSrcReg(VOS_UINT32 *pulData, VOS_UINT32 ulDataMax)
 #endif
 
 #else
+/* log2.0 2014-03-19 Begin:*/
 #include "NvIdList.h"
 #include "omnvinterface.h"
 #include "NVIM_Interface.h"
@@ -3075,6 +3076,7 @@ VOS_UINT32 SCM_SendCoderSrc(SOCP_CODER_SRC_ENUM_U32 enChanlID, VOS_UINT8 *pucSen
 }
 
 #ifdef SCM_ACORE
+/* log2.0 2014-03-19 Begin:*/
 /* ****************************************************************************
  函 数 名  : SCM_ChangeCoderDstChanCfg
  功能描述  : 根据SD卡保存Log的NV配置，更新编码目的通道的配置
@@ -3122,6 +3124,7 @@ VOS_VOID SCM_ChangeCoderDstChanCfg(VOS_VOID)
 
     return;
 }
+/* log2.0 2014-03-19 End:*/
 
 /* ****************************************************************************
  函 数 名  : SCM_RlsDestBuf
@@ -3939,9 +3942,11 @@ VOS_UINT32 SCM_ChannelInit(VOS_VOID)
 {
     VOS_MemSet(&g_stSCMInfoData, 0, sizeof(g_stSCMInfoData));
 
+/* log2.0 2014-03-19 Begin:*/
 #ifdef SCM_ACORE
         SCM_ChangeCoderDstChanCfg();
 #endif
+/* log2.0 2014-03-19 End:*/
 
     if (VOS_OK != SCM_ChannelMemInit())/* 通道内存初始化 */
     {

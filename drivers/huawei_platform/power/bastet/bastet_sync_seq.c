@@ -58,6 +58,7 @@ static void setup_sock_sync_delay_timer(struct sock *sk)
 {
 	struct bastet_sock *bsk = sk->bastet;
 
+	BASTET_LOGI("delay_time=%ld", bsk->delay_sync_time_section);
 	bsk->bastet_timer_event = BST_TMR_DELAY_SOCK_SYNC;
 	bsk->bastet_timeout = bsk->last_sock_active_time_point + bsk->delay_sync_time_section;
 
@@ -632,6 +633,7 @@ static int do_start_bastet_sock(struct sock *sk, struct bst_set_sock_sync_delay 
 
 		bsk = sk->bastet;
 	}
+	bsk->last_sock_active_time_point = jiffies;
 
 	spin_lock_bh(&sk->sk_lock.slock);
 
@@ -733,6 +735,50 @@ int stop_bastet_sock(struct bst_sock_id *guide)
 
 	sock_put(sk);
 	return 0;
+}
+
+/*
+ * Function is called when application prepare bastet proxy.
+ */
+int prepare_bastet_sock(struct bst_set_sock_sync_delay *sync_prop)
+{
+	int err = 0;
+	struct sock *sk;
+	struct bastet_sock *bsk;
+
+	sk = get_sock_by_fd_pid(sync_prop->guide.fd, sync_prop->guide.pid);
+	if (NULL == sk) {
+		BASTET_LOGE("can not find sock by fd: %d pid: %d", sync_prop->guide.fd, sync_prop->guide.pid);
+		return -ENOENT;
+	}
+
+	if (TCP_ESTABLISHED != sk->sk_state) {
+		BASTET_LOGE("sk: %p sk_state is not TCP_ESTABLISHED", sk);
+		sock_put(sk);
+		return -EPERM;
+	}
+
+	if (tcp_sk(sk)->repair) {
+		BASTET_LOGE("sk: %p in repair mode", sk);
+		sock_put(sk);
+		return -EPERM;
+	}
+
+	BASTET_LOGI("sk: %p, hold_time: %ld", sk, sync_prop->hold_time);
+
+	bsk = sk->bastet;
+	if (NULL == bsk) {
+		err = create_bastet_sock(sk, sync_prop);
+		if (err < 0) {
+			sock_put(sk);
+			return err;
+		}
+		bsk = sk->bastet;
+	}
+
+	sock_put(sk);
+
+	return err;
 }
 
 /*
@@ -933,6 +979,7 @@ void bastet_sock_release(struct sock *sk)
 		request.fd = bsk->fd;
 		request.pid = bsk->pid;
 
+		BASTET_LOGI("indicate socket close, fd=%d, pid=%d", bsk->fd, bsk->pid);
 		post_indicate_packet(BST_IND_SOCK_CLOSED, &request, sizeof(request));
 
 		if (NULL != bsk->sync_p) {

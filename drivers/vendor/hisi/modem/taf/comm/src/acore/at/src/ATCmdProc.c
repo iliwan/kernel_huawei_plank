@@ -1487,9 +1487,11 @@ TAF_UINT32 At_SmsPduProc ( TAF_UINT8 ucIndex, TAF_UINT8 *pData, TAF_UINT16 usLen
             ulRet = At_WritePduMsgToMem(ucIndex, pData, usTmpLen);
             break;
 
+        /*begin add by zhoujun40661 2006-10-24 for CNMA*/
         case AT_CMD_CNMA_PDU_SET:
             ulRet = At_SendPduMsgAck(ucIndex, pData, usTmpLen);
             break;
+        /*end add by zhoujun40661 2006-10-24 for CNMA*/
 
         default:
             ulRet = AT_ERROR;                                                   /*  返回错误*/
@@ -3017,6 +3019,10 @@ VOS_VOID AT_RcvTiS0Expired(
 
     pstCcCtx = AT_GetModemCcCtxAddrFromClientId(ucClientIndex);
 
+    PS_MEM_SET(&stCallMgmtParam, 0, sizeof(MN_CALL_SUPS_PARAM_STRU));
+
+    /* 目前只有voice支持自动接听功能，calltype 固定填为voice */
+    stCallMgmtParam.enCallType    = MN_CALL_TYPE_VOICE;
     stCallMgmtParam.enCallSupsCmd = MN_CALL_SUPS_CMD_HOLD_ACT_ACPT_OTH;
 
     stCallMgmtParam.callId = (MN_CALL_ID_T)pstMsg->ulPara;

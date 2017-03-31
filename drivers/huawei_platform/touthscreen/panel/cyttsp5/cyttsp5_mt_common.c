@@ -140,7 +140,7 @@ static void cyttsp5_mt_process_touch(struct cyttsp5_mt_data *md,
             touch->abs[CY_TCH_X] = si->sensing_conf_data.res_y -
                 touch->abs[CY_TCH_X];
         else
-            touch->abs[CY_TCH_X] = si->sensing_conf_data.res_x -
+            touch->abs[CY_TCH_X] = si->sensing_conf_data.res_x - 1 -
                 touch->abs[CY_TCH_X];
         touch->abs[CY_TCH_OR] *= -1;
     }
@@ -149,7 +149,7 @@ static void cyttsp5_mt_process_touch(struct cyttsp5_mt_data *md,
             touch->abs[CY_TCH_Y] = si->sensing_conf_data.res_x -
                 touch->abs[CY_TCH_Y];
         else
-            touch->abs[CY_TCH_Y] = si->sensing_conf_data.res_y -
+            touch->abs[CY_TCH_Y] = si->sensing_conf_data.res_y - 1 -
                 touch->abs[CY_TCH_Y];
         touch->abs[CY_TCH_OR] *= -1;
     }

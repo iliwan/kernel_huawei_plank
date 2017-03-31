@@ -198,11 +198,61 @@ unsigned int get_pd_charge_flag(void)
 }
 EXPORT_SYMBOL(get_pd_charge_flag);
 
+#ifdef CONFIG_ERP_STANDARD_ENABLED
+/**
+ * parse boaridid cmdline which is passed from fastoot. *
+ * Format : BoardID = board_id             *
+ */
+static unsigned int gboard_id;
+static int __init early_parse_boardid_cmdline(char * p)
+{
+    char enter_recovery[HEX_STRING_MAX + 1];
+    char *endptr = NULL;
+
+    memset(enter_recovery, 0, HEX_STRING_MAX + 1);
+
+    memcpy(enter_recovery, p, HEX_STRING_MAX);
+    enter_recovery[HEX_STRING_MAX] = '\0';
+
+    gboard_id = (unsigned int)simple_strtoull(enter_recovery, &endptr, TRANSFER_BASE);
+
+    hwlog_info("%s : boardid :%d\n", __func__, gboard_id);
+
+    return 0;
+}
+early_param("boardid", early_parse_boardid_cmdline);
+
+int is_plk_l01(void)
+{
+    unsigned int current_board_id = gboard_id;
+
+    if((current_board_id == 1805) || //PLK-L01 VA
+       (current_board_id == 1895) || //PLK-L01 VB
+       (current_board_id == 1883))   //PLK-L01 VC
+    {
+        return 1;
+    }
+    return 0;
+}
+#endif
+
 unsigned int is_load_modem(void)
 {
     unsigned int rs = 0;
+#ifdef CONFIG_ERP_STANDARD_ENABLED
+    if(is_plk_l01())
+    {
+        rs = get_recovery_update_flag();
+    }
+    else
+    {
+        rs |= get_recovery_update_flag();
+        rs |= get_pd_charge_flag();
+    }
+#else
     rs |= get_recovery_update_flag();
     rs |= get_pd_charge_flag();
+#endif
     return !rs;
 }
 EXPORT_SYMBOL(is_load_modem);

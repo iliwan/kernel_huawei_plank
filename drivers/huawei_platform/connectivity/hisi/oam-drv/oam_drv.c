@@ -15,7 +15,10 @@ extern "C" {
 #include <linux/sched.h>
 #include <net/sock.h>
 #include <net/netlink.h>
-
+#ifdef CONFIG_HWCONNECTIVITY
+#include <linux/huawei/hw_connectivity.h>
+#include <linux/mutex.h>
+#endif
 #include "oam_drv.h"
 
 /*
@@ -389,6 +392,17 @@ int32 oamkernel_netlink_send (uint8 *puc_data, int32 data_len)
     int32                    l_len;
 
 /*  OAM_INFO("entry:len=%d\n", data_len);  */
+/* if not connected with oam_app, return direct, print log each 500 times */
+    if (0 == gst_kerenlglobal.ul_usepid)
+    {
+        if (0 == (atomic_read(&gst_kerenlglobal.ul_unconnect_cnt) % SDT_UNCONNECTED_MAXCNT))
+        {
+            atomic_set(&gst_kerenlglobal.ul_unconnect_cnt, 1);
+            OAM_INFO("waiting connect with oam_app....");
+        }
+        atomic_inc(&gst_kerenlglobal.ul_unconnect_cnt);
+	return -EFAIL;
+    }
 
     l_len = OS_NLMSG_SPACE(data_len);
     pst_skb = OS_ALLOC_SKB(l_len, OS_GFP_KERNEL);
@@ -569,6 +583,9 @@ void hwifi_free_skb(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(hwifi_free_skb);
 #endif
+#define OAM_IS_START 1
+uint32          g_oam_start = 0;
+struct mutex    oam_enable_write_mutex;
 /*
  * Prototype    : init_oamkernel
  * Description  : oam kernel initializtion
@@ -583,7 +600,7 @@ EXPORT_SYMBOL(hwifi_free_skb);
  *     Modification : Created function
  *
  */
-int32 __init init_oamkernel(void)
+int32 oam_start(void)
 {
     int32   l_ret;
     int32   ret;
@@ -637,6 +654,73 @@ int32 __init init_oamkernel(void)
     OAM_INFO("oamkernel init over\n");
 
     return SUCC;
+
+}
+
+static ssize_t oam_start_write(struct file *filp, const char __user *buffer, size_t len, loff_t *off)
+{
+    OAM_DEBUG("oam_start_write enter!");
+    mutex_lock(&oam_enable_write_mutex);
+    if (OAM_IS_START == g_oam_start) {
+        OAM_ERROR("oam has started!");
+        mutex_unlock(&oam_enable_write_mutex);
+        return -EINVAL;
+    }
+
+    g_oam_start = OAM_IS_START;
+    mutex_unlock(&oam_enable_write_mutex);
+
+    OAM_INFO("oam start begin\n");
+    if (0 != oam_start())
+    {
+        OAM_ERROR("oam start fail!");
+        return -EINVAL;
+    }
+
+    OAM_INFO("oam start ok\n");
+    return len;
+}
+
+static const struct file_operations oam_proc_start = {
+	.owner = THIS_MODULE,
+	.write = oam_start_write,
+};
+
+#define OAM_START_PROC_DIR "oam_enable"
+#define OAM_START_PROC_FILE "oam_start"
+int32 __init init_oamkernel(void)
+{
+    int             ret = 0;
+    struct proc_dir_entry *oam_start_dir = NULL;
+    struct proc_dir_entry *oam_start_file = NULL;
+
+#ifdef CONFIG_HWCONNECTIVITY
+    if (!isMyConnectivityChip(CHIP_TYPE_HI110X)) {
+        OAM_ERROR("cfg oam chip type is not match, skip driver init");
+        return -EINVAL;
+    } else {
+        OAM_INFO("cfg oam type is matched with hi110x, continue");
+    }
+#endif
+
+    oam_start_dir = proc_mkdir(OAM_START_PROC_DIR, NULL);
+    if (!oam_start_dir) {
+		OAM_ERROR("oam start create proc dir failed.\n");	
+		ret = -ENOMEM;
+        return ret;
+    }
+
+	oam_start_file = proc_create(OAM_START_PROC_FILE, S_IWUSR|S_IWGRP, oam_start_dir, &oam_proc_start);
+    if (!oam_start_file) {
+		OAM_ERROR("oam start create proc file failed.\n");	
+		ret = -ENOMEM;
+        return ret;
+    }
+
+    mutex_init(&oam_enable_write_mutex);
+    OAM_INFO("oam start create proc file ok.\n");	
+	return ret;
+
 }
 
 /*
@@ -655,6 +739,11 @@ int32 __init init_oamkernel(void)
  */
 void __exit exit_oamkernel(void)
 {
+
+	if (OAM_IS_START != g_oam_start)
+	{
+		return;
+	}
     #ifdef SDT_OAM_FOR_1151
 	{
 	oam_sdt_unregister(&tx_action);
@@ -677,7 +766,6 @@ void __exit exit_oamkernel(void)
 
     return;
 }
-
 module_init(init_oamkernel);
 module_exit(exit_oamkernel);
 MODULE_LICENSE("GPL");

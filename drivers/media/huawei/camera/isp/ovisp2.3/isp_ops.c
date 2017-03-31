@@ -43,6 +43,9 @@
 #include "platform_cfg.h"
 #include "hw_csi.h"
 
+#define CREATE_TRACE_POINTS
+#include "trace_ovisp23.h"
+
 #include <linux/hisi/hi3xxx/global_ddr_map.h>
 
 //extern struct hisi_sensor_ctrl_t hisi_s_ctrl_0;
@@ -81,6 +84,7 @@ DEFINE_MUTEX(cmdset_mutex);
 
 static void isp_save_raw_info(raw_buffer_info_t *raw_info, int flow);
 static void ispv3_hardware_clear_ready(int port);
+void ovisp23_notify_vsync(uint32_t id, uint64_t vsynctime);
 /* #define set8(reg, value) (*((volatile unsigned char *)(reg)) = (value)) */
 #define set32(reg, value) (*((volatile u32 *)(reg)) = (value))
 /* #define get8(reg) (*(volatile unsigned char *)(reg)) */
@@ -363,7 +367,7 @@ static irqreturn_t isp_irq_handler(int irq, void *dev_id)
 	u8 cmd_done = 0;
 	int flag_aec[2];
 	int eof_trigger = hisi_eg_ctrl.eof_trigger;
-
+    
 	do_gettimeofday(&tm_v[0]);
 
 	if (!isp_hw_data.poll_start) {
@@ -524,6 +528,9 @@ static irqreturn_t isp_irq_handler(int irq, void *dev_id)
 	isp_hw_data.irq_val.cmd_result |= cmd_result;
 
 	isp_hw_data.irq_query_flag = true;
+
+    trace_hw_ovisp23_irq_handler_entry(&isp_hw_data.irq_val); 
+
 	spin_unlock_irqrestore(&isp_hw_data.irq_status_lock, lock_flags);
 
 	wake_up_interruptible(&isp_hw_data.poll_queue_head);
@@ -759,6 +766,7 @@ static int isp_res_init(struct device *pdev)
 	if (ret != 0) {
 		cam_err("fail to request irq [%d], error: %d", isp_hw_data.irq_no, ret);
 		ret = -ENXIO;
+		isp_hw_data.irq_no = 0;
 		goto fail;
 	}
 
@@ -950,7 +958,10 @@ static void meta_data_done_hander(void)
 	}
 
 	dummy_meta_data_pad = *((u8 *)(isp_hw->meta_viraddr + META_DATA_RAW_SIZE));
-	BUG_ON(DUMMY_META_DATA_PAD != dummy_meta_data_pad);
+    if (DUMMY_META_DATA_PAD != dummy_meta_data_pad) {
+		cam_warn("%s invalide dummy meta data pad: 0x%x", __func__, dummy_meta_data_pad);
+		return;
+    }
 
 	/*todo: copy again from dmabuf for cached*/
 	memcpy(isp_hw->meta_data_raw_buf, (void *)isp_hw->meta_viraddr, META_DATA_RAW_SIZE);
@@ -1430,7 +1441,7 @@ int ispv3_hardware_update_addr(isp_port_e port, hwisp_buf_t *buf)
         ISP_SETREG32(REG_PORT_WRITE_ADDR_V(port), buf->info.u_addr_phy);
         /* use PHY addr*/
         cam_debug("%s phy=0x%x.", __func__, buf->info.y_addr_phy);
-   }
+    }
 	ispv3_hardware_set_ready(port);
 	return 0;
 }
@@ -1441,6 +1452,9 @@ static int isp_write_start_handler(isp_port_e port)
 	hwisp_buf_t    *frame     = NULL;
 	unsigned long       lock_flags;
 	/* print_debug("enter %s", __func__); */
+
+    trace_hw_ovisp23_write_start(port); 
+
 	cam_debug("start port =%d",port);
 
     isp_port_status[port] = isp_port_status[port] << 4 | ISP_PORT_START;
@@ -1476,6 +1490,8 @@ static int isp_write_done_handler(isp_port_e port)
 
     isp_port_status[port] = isp_port_status[port] << 4 | ISP_PORT_DONE;
 
+    trace_hw_ovisp23_write_done(port); 
+
 	spin_lock_irqsave(&isp_hw_data.mac_array[port].lock, lock_flags);
 	isp_hw_data.frame_index[port]++;
 	frame = get_buf_from_interworkq(port);
@@ -1503,6 +1519,9 @@ static int isp_write_drop_handler(isp_port_e port)
 	int                 ret = 0;
 	hwisp_buf_t    *frame     = NULL;
 	unsigned long       lock_flags;
+
+    trace_hw_ovisp23_write_drop(port); 
+
 	cam_info("drop port =%d",port);
 
     isp_port_status[port] = isp_port_status[port] << 4 | ISP_PORT_DROP;
@@ -1561,6 +1580,8 @@ static int isp_write_overflow_handler(isp_port_e port)
 	int                 ret = 0;
 	hwisp_buf_t    *frame     = NULL;
 	unsigned long       lock_flags;
+
+    trace_hw_ovisp23_write_overflow(port); 
 
 	cam_info("overflow port =%d",port);
 

@@ -22,7 +22,7 @@
 #include "../platform/sensor_commom.h"
 #include "../io/hw_isp_io.h"
 #include "hw_csi.h"
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 
 /*csi register macro definition*/
 #define CSI_INT_EN			0x00000000 /*lint -save -e750 */
@@ -586,7 +586,7 @@ static int32_t csi_platform_probe(struct platform_device *pdev)
 	cam_notice("%s compatible=%s.\n", __func__, match->compatible);
 	rc = hw_csi_platform_probe(pdev);
 	if(rc < 0){
-		cam_info("%s fail rc =%x",__func__,rc);
+		cam_err("%s fail rc =%x",__func__,rc);
 		return rc;
 	}
 

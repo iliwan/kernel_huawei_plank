@@ -118,6 +118,8 @@ typedef enum
 	NV_ID_DRV_RSE_MIPI_CONFIG              = 0xd13f,
 	NV_ID_DRV_DM_UART5_CFG				   = 0xd140,
 	NV_ID_DRV_PM_OM                        = 0xd145,
+	NV_ID_DRV_FEM_VIO_ALWAYS_ON			   = 0xd150,
+
     /*按大小顺序添加*/
     NV_ID_DRV_ID_MAX                       = 0xd1ff
 

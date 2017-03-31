@@ -10,13 +10,18 @@ typedef struct {
 
 typedef union {
     struct {
-        unsigned int *buffer;
+        unsigned int buffer;
+        unsigned int buffer_h_addr;
         unsigned int offset;
-        unsigned int *size_addr;
+        unsigned int h_offset;
+        unsigned int size_addr;
+        unsigned int size_h_addr;
     } memref;
     struct {
-        unsigned int *a_addr;
-        unsigned int *b_addr;
+        unsigned int a_addr;
+        unsigned int a_h_addr;
+        unsigned int b_addr;
+        unsigned int b_h_addr;
     } value;
 } TC_NS_ClientParam;
 

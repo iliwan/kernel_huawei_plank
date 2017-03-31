@@ -12,7 +12,7 @@
 //-----------------------------------------------------------------------------
 /* Touchscreen Version Information */
 static u8 ttconfig_fw_ver[] = {
-	0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0B, 0xD9, 0x43, 0x0B, 0x00, 0x11, 0x9B, 0x00, 0x0B
+	0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0B, 0xD9, 0x43, 0x0B, 0x00, 0x11, 0x9B, 0x00, 0x0C
 };
 #if 0
 /* Touchscreen Parameters Endianess (Endianess: 0:Little; 1:Big)*/
@@ -361,7 +361,7 @@ static const uint8_t cyttsp5_param_regs[] = {
 	0x50,  /* OUTER_EDGE_GAIN */
 	0x08,  /* ACT_INTRVL0 */
 	0x03, 0x00,  /* ACT_LFT_INTRVL0 */
-	0x64, 0x00,  /* LP_INTRVL0 */
+	0x14, 0x00,  /* LP_INTRVL0 */
 	0xD0, 0x07,  /* TCH_TMOUT0 */
 	0xC8, 0x00,  /* FINGER_THRESH_SELF */
 	0x6E, 0x00,  /* GLOVE_THRSH_SELF */
@@ -372,7 +372,7 @@ static const uint8_t cyttsp5_param_regs[] = {
 	0x00,  /* ACT_DIST_TOUCHDOWN */
 	0x01,  /* ACT_DIST_LIFTOFF */
 	0x00,  /* ACT_DIST_COUNTER */
-	0x02,  /* ACT_DIST_Z_THRESHOLD */
+	0xFF,  /* ACT_DIST_Z_THRESHOLD */
 	0x03,  /* FIRST_TOUCH_SUPPRESSION */
 	0x32,  /* FIRST_TOUCH_EDGE_AREA */
 	0x01,  /* OBJ_WITHHOLD_CFG */
@@ -574,10 +574,10 @@ static const uint8_t cyttsp5_param_regs[] = {
 	0x58,  /* GLOVE_RX_LINE_FILTER_THRESHOLD */
 	0x0A,  /* GLOVE_MTX_FAST_MOVE_WR_THRESHOLD */
 	0xF0, 0x00, 0x00, 0x00,  /* XY_FILTER_MASK */
-	0x02, 0x00, 0x00, 0x00,  /* XY_FILT_IIR_COEFF */
+	0x04, 0x00, 0x00, 0x00,  /* XY_FILT_IIR_COEFF */
 	0x01, 0x00, 0x00, 0x00,  /* XY_FILT_Z_IIR_COEFF */
-	0xFF,  /* XY_FILT_XY_FAST_THR */
-	0xFF,  /* XY_FILT_XY_SLOW_THR */
+	0x64,  /* XY_FILT_XY_FAST_THR */
+	0x1E,  /* XY_FILT_XY_SLOW_THR */
 	0x01,  /* XY_FILT_IIR_FAST_COEFF */
 	0x00,  /* XY_FILT_PREDICTION_COEF */
 	0xF0, 0x00, 0x00, 0x00,  /* XY_FILTER_MASK_CA */
@@ -689,7 +689,7 @@ static const uint8_t cyttsp5_param_regs[] = {
 	0x50, 0x00,  /* SMART_COVER_OFF_THRSH_MUTUAL */
 	0x00,  /* EXT_SYNC */
 	0x01,  /* PWR_CFG */
-	0x0B, 0x00,  /* CONFIG_VER */
+	0x0C, 0x00,  /* CONFIG_VER */
 	0x00,  /* SEND_REPORT_AFTER_ACTIVE_INTERVAL_CFG */
 	0x00,  /* PIP_REPORTING_DISABLE */
 	0x00, 0x00,  /* INTERRUPT_PIN_OVERRIDE */
@@ -704,7 +704,7 @@ static const uint8_t cyttsp5_param_regs[] = {
 	0x00,  /* SYNC_REPORT_ENABLE */
 	0x00,  /* SYNC_REPORT_BYPASS_TRIGGER_LEVEL */
 	0x00, 0x00,  /* Reserved1234 */
-	0xA0, 0x1A,  /* CONFIG_CRC */
+	0x71, 0x58,  /* CONFIG_CRC */
 };
 
 /* Touchscreen Parameters Field Sizes (Writable: 0:Readonly; 1:Writable) */

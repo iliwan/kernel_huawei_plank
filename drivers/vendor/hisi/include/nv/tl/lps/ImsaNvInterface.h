@@ -43,6 +43,10 @@ extern "C" {
 #define IMSA_NV_IPV4_ADDR_LEN           (4)
 #define IMSA_NV_IPV6_ADDR_LEN           (16)
 
+/*zhaochen 00308719 begin for card lock 2015-10-31*/
+#define IMSA_NV_PLMN_LIST_LEN           (128)
+#define IMSA_NV_PLMN_LEN                (3)
+/*zhaochen 00308719 end for card lock 2015-10-31*/
 
 /*****************************************************************************
   3 Massage Declare
@@ -182,6 +186,115 @@ typedef struct
     IMSA_NV_PDP_IPV4_PCSCF_STRU             stIpv4Pcscf;            /**< 承载IPv4 P-CSCF信息 */
     IMSA_NV_PDP_IPV6_PCSCF_STRU             stIpv6Pcscf;            /**< 承载IPv6 P-CSCF信息 */
 }IMSA_NV_PCSCF_DISCOVERY_POLICY_STRU;
+
+/*zhaochen 00308719 begin for card lock 2015-10-31*/
+/*****************************************************************************
+结构名称    :IMSA_NV_PLMN_ID_STRU中
+使用说明    :
+    MCC, Mobile country code (aucPlmnId[0], aucPlmnId[1] bits 1 to 4)
+    MNC, Mobile network code (aucPlmnId[2], aucPlmnId[1] bits 5 to 8).
+
+    The coding of this field is the responsibility of each administration but BCD
+    coding shall be used. The MNC shall consist of 2 or 3 digits. For PCS 1900 for NA,
+    Federal regulation mandates that a 3-digit MNC shall be used. However a network
+    operator may decide to use only two digits in the MNC over the radio interface.
+    In this case, bits 5 to 8 of octet 4 shall be coded as "1111". Mobile equipment
+    shall accept MNC coded in such a way.
+
+    ---------------------------------------------------------------------------
+                 ||(BIT8)|(BIT7)|(BIT6)|(BIT5)|(BIT4)|(BIT3)|(BIT2)|(BIT1)
+    ---------------------------------------------------------------------------
+    aucPlmnId[0] ||    MCC digit 2            |           MCC digit 1
+    ---------------------------------------------------------------------------
+    aucPlmnId[1] ||    MNC digit 3            |           MCC digit 3
+    ---------------------------------------------------------------------------
+    aucPlmnId[2] ||    MNC digit 2            |           MNC digit 1
+    ---------------------------------------------------------------------------
+    e.g.
+    PLMN 460 10 转为为 0x64 0xF0 0x01
+    PLMN 123 01 转为为 0x21 0xF3 0x10
+    PLMN 123 456转为为 0x21 0x63 0x54
+
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT8                           aucPlmnId[IMSA_NV_PLMN_LEN];
+    VOS_UINT8                           ucRsv;
+}IMSA_NV_PLMN_ID_STRU;
+
+typedef struct
+{
+    VOS_UINT8                           ucEnableCardLockFlag;       /**< 是否打开锁卡功能，0关闭，1打开 */
+    VOS_UINT8                           ucPlmnNum;                  /**< 支持的PLMN列表长度 */
+    VOS_UINT8                           ucReserved1;
+    VOS_UINT8                           ucReserved2;
+    IMSA_NV_PLMN_ID_STRU                astPlmnList[IMSA_NV_PLMN_LIST_LEN]; /**< 支持的PLMN列表 */
+}IMSA_NV_CARD_LOCK_STRU;
+/*zhaochen 00308719 end for card lock 2015-10-31*/
+
+/* zhaochen 00308719 begin for HIFI mailbox full reset 2015-11-09 */
+typedef struct
+{
+    VOS_UINT8                           ucHifiDataControlFlag; /*是否支持HIFI限流：TRUE:支持；FALSE：不支持 */
+    VOS_UINT8                           ucHifiDataNeedAckNum;  /*HIFI限流功能，需要每多少条回复一次ack */
+    VOS_UINT8                           ucHifiDatMaxBufferNum; /*HIFI限流功能，IMSA缓存的消息数 */
+    VOS_UINT8                           ucRsv1;
+
+    VOS_UINT8                           ucRsv2;
+    VOS_UINT8                           ucRsv3;
+    VOS_UINT8                           ucRsv4;
+    VOS_UINT8                           ucRsv5;
+
+    VOS_UINT8                           ucRsv6;
+    VOS_UINT8                           ucRsv7;
+    VOS_UINT8                           ucRsv8;
+    VOS_UINT8                           ucRsv9;
+
+    VOS_UINT8                           ucRsv10;
+    VOS_UINT8                           ucRsv11;
+    VOS_UINT8                           ucRsv12;
+    VOS_UINT8                           ucRsv13;
+
+    VOS_UINT8                           ucRsv14;
+    VOS_UINT8                           ucRsv15;
+    VOS_UINT8                           ucRsv16;
+    VOS_UINT8                           ucRsv17;
+
+    VOS_UINT16                          usRsv1;
+    VOS_UINT16                          usRsv2;
+
+    VOS_UINT16                          usRsv3;
+    VOS_UINT16                          usRsv4;
+
+    VOS_UINT16                          usRsv5;
+    VOS_UINT16                          usRsv6;
+
+    VOS_UINT16                          usRsv7;
+    VOS_UINT16                          usRsv8;
+
+    VOS_UINT16                          usRsv9;
+    VOS_UINT16                          usRsv10;
+
+    VOS_UINT32                          ulRsv1;
+    VOS_UINT32                          ulRsv2;
+
+    VOS_UINT32                          ulRsv3;
+    VOS_UINT32                          ulRsv4;
+
+    VOS_UINT32                          ulRsv5;
+    VOS_UINT32                          ulRsv6;
+
+    VOS_UINT32                          ulRsv7;
+    VOS_UINT32                          ulRsv8;
+
+    VOS_UINT32                          ulRsv9;
+    VOS_UINT32                          ulRsv10;
+
+    VOS_UINT32                          ulRsv11;
+    VOS_UINT32                          ulRsv12;
+} IMSA_COMM_PARA_CONFIG_STRU;
+
+/* zhaochen 00308719 end for HIFI mailbox full reset 2015-11-09 */
 
 /*****************************************************************************
   6 UNION

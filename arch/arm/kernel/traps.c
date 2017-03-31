@@ -77,11 +77,6 @@ void dump_backtrace_entry(unsigned long where, unsigned long from, unsigned long
 
 	if (in_exception_text(where))
 		dump_mem("", "Exception stack", frame + 4, frame + 4 + sizeof(struct pt_regs));
-
-#ifdef CONFIG_DETECT_HUNG_TASK
-	if (hw_hung_task_hook != NULL)
-		hw_hung_task_hook(where, from);
-#endif
 }
 
 #ifndef CONFIG_ARM_UNWIND
@@ -231,9 +226,51 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 #include <linux/huawei/rdr.h>
 #include <linux/huawei/rdr_private.h>
 #ifdef CONFIG_HISI_RDR
+void dump_backtrace_entry_for_rdr(unsigned long where,
+		unsigned long from, unsigned long frame)
+{
+#ifdef CONFIG_DETECT_HUNG_TASK
+	if (hw_hung_task_hook != NULL)
+		hw_hung_task_hook(where, from);
+#endif
+}
+
+static void dump_backtrace_for_rdr(struct pt_regs *regs,
+		struct task_struct *tsk)
+{
+	unsigned int fp, mode;
+	int ok = 1;
+
+	if (!tsk)
+		tsk = current;
+
+	if (regs) {
+		fp = regs->ARM_fp;
+		mode = processor_mode(regs);
+	} else if (tsk != current) {
+		fp = thread_saved_fp(tsk);
+		mode = 0x10;
+	} else {
+		asm("mov %0, fp" : "=r" (fp) : : "cc");
+		mode = 0x10;
+	}
+
+	if (!fp)
+		ok = 0;
+	else if (verify_stack(fp))
+		ok = 0;
+
+	if (ok)
+		c_backtrace_for_rdr(fp, mode);
+}
+void show_stack_for_rdr(struct task_struct *tsk, unsigned long *sp)
+{
+	dump_backtrace_for_rdr(NULL, tsk);
+	barrier();
+}
 void dump_stack_bl(struct task_struct *tsk)
 {
-	show_stack(tsk, NULL);
+	show_stack_for_rdr(tsk, NULL);
 }
 
 static rdr_funcptr_3 p_exc_hook;

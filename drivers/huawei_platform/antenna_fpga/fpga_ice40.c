@@ -61,7 +61,7 @@
 #include <linux/workqueue.h>
 #include <asm/atomic.h>
 #include <linux/of_gpio.h>
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #include "fpga_ice40.h"
 #include <linux/kernel.h>
 #ifdef CONFIG_HUAWEI_HW_DEV_DCT
@@ -531,10 +531,10 @@ static void fpga_download_work(struct work_struct *work)
     }
 
     if(plat_data->crc_gpio > NORMAL_GPIO_MAX){
-        ret = request_threaded_irq (irq, NULL, fpga_exception_callback, IRQF_TRIGGER_FALLING, DRIVER_NAME "(fpga_crc)", NULL);
-        if (ret) {
-            hwlog_err("%s: %d fail to request irq for CRC_Result!\n", __func__, __LINE__);
-        }
+        //ret = request_threaded_irq (irq, NULL, fpga_exception_callback, IRQF_TRIGGER_FALLING, DRIVER_NAME "(fpga_crc)", NULL);
+        //if (ret) {
+        //    hwlog_err("%s: %d fail to request irq for CRC_Result!\n", __func__, __LINE__);
+        //}
     }else {
         ret = request_irq(irq, fpga_exception_callback, IRQF_TRIGGER_FALLING, DRIVER_NAME "(fpga_crc)", NULL);
         if (ret < 0) {

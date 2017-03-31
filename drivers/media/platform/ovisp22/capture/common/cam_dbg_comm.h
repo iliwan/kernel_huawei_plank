@@ -31,8 +31,8 @@
 
 /* dump SCCTRL/AO_SCCTRL/PMCTRL reg about ISP/CSI power on/off,
    rst en/dis and clk en/dis, 2013/05/06 */
-#define DUMP_SCCTRL_ISP_REG
-#define ISP_DEBUG_ZSL
+/* #define DUMP_SCCTRL_ISP_REG */
+/* #define ISP_DEBUG_ZSL */
 
 enum cam_dbgfs_pwdn_module {
 	DEBUGFS_PWDN_ISP = 0,

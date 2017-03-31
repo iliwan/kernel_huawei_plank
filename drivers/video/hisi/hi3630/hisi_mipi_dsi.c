@@ -15,12 +15,14 @@
 
 
 /* 10MHz */
-#define MAX_TX_ESC_CLK	(20)
+#define MAX_TX_ESC_CLK	(20000000)
 #define DSI_BURST_MODE	DSI_BURST_SYNC_PULSES_1
 #define DEFAULT_MIPI_CLK_RATE	(192 * 100000L)
 
+extern bool g_enable_extra_data;
+
 static void get_dsi_phy_ctrl(uint32_t dsi_bit_clk,
-	struct mipi_dsi_phy_ctrl *phy_ctrl)
+	struct mipi_dsi_phy_ctrl *phy_ctrl,struct hisi_fb_data_type *hisifd)
 {
 	uint32_t range = 0;
 	uint32_t m_pll = 0;
@@ -33,7 +35,11 @@ static void get_dsi_phy_ctrl(uint32_t dsi_bit_clk,
 	** Step 1: Determine PLL Input divider ratio (N)
 	** Refernce frequency is 19.2MHz, N is set to 2 to match the following limitation:.
 	** 5MHz <= Frefclk/N <= 40MHz*/
-	phy_ctrl->n_pll = 0x2;
+	if (is_mipi_cmd_panel(hisifd)) {
+		phy_ctrl->n_pll = 0x2;
+	}else{
+		phy_ctrl->n_pll = 0x3;
+	}		
 
 	phy_ctrl->pll_unlocking_filter = 0xFF;
 
@@ -334,8 +340,8 @@ static void get_dsi_phy_ctrl(uint32_t dsi_bit_clk,
 	}
 
 	phy_ctrl->hsfreqrange = phy_ctrl->hsfreqrange << 1;
+	phy_ctrl->lane_byte_clk  = (DEFAULT_MIPI_CLK_RATE/phy_ctrl->n_pll/8)* m_pll ;
 
-	phy_ctrl->lane_byte_clk = dsi_bit_clk / 4;
 	phy_ctrl->clk_division = ((phy_ctrl->lane_byte_clk % MAX_TX_ESC_CLK) > 0) ?
 		(phy_ctrl->lane_byte_clk / MAX_TX_ESC_CLK + 1) :
 		(phy_ctrl->lane_byte_clk / MAX_TX_ESC_CLK);
@@ -348,6 +354,8 @@ static void mipi_init(struct hisi_fb_data_type *hisifd, char __iomem *mipi_dsi_b
 	uint32_t hsa_time = 0;
 	uint32_t hbp_time = 0;
 	uint32_t pixel_clk = 0;
+	uint32_t lane_byte_clk = 0;
+
 	unsigned long dw_jiffies = 0;
 	struct mipi_dsi_phy_ctrl phy_ctrl = {0};
 	uint32_t tmp = 0;
@@ -358,7 +366,7 @@ static void mipi_init(struct hisi_fb_data_type *hisifd, char __iomem *mipi_dsi_b
 	BUG_ON(mipi_dsi_base == NULL);
 
 	pinfo = &(hisifd->panel_info);
-	get_dsi_phy_ctrl(pinfo->mipi.dsi_bit_clk, &phy_ctrl);
+	get_dsi_phy_ctrl(pinfo->mipi.dsi_bit_clk, &phy_ctrl,hisifd);
 
 	/* config TE */
 	if (is_mipi_cmd_panel(hisifd)) {
@@ -425,12 +433,14 @@ static void mipi_init(struct hisi_fb_data_type *hisifd, char __iomem *mipi_dsi_b
 	** Hbp_time = HBP*(PCLK period/Clk Lane Byte Period);
 	** Hline_time = (HSA+HBP+HACT+HFP)*(PCLK period/Clk Lane Byte Period);
 	*/
-	pixel_clk = pinfo->pxl_clk_rate / 1000000;
-	hsa_time = pinfo->ldi.h_pulse_width * phy_ctrl.lane_byte_clk / pixel_clk;
-	hbp_time = pinfo->ldi.h_back_porch * phy_ctrl.lane_byte_clk / pixel_clk;
+	pixel_clk = (uint32_t)pinfo->pxl_clk_rate/100000;
+	lane_byte_clk = phy_ctrl.lane_byte_clk/100000;
+
+	hsa_time = pinfo->ldi.h_pulse_width * lane_byte_clk / pixel_clk;
+	hbp_time = pinfo->ldi.h_back_porch * lane_byte_clk / pixel_clk;
 	hline_time = (pinfo->ldi.h_pulse_width + pinfo->ldi.h_back_porch +
 		pinfo->xres + pinfo->ldi.h_front_porch) *
-		phy_ctrl.lane_byte_clk / pixel_clk;
+		lane_byte_clk / pixel_clk;
 	set_reg(mipi_dsi_base + MIPIDSI_VID_HSA_TIME_OFFSET, hsa_time, 12, 0);
 	set_reg(mipi_dsi_base + MIPIDSI_VID_HBP_TIME_OFFSET, hbp_time, 12, 0);
 	set_reg(mipi_dsi_base + MIPIDSI_VID_HLINE_TIME_OFFSET, hline_time, 15, 0);
@@ -441,7 +451,11 @@ static void mipi_init(struct hisi_fb_data_type *hisifd, char __iomem *mipi_dsi_b
 	set_reg(mipi_dsi_base + MIPIDSI_VID_VSA_LINES_OFFSET, pinfo->ldi.v_pulse_width, 10, 0);
 	set_reg(mipi_dsi_base + MIPIDSI_VID_VBP_LINES_OFFSET, pinfo->ldi.v_back_porch, 10, 0);
 	set_reg(mipi_dsi_base + MIPIDSI_VID_VFP_LINES_OFFSET, pinfo->ldi.v_front_porch, 10, 0);
-	set_reg(mipi_dsi_base + MIPIDSI_VID_VACTIVE_LINES_OFFSET, pinfo->yres, 14, 0);
+	if (true == g_enable_extra_data) {
+		set_reg(mipi_dsi_base + MIPIDSI_VID_VACTIVE_LINES_OFFSET, pinfo->yres + EXTRA_NUM, 14, 0);
+	} else {
+		set_reg(mipi_dsi_base + MIPIDSI_VID_VACTIVE_LINES_OFFSET, pinfo->yres, 14, 0);
+	}
 	set_reg(mipi_dsi_base + MIPIDSI_TO_CNT_CFG_OFFSET, 0x7FF, 16, 0);
 
 	/* Configure core's phy parameters */
@@ -941,9 +955,15 @@ static int mipi_dsi_on(struct platform_device *pdev)
 	int ret = 0;
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 
 	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
 
@@ -976,9 +996,15 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	int ret = 0;
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 
 	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
 
@@ -1000,9 +1026,15 @@ static int mipi_dsi_remove(struct platform_device *pdev)
 	int ret = 0;
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 
 	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
 
@@ -1028,9 +1060,15 @@ static int mipi_dsi_set_backlight(struct platform_device *pdev)
 	int ret = 0;
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 
 	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
 
@@ -1046,9 +1084,15 @@ static int mipi_dsi_vsync_ctrl(struct platform_device *pdev, int enable)
 	int ret = 0;
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 
 	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
 
@@ -1133,9 +1177,15 @@ static int mipi_dsi_esd_handle(struct platform_device *pdev)
 	uint32_t cmp_val = 0;
 	uint32_t try_times = 0;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	mipi_dsi0_base = hisifd->mipi_dsi0_base;
 
 	HISI_FB_DEBUG("fb%d, +!\n", hisifd->index);
@@ -1187,9 +1237,15 @@ static int mipi_dsi_set_display_region(struct platform_device *pdev, struct dss_
 	int ret = 0;
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL || dirty == NULL);
+	if (NULL == pdev || NULL == dirty) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 
 	HISI_FB_DEBUG("index=%d, enter!\n", hisifd->index);
 
@@ -1207,9 +1263,15 @@ static ssize_t mipi_dsi_bit_clk_upt_store(struct platform_device *pdev,
 	struct hisi_panel_info *pinfo = NULL;
 	size_t n_str = 0;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	pinfo = &(hisifd->panel_info);
 
 	if (count <= 1) {
@@ -1251,9 +1313,15 @@ static ssize_t mipi_dsi_bit_clk_upt_show(struct platform_device *pdev, char *buf
 	struct hisi_panel_info *pinfo = NULL;
 	ssize_t ret = 0;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	pinfo = &(hisifd->panel_info);
 
 	if (!hisifd->panel_info.dsi_bit_clk_upt_support) {
@@ -1275,9 +1343,15 @@ static ssize_t mipi_dsi_lcd_model_show(struct platform_device *pdev, char *buf)
 	ssize_t ret = 0;
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 
 	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
 	ret = panel_next_lcd_model_show(pdev, buf);
@@ -1291,9 +1365,15 @@ static ssize_t mipi_dsi_lcd_check_reg_show(struct platform_device *pdev, char *b
 	ssize_t ret = 0;
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 
 	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
 	ret = panel_next_lcd_check_reg(pdev, buf);
@@ -1307,9 +1387,15 @@ static ssize_t mipi_dsi_lcd_mipi_detect_show(struct platform_device *pdev, char 
 	ssize_t ret = 0;
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 
 	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
 	ret = panel_next_lcd_mipi_detect(pdev, buf);
@@ -1323,9 +1409,15 @@ static ssize_t mipi_dsi_lcd_hkadc_debug_show(struct platform_device *pdev, char 
 	ssize_t ret = 0;
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 
 	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
 	ret = panel_next_lcd_hkadc_debug_show(pdev, buf);
@@ -1340,9 +1432,15 @@ static ssize_t mipi_dsi_lcd_hkadc_debug_store(struct platform_device *pdev,
 	ssize_t ret = 0;
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 
 	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
 	ret = panel_next_lcd_hkadc_debug_store(pdev, buf, count);
@@ -1356,9 +1454,15 @@ static ssize_t mipi_dsi_lcd_gram_check_show(struct platform_device *pdev, char *
 	ssize_t ret = 0;
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 
 	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
 	ret = panel_next_lcd_gram_check_show(pdev, buf);
@@ -1373,9 +1477,15 @@ static ssize_t mipi_dsi_lcd_gram_check_store(struct platform_device *pdev,
 	ssize_t ret = 0;
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 
 	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
 	ret = panel_next_lcd_gram_check_store(pdev, buf, count);
@@ -1390,9 +1500,15 @@ static ssize_t mipi_dsi_lcd_voltage_enable_store(struct platform_device *pdev,
 	ssize_t ret = 0;
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 
 	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
 	ret = panel_next_lcd_voltage_enable_store(pdev, buf, count);
@@ -1407,9 +1523,15 @@ static ssize_t mipi_dsi_lcd_bist_check(struct platform_device *pdev,
 	ssize_t ret = 0;
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 
 	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
 	ret = panel_next_lcd_bist_check(pdev, buf);
@@ -1432,9 +1554,15 @@ static ssize_t mipi_dsi_amoled_acl_show(struct platform_device *pdev, char *buf)
 	ssize_t ret = 0;
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 
 	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
 	ret = panel_next_amoled_acl_show(pdev, buf);
@@ -1449,12 +1577,40 @@ static ssize_t mipi_dsi_amoled_acl_store(struct platform_device *pdev,
 	ssize_t ret = 0;
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 
 	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
 	ret = panel_next_amoled_acl_store(pdev, buf, count);
+	HISI_FB_DEBUG("fb%d, -.\n", hisifd->index);
+
+	return ret;
+}
+
+static ssize_t mipi_dsi_amoled_hbm_show(struct platform_device *pdev, char *buf)
+{
+	ssize_t ret = 0;
+	struct hisi_fb_data_type *hisifd = NULL;
+
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
+	hisifd = platform_get_drvdata(pdev);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
+
+	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
+	ret = panel_next_amoled_hbm_show(pdev, buf);
 	HISI_FB_DEBUG("fb%d, -.\n", hisifd->index);
 
 	return ret;
@@ -1466,12 +1622,85 @@ static ssize_t mipi_dsi_amoled_hbm_store(struct platform_device *pdev,
 	ssize_t ret = 0;
 	struct hisi_fb_data_type *hisifd = NULL;
 
-	BUG_ON(pdev == NULL);
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 	hisifd = platform_get_drvdata(pdev);
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
 
 	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
 	ret = panel_next_amoled_hbm_store(pdev, buf, count);
+	HISI_FB_DEBUG("fb%d, -.\n", hisifd->index);
+
+	return ret;
+}
+
+static ssize_t mipi_dsi_lcd_test_config_show(struct platform_device *pdev, char *buf)
+{
+	ssize_t ret = 0;
+	struct hisi_fb_data_type *hisifd = NULL;
+
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
+	hisifd = platform_get_drvdata(pdev);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
+
+	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
+	ret = panel_next_lcd_test_config_show(pdev, buf);
+	HISI_FB_DEBUG("fb%d, -.\n", hisifd->index);
+
+	return ret;
+}
+
+static ssize_t mipi_dsi_lcd_test_config_store(struct platform_device *pdev,
+	const char *buf, size_t count)
+{
+	ssize_t ret = 0;
+	struct hisi_fb_data_type *hisifd = NULL;
+
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
+	hisifd = platform_get_drvdata(pdev);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
+
+	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
+	ret = panel_next_lcd_test_config_store(pdev, buf, count);
+	HISI_FB_DEBUG("fb%d, -.\n", hisifd->index);
+
+	return ret;
+}
+
+static ssize_t mipi_dsi_lcd_filter_show(struct platform_device *pdev, char *buf)
+{
+	ssize_t ret = 0;
+	struct hisi_fb_data_type *hisifd = NULL;
+
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
+	hisifd = platform_get_drvdata(pdev);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
+
+	HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
+	ret = panel_next_lcd_filter_show(pdev, buf);
 	HISI_FB_DEBUG("fb%d, -.\n", hisifd->index);
 
 	return ret;
@@ -1492,7 +1721,10 @@ int mipi_dsi_bit_clk_upt_isr_handler(struct hisi_fb_data_type *hisifd)
 	bool is_ready = false;
 	int i = 0;
 
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer!");
+		return 0;
+	}
 	pinfo = &(hisifd->panel_info);
 	dsi_bit_clk_upt = pinfo->mipi.dsi_bit_clk_upt;
 	mipi_dsi0_base = hisifd->mipi_dsi0_base;
@@ -1509,7 +1741,7 @@ int mipi_dsi_bit_clk_upt_isr_handler(struct hisi_fb_data_type *hisifd)
 	HISI_FB_DEBUG("fb%d +.\n", hisifd->index);
 
 	/* get new phy_ctrl value according to dsi_bit_clk_next */
-	get_dsi_phy_ctrl(pinfo->mipi.dsi_bit_clk_upt, &phy_ctrl);
+	get_dsi_phy_ctrl(pinfo->mipi.dsi_bit_clk_upt, &phy_ctrl,hisifd);
 
 	/*
 	** Configure the DPHY PLL clock frequency through the TEST Interface to
@@ -1586,7 +1818,7 @@ int mipi_dsi_bit_clk_upt_isr_handler(struct hisi_fb_data_type *hisifd)
 		** Hbp_time = HBP*(PCLK period/Clk Lane Byte Period);
 		** Hline_time = (HSA+HBP+HACT+HFP)*(PCLK period/Clk Lane Byte Period);
 		*/
-		pixel_clk = pinfo->pxl_clk_rate / 1000000;
+		pixel_clk = (uint32_t)pinfo->pxl_clk_rate / 1000000;
 		hsa_time = pinfo->ldi.h_pulse_width * phy_ctrl.lane_byte_clk / pixel_clk;
 		hbp_time = pinfo->ldi.h_back_porch * phy_ctrl.lane_byte_clk / pixel_clk;
 		hline_time = (pinfo->ldi.h_pulse_width + pinfo->ldi.h_back_porch +
@@ -1610,8 +1842,8 @@ int mipi_dsi_bit_clk_upt_isr_handler(struct hisi_fb_data_type *hisifd)
 	*/
 	outp32(mipi_dsi0_base + MIPIDSI_CLKMGR_CFG_OFFSET, (phy_ctrl.clk_division + (phy_ctrl.clk_division<<8)));
 
-	/* if dsi_bit_clk_updated is true and esd check is enabled, esd check is delayed to next frame end */
-	hisifd->dsi_bit_clk_updated = true;
+    /* if dsi_bit_clk_updated is true and esd check is enabled, esd check is delayed to next frame end */   
+    hisifd->dsi_bit_clk_updated = true; 
 
 	HISI_FB_DEBUG("fb%d -.\n", hisifd->index);
 
@@ -1662,6 +1894,51 @@ static int mipi_dsi_clk_irq_setup(struct platform_device *pdev)
 	}
 
 	return ret;
+}
+
+static ssize_t mipi_dsi_lcd_support_mode_show(struct platform_device *pdev, char *buf)
+{
+       ssize_t ret = 0;
+       struct hisi_fb_data_type *hisifd = NULL;
+
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
+	hisifd = platform_get_drvdata(pdev);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
+
+       HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
+       ret = panel_next_lcd_support_mode_show(pdev, buf);
+       HISI_FB_DEBUG("fb%d, -.\n", hisifd->index);
+
+       return ret;
+}
+
+static ssize_t mipi_dsi_lcd_support_mode_store(struct platform_device *pdev,
+       const char *buf, size_t count)
+{
+       ssize_t ret = 0;
+       struct hisi_fb_data_type *hisifd = NULL;
+
+	if (NULL == pdev) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
+	hisifd = platform_get_drvdata(pdev);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer");
+		return -EINVAL;
+	}
+
+       HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
+       ret = panel_next_lcd_support_mode_store(pdev, buf, count);
+       HISI_FB_DEBUG("fb%d, -.\n", hisifd->index);
+
+       return ret;
 }
 
 static int mipi_dsi_probe(struct platform_device *pdev)
@@ -1727,7 +2004,13 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	pdata->amoled_pcd_errflag_check = mipi_dsi_amoled_pcd_errflag_check;
 	pdata->amoled_acl_show = mipi_dsi_amoled_acl_show;
 	pdata->amoled_acl_store = mipi_dsi_amoled_acl_store;
+	pdata->amoled_hbm_show = mipi_dsi_amoled_hbm_show;
 	pdata->amoled_hbm_store = mipi_dsi_amoled_hbm_store;
+	pdata->lcd_test_config_show = mipi_dsi_lcd_test_config_show;
+	pdata->lcd_test_config_store = mipi_dsi_lcd_test_config_store;
+	pdata->lcd_filter_show = mipi_dsi_lcd_filter_show;
+	pdata->lcd_support_mode_show = mipi_dsi_lcd_support_mode_show;
+	pdata->lcd_support_mode_store = mipi_dsi_lcd_support_mode_store;
 	pdata->next = pdev;
 
 	/* get/set panel info */

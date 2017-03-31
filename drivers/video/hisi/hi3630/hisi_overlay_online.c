@@ -32,6 +32,7 @@ int hisi_ov_compose_handler(struct hisi_fb_data_type *hisifd,
 
 	ret = hisi_dss_check_layer_par(hisifd, layer);
 	if (ret != 0) {
+		memcpy(pov_req, &(hisifd->ov_req_prev), sizeof(dss_overlay_t));
 		HISI_FB_ERR("hisi_dss_check_layer_par failed! ret = %d\n", ret);
 		goto err_return;
 	}
@@ -185,11 +186,22 @@ int hisi_overlay_pan_display(struct hisi_fb_data_type *hisifd)
 	int hal_format = 0;
 	uint8_t ovl_type = 0;
 
-	BUG_ON(hisifd == NULL);
+	if (NULL == hisifd) {
+		HISI_FB_ERR("NULL Pointer.\n");
+		return 0;
+	}
+
 	fbi = hisifd->fbi;
-	BUG_ON(fbi == NULL);
+	if (NULL == fbi) {
+		HISI_FB_ERR("NULL Pointer.\n");
+		return 0;
+	}
+
 	pov_req = &(hisifd->ov_req);
-	BUG_ON(pov_req == NULL);
+	if (NULL == pov_req) {
+		HISI_FB_ERR("NULL Pointer.\n");
+		return 0;
+	}
 
 	if (!hisifd->panel_power_on) {
 		HISI_FB_DEBUG("fb%d, panel is power off!", hisifd->index);
@@ -334,6 +346,8 @@ int hisi_overlay_pan_display(struct hisi_fb_data_type *hisifd)
 
 	//hisifb_layerbuf_lock(hisifd);
 
+	memcpy(&(hisifd->ov_req_prev), pov_req, sizeof(dss_overlay_t));
+
 	return 0;
 
 err_return:
@@ -345,6 +359,7 @@ err_return:
 int hisi_ov_online_play(struct hisi_fb_data_type *hisifd, void __user *argp)
 {
 	dss_overlay_t *pov_req = NULL;
+	dss_overlay_t *pov_req_prev = NULL;
 	dss_layer_t *layer = NULL;
 	dss_wb_layer_t *wb_layer = NULL;
 	dss_rect_ltrb_t clip_rect;
@@ -359,6 +374,8 @@ int hisi_ov_online_play(struct hisi_fb_data_type *hisifd, void __user *argp)
 	BUG_ON(hisifd == NULL);
 	pov_req = &(hisifd->ov_req);
 	BUG_ON(pov_req == NULL);
+	pov_req_prev = &(hisifd->ov_req_prev);
+	BUG_ON(pov_req_prev == NULL);
 
 	if (!hisifd->panel_power_on) {
 		HISI_FB_DEBUG("fb%d panel is power off!", hisifd->index);
@@ -370,38 +387,95 @@ int hisi_ov_online_play(struct hisi_fb_data_type *hisifd, void __user *argp)
 		return 0;
 	}
 
-	hisifb_activate_vsync(hisifd);
+	if (!is_mipi_cmd_panel(hisifd)) {
+		hisifb_activate_vsync(hisifd);
 
-	ret = hisi_vactive0_start_config(hisifd);
-	if (ret != 0) {
-		HISI_FB_ERR("hisi_vactive0_start_config failed! ret = %d\n", ret);
-
-		if (is_mipi_cmd_panel(hisifd)) {
-			hisifd->dss_exception.underflow_exception = 1;
-			hisifd->ldi_data_gate_en = 0;
+		ret = copy_from_user(pov_req, argp, sizeof(dss_overlay_t));
+		if (ret) {
+			HISI_FB_ERR("copy_from_user failed!\n");
+			goto err_return;
 		}
 
-		goto err_return;
-	}
+		ret = hisi_dss_check_userdata(hisifd, pov_req);
+		if (ret != 0) {
+			HISI_FB_ERR("hisi_dss_check_userdata failed!\n");
+			goto err_return;
+		}
 
-	ret = hisi_dss_module_init(hisifd);
-	if (ret != 0) {
-		HISI_FB_ERR("hisi_dss_module_init failed! ret = %d\n", ret);
-		goto err_return;
-	}
+	#ifdef CONFIG_BUF_SYNC_USED
+		for (i = 0; i < pov_req->layer_nums; i++) {
+			if (pov_req->layer_infos[i].acquire_fence >= 0){
+				hisifb_buf_sync_wait(pov_req->layer_infos[i].acquire_fence);
+			}
+		}
+	#endif
 
-	hisi_dss_config_ok_begin(hisifd);
+		ret = hisi_vactive0_start_config(hisifd);
+		if (ret != 0) {
+			HISI_FB_ERR("hisi_vactive0_start_config failed! ret = %d\n", ret);
 
-	hisi_dss_handle_prev_ovl_req(hisifd, pov_req);
-	hisi_dss_handle_prev_ovl_req_wb(hisifd, pov_req);
-	if (pov_req->wb_enable && !hisifd->ov_wb_enabled) {
-		hisi_dss_rptb_handler(hisifd, true, 0);
-	}
+			if (is_mipi_cmd_panel(hisifd)) {
+				hisifd->dss_exception.underflow_exception = 1;
+				hisifd->ldi_data_gate_en = 0;
+			}
 
-	ret = copy_from_user(pov_req, argp, sizeof(dss_overlay_t));
-	if (ret) {
-		HISI_FB_ERR("copy_from_user failed!\n");
-		goto err_return;
+			goto err_return;
+		}
+
+		ret = hisi_dss_module_init(hisifd);
+		if (ret != 0) {
+			HISI_FB_ERR("hisi_dss_module_init failed! ret = %d\n", ret);
+			goto err_return;
+		}
+
+		hisi_dss_config_ok_begin(hisifd);
+
+		hisi_dss_handle_prev_ovl_req(hisifd, pov_req_prev);
+		hisi_dss_handle_prev_ovl_req_wb(hisifd, pov_req_prev);
+		if (pov_req_prev->wb_enable && !hisifd->ov_wb_enabled) {
+			hisi_dss_rptb_handler(hisifd, true, 0);
+		}
+	} else {
+		hisifb_activate_vsync(hisifd);
+
+		ret = hisi_vactive0_start_config(hisifd);
+		if (ret != 0) {
+			HISI_FB_ERR("hisi_vactive0_start_config failed! ret = %d\n", ret);
+
+			if (is_mipi_cmd_panel(hisifd)) {
+				hisifd->dss_exception.underflow_exception = 1;
+				hisifd->ldi_data_gate_en = 0;
+			}
+
+			goto err_return;
+		}
+
+		ret = hisi_dss_module_init(hisifd);
+		if (ret != 0) {
+			HISI_FB_ERR("hisi_dss_module_init failed! ret = %d\n", ret);
+			goto err_return;
+		}
+
+		hisi_dss_config_ok_begin(hisifd);
+
+		hisi_dss_handle_prev_ovl_req(hisifd, pov_req);
+		hisi_dss_handle_prev_ovl_req_wb(hisifd, pov_req);
+		if (pov_req->wb_enable && !hisifd->ov_wb_enabled) {
+			hisi_dss_rptb_handler(hisifd, true, 0);
+		}
+
+		ret = copy_from_user(pov_req, argp, sizeof(dss_overlay_t));
+		if (ret) {
+			HISI_FB_ERR("copy_from_user failed!\n");
+			goto err_return;
+		}
+
+		ret = hisi_dss_check_userdata(hisifd, pov_req);
+		if (ret != 0) {
+			memcpy(pov_req, &(hisifd->ov_req_prev), sizeof(dss_overlay_t));
+			HISI_FB_ERR("hisi_dss_check_userdata failed!\n");
+			goto err_return;
+		}
 	}
 
 	if (g_debug_ovl_online_composer)
@@ -461,9 +535,11 @@ int hisi_ov_online_play(struct hisi_fb_data_type *hisifd, void __user *argp)
 		hisi_dss_dirty_region_updt_config(hisifd);
 
 #ifdef CONFIG_BUF_SYNC_USED
-	for (i = 0; i < pov_req->layer_nums; i++) {
-		if (pov_req->layer_infos[i].acquire_fence >= 0){
-			hisifb_buf_sync_wait(pov_req->layer_infos[i].acquire_fence);
+	if (is_mipi_cmd_panel(hisifd)) {
+		for (i = 0; i < pov_req->layer_nums; i++) {
+			if (pov_req->layer_infos[i].acquire_fence >= 0) {
+				hisifb_buf_sync_wait(pov_req->layer_infos[i].acquire_fence);
+			}
 		}
 	}
 
@@ -504,6 +580,8 @@ int hisi_ov_online_play(struct hisi_fb_data_type *hisifd, void __user *argp)
 	hisifb_deactivate_vsync(hisifd);
 
 	hisifb_layerbuf_lock(hisifd);
+
+	memcpy(&(hisifd->ov_req_prev), pov_req, sizeof(dss_overlay_t));
 
 	if (hisifd->index == PRIMARY_PANEL_IDX) {
 		if (!hisifd->fb_mem_free_flag) {

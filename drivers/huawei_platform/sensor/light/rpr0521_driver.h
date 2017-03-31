@@ -20,6 +20,7 @@ SE.  See the
 
  /*************** Definitions ******************/
 /* GENERAL */
+#include	<linux/sensors.h>
 #define RPR521_DRV_NAME	"rpr521"
 #define DRIVER_VERSION		"1.0"
 
@@ -152,7 +153,8 @@ struct ALS_PS_DATA {
 	struct delayed_work    als_dwork; /* for ALS polling */
 	struct input_dev *input_dev_als;
 	struct input_dev *input_dev_ps;
-
+       struct sensors_classdev als_cdev;
+       struct sensors_classdev ps_cdev;
 	unsigned int enable;	//used to indicate working mode
 	unsigned int als_time;	//als measurement time
 	unsigned int ps_time;	//ps measurement time

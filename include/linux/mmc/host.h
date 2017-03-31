@@ -56,7 +56,7 @@ struct mmc_ios {
 
 	unsigned char	timing;			/* timing specification used */
 
-#ifdef CONFIG_ARCH_HI6XXX
+#if defined (CONFIG_ARCH_HI6XXX)
 #define MMC_TIMING_LEGACY	0
 #define MMC_TIMING_MMC_HS	1
 #define MMC_TIMING_SD_HS	2
@@ -162,6 +162,9 @@ struct mmc_host_ops {
 				unsigned int offset, unsigned int len);
 	int	(*panic_erase)(struct raw_hd_struct *rhd, unsigned int offset,
 				unsigned int len);
+#ifdef CONFIG_MMC_PASSWORDS
+	int	(*sd_lock_reset)(struct mmc_host *host);
+#endif
 };
 
 struct mmc_card;

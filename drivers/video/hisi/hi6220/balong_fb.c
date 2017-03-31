@@ -36,7 +36,7 @@
 #include <huawei_platform/log/log_jank.h>
 
 #if defined (CONFIG_HUAWEI_DSM)
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #endif
 
 #include "balong_fb.h"
@@ -66,6 +66,8 @@ balongfb_debug_log_info_union g_fb_log_printk_flag = {.ul32 = 0};
 
 //u32 g_smmu_flag = 0;
 extern unsigned int cpufreq_get_fb(unsigned int cpu);
+int enable_PT_test = 0;
+module_param_named(enable_PT_test, enable_PT_test, int, S_IRUGO | S_IWUSR);
 #if defined (CONFIG_HUAWEI_DSM)
 static struct dsm_dev dsm_lcd = {
     .name = "dsm_lcd",
@@ -1417,8 +1419,7 @@ int balong_fb_blank_sub(int blank_mode, struct fb_info *info)
                     balongfd->panel_power_on = curr_pwr_state;
                 } else {
                     balongfd->panel_power_on = false;
-                    if (((balongfd->mem_share_free) || (balongfd->codec_pm_state == 0))
-                    &&  (0 == balongfd->virtual_disp_ref)) {
+                    if ((balongfd->mem_share_free) || (balongfd->codec_pm_state == 0)) {
                         ade_fb_suspend(info);
                     } else {
                         //ade_fb_backup_recover(balongfd);
@@ -1572,17 +1573,24 @@ int balong_fb_open(struct fb_info *info, int user)
     struct fb_var_screeninfo *var = NULL;
     var = &info->var;
 
-    BUG_ON(info == NULL);
+    if (NULL == info) {
+        balongfb_loge("NULL Pointer\n");
+        return -EINVAL;
+    }
     balongfd = (struct balong_fb_data_type *)info->par;
-    BUG_ON(balongfd == NULL);
+    if (NULL == balongfd) {
+        balongfb_loge("NULL Pointer\n");
+        return -EINVAL;
+    }
 
+    LOG_JANK_D(JLID_KERNEL_LCD_OPEN, "%s", "JL_KERNEL_LCD_OPEN");
     if (!balongfd->ref_cnt) {
         ret = balong_fb_blank_sub(FB_BLANK_UNBLANK, info);
         if (ret != 0) {
             balongfb_loge("can't turn on display!\n");
             return ret;
         }
-        LOG_JANK_D(JLID_KERNEL_LCD_OPEN, "%s", "JL_KERNEL_LCD_OPEN");
+        //LOG_JANK_D(JLID_KERNEL_LCD_OPEN, "%s", "JL_KERNEL_LCD_OPEN");
         balongfb_logi("index=%d, exit!\n", balongfd->index);
     }
     balongfd->ref_cnt++;
@@ -1595,9 +1603,15 @@ STATIC int balong_fb_release(struct fb_info *info, int user)
     int ret = 0;
     struct balong_fb_data_type *balongfd = NULL;
 
-    BUG_ON(info == NULL);
+    if (NULL == info) {
+        balongfb_loge("NULL Pointer\n");
+        return -EINVAL;
+    }
     balongfd = (struct balong_fb_data_type *)info->par;
-    BUG_ON(balongfd == NULL);
+    if (NULL == balongfd) {
+        balongfb_loge("NULL Pointer\n");
+        return -EINVAL;
+    }
 
     if (!balongfd->ref_cnt) {
         return -EINVAL;
@@ -1625,9 +1639,15 @@ STATIC int balong_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *in
     int ret = 0;
     struct balong_fb_data_type *balongfd = NULL;
 
-    BUG_ON(info == NULL);
+    if (NULL == info) {
+        balongfb_loge("NULL Pointer\n");
+        return -EINVAL;
+    }
     balongfd = (struct balong_fb_data_type *)info->par;
-    BUG_ON(balongfd == NULL);
+    if (NULL == balongfd) {
+        balongfb_loge("NULL Pointer\n");
+        return -EINVAL;
+    }
 
     balongfb_logi("enter succ !");
 
@@ -1715,9 +1735,15 @@ STATIC int balong_fb_set_par(struct fb_info *info)
     struct balong_fb_data_type *balongfd = NULL;
     struct fb_var_screeninfo *var = NULL;
 
-    BUG_ON(info == NULL);
+    if (NULL == info) {
+        balongfb_loge("NULL Pointer\n");
+        return -EINVAL;
+    }
     balongfd = (struct balong_fb_data_type *)info->par;
-    BUG_ON(balongfd == NULL);
+    if (NULL == balongfd) {
+        balongfb_loge("NULL Pointer\n");
+        return -EINVAL;
+    }
 
     balongfb_logi("enter succ !");
 
@@ -1884,9 +1910,15 @@ int balong_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
     u32 struct_len = sizeof(struct ovly_hnd_info) * ADE_OVERLAY_MAX_LAYERS;
     struct balong_fb_data_type *balongfd = NULL;
 
-    BUG_ON(info == NULL);
+    if (NULL == info) {
+        balongfb_loge("NULL Pointer\n");
+        return -EINVAL;
+    }
     balongfd = (struct balong_fb_data_type *)info->par;
-    BUG_ON(balongfd == NULL);
+    if (NULL == balongfd) {
+        balongfb_loge("NULL Pointer\n");
+        return -EINVAL;
+    }
 
 #ifndef PC_UT_TEST_ON
 #ifdef CONFIG_TRACING
@@ -1919,13 +1951,20 @@ STATIC int balong_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long
 {
     void __user *argp = (void __user *)arg;
     int ret = 0;
+
+    if (NULL == info) {
+        balongfb_loge("NULL Pointer\n");
+        return -EINVAL;
+    }
 #if LCD_CHECK_MIPI_SUPPORT
     int mipi_tr = -1;
     struct balong_fb_data_type *balongfd = NULL;
-    BUG_ON(info == NULL);
     balongfd = (struct balong_fb_data_type *)info->par;
+    if (NULL == balongfd) {
+        balongfb_loge("NULL Pointer\n");
+        return -EINVAL;
+    }
 #endif
-    BUG_ON(info == NULL);
 
     down(&balong_fb_overlay_sem);
     switch (cmd) {
@@ -1977,9 +2016,15 @@ STATIC int balong_fb_blank(int blank_mode, struct fb_info *info)
     int ret = 0;
     struct balong_fb_data_type *balongfd = NULL;
 
-    BUG_ON(info == NULL);
+    if (NULL == info) {
+        balongfb_loge("NULL Pointer\n");
+        return -EINVAL;
+    }
     balongfd = (struct balong_fb_data_type *)info->par;
-    BUG_ON(balongfd == NULL);
+    if (NULL == balongfd) {
+        balongfb_loge("NULL Pointer\n");
+        return -EINVAL;
+    }
 
     balongfb_logi("blank_mode=%d, enter!\n", blank_mode);
 
@@ -2077,7 +2122,10 @@ static void balongfb_early_suspend(struct early_suspend *h)
 {
     struct balong_fb_data_type *balongfd = container_of(h, struct balong_fb_data_type, early_suspend);
 
-    BUG_ON(balongfd == NULL);
+    if (NULL == balongfd) {
+        balongfb_loge("NULL Pointer\n");
+        return;
+    }
 
     balongfb_logi("index=%d, enter!\n", balongfd->index);
 
@@ -2092,7 +2140,10 @@ static void balongfb_late_resume(struct early_suspend *h)
 {
     struct balong_fb_data_type *balongfd = container_of(h, struct balong_fb_data_type, early_suspend);
 
-    BUG_ON(balongfd == NULL);
+    if (NULL == balongfd) {
+        balongfb_loge("NULL Pointer\n");
+        return;
+    }
 
     balongfb_logi("index=%d, enter!\n", balongfd->index);
 
@@ -2254,7 +2305,12 @@ static int recover_esd(struct notifier_block *nb,
     struct balong_fb_panel_data *pdata = NULL;
     /* primary panel */
     struct balong_fb_data_type *balongfd = balongfd_list[0];
-    BUG_ON(balongfd == NULL);
+
+    if (NULL == balongfd) {
+        balongfb_loge("NULL Pointer\n");
+        return -EINVAL;
+    }
+
     if(event == HI6521_LCD_LDO_OCP_EVENT)
     {
         down(&balong_fb_blank_sem);
@@ -2288,7 +2344,10 @@ STATIC int balongfb_fastboot_power_on(struct notifier_block *nb,
     struct balong_fb_panel_data *pdata = NULL;
     /* primary panel */
     struct balong_fb_data_type *balongfd = balongfd_list[0];
-    BUG_ON(balongfd == NULL);
+    if (NULL == balongfd) {
+        balongfb_loge("NULL Pointer");
+        return -EINVAL;
+    }
 
     pdata = (struct balong_fb_panel_data *)balongfd->pdev->dev.platform_data;
     if (pdata && pdata->set_fastboot) {

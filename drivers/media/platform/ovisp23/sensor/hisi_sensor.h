@@ -72,6 +72,10 @@ struct sensor_cfg_data;
 #define CFG_SENSOR_I2C_WRITE_SEQ	5
 #define CFG_SENSOR_GET_SENSOR_NAME	6
 #define CFG_SENSOR_GET_CHROMATIX_NAME   7
+#define CFG_SENSOR_APPLY_EXPO_GAIN		8
+#define CFG_SENSOR_SUSPEND_HISI_EG_TASK 9
+#define CFG_SENSOR_GET_PRODUCT_NAME		10
+#define CFG_SENSOR_APPLY_BSHUTTER_EXPO_GAIN	11
 
 #define CFG_SENSOR_SET_VTS		21
 #define CFG_SENSOR_GET_OTP_AWB	22
@@ -80,6 +84,7 @@ struct sensor_cfg_data;
 #define CFG_SENSOR_UPDATE_OTP_AWB	25
 #define CFG_SENSOR_UPDATE_OTP_LENC	26
 #define CFG_SENSOR_UPDATE_OTP_VCM	27
+#define CFG_SENSOR_GET_MIRROR_FLIP	28
 
 /********************** sensor base data struct define **********************/
 #define SENSOR_INDEX_INVALID		-1
@@ -88,6 +93,9 @@ struct sensor_cfg_data;
 #define LDO_VOLTAGE_1P5V		1500000
 #define LDO_VOLTAGE_1P8V		1800000
 #define LDO_VOLTAGE_2P8V		2850000
+
+#define MAX_EG_SEQ_SIZE	5
+#define MAX_BSHUTTER_SEQ_SIZE	50
 
 enum sensor_power_state_t{
 	POWER_OFF = 0,
@@ -245,7 +253,7 @@ struct hisi_sensor_info {
 
 	sensor_power_t power_conf;
 	/* regulator: dvdd, avdd, iopw, vcm*/
-	u32 ldo_num;
+	int ldo_num;
 	struct regulator_bulk_data ldo[LDO_MAX];
 
 	/* i2c  */
@@ -257,13 +265,17 @@ struct hisi_sensor_info {
 	i2c_t i2c_config;
 	i2c_t otp_i2c_config;
 
-	u32 gpio_num;
+	int gpio_num;
 	struct gpio gpios[IO_MAX];
 	int active_gpios[IO_MAX];
 	unsigned int sensor_chipid;
 	unsigned int camif_id;
 	const char *vcm_name;
 	int vcm_enable;
+
+	unsigned int sensor_type;
+	/* mirror & flip disable flag */
+	unsigned int mirror_flip_disable;
 };
 
 struct hisi_sensor_ctrl_t {
@@ -290,9 +302,18 @@ struct hisi_sensor_fn_t {
 	int (*sensor_i2c_write_seq) (struct hisi_sensor_ctrl_t *, void *);
 	int (*sensor_ioctl) (struct hisi_sensor_ctrl_t *, void *);
 	int (*ext_power_ctrl)(int enable);
-	int (*sensor_set_expo_gain)(struct hisi_sensor_t *, u32 expo, u16 gain);
+
+	int (*sensor_set_expo_gain)(struct hisi_sensor_t *,
+		u32 expo, u16 gain, bool stream_off_mode);
 	int (*sensor_set_expo)(struct hisi_sensor_t *, u32 expo);
 	int (*sensor_set_gain)(struct hisi_sensor_t *, u16 gain);
+	int (*sensor_apply_expo_gain)(struct hisi_sensor_ctrl_t *, void *);
+	int (*sensor_suspend_eg_task)(struct hisi_sensor_ctrl_t *, void *);
+	int (*sensor_set_hts)(struct hisi_sensor_t *, u16 hts);
+	int (*sensor_set_vts)(struct hisi_sensor_t *, u16 vts);
+	int (*sensor_set_bshutter_expo_gain)(struct hisi_sensor_t *,u32 expo, u16 gain);
+	int (*sensor_apply_bshutter_expo_gain)(struct hisi_sensor_ctrl_t *, void *);
+
 };
 
 struct hisi_sensor_awb_otp {
@@ -328,6 +349,25 @@ struct hisi_sensor_t {
 	struct hisi_sensor_otp sensor_otp;
 };
 
+struct expo_gain_seq {
+	u32 expo[MAX_EG_SEQ_SIZE];
+	u32 gain[MAX_EG_SEQ_SIZE];
+	u16 hts;
+	u16 vts;
+	int seq_size;
+	int eof_trigger;
+};
+
+struct bshutter_expo_gain_seq {
+	u32 expo[MAX_BSHUTTER_SEQ_SIZE];
+	u32 gain[MAX_BSHUTTER_SEQ_SIZE];
+	u16 vts[MAX_BSHUTTER_SEQ_SIZE];
+	u16 hts[MAX_BSHUTTER_SEQ_SIZE];
+	u32 expo_time[MAX_BSHUTTER_SEQ_SIZE];
+	int seq_size;
+	int expo_gain_offset;
+	int eof_bshutter_trigger;
+};
 
 /********************* cfg data define ************************************/
 
@@ -339,23 +379,23 @@ struct sensor_i2c_reg {
 };
 
 struct sensor_i2c_setting {
-	u32 size;
-	u32 reserve;
 	struct sensor_i2c_reg *setting;
+	u32 size;
 };
 /*sensor ioctl arg*/
 struct sensor_cfg_data {
 	int cfgtype;
 	int mode;
 	int data;
-	/* add for 64bit alignment */
-	int reserve;
 
 	union {
 	char name[32];
 	struct sensor_i2c_reg reg;
 	struct sensor_i2c_setting setting;
 	struct hisi_sensor_af_otp af_otp;
+	struct expo_gain_seq host_ae_seq;
+	struct hisi_sensor_awb_otp awb_otp;
+	struct bshutter_expo_gain_seq bshutter_seq;
 	} cfg;
 };
 

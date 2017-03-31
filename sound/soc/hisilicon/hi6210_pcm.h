@@ -164,20 +164,21 @@ struct hi6210_simu_pcm_data
 #endif
 
 #ifdef __DRV_AUDIO_MAILBOX_WORK__
-struct hi6210_pcm_mailbox_wq
+struct hi6210_pcm_mailbox_ctrl
 {
-    struct workqueue_struct *pcm_mailbox_delay_wq;
-/*    struct delayed_work  pcm_mailbox_delay_work; */
+    struct task_struct *pcm_mailbox_kthread;
+    struct semaphore    pcm_mailbox_sema;
+    spinlock_t          pcm_mailbox_lock;
+    unsigned int        kthread_should_stop;
 };
 
 struct hi6210_pcm_mailbox_data
 {
-    struct workqueue_struct *pcm_mailbox_delay_wq;
-    struct delayed_work  pcm_mailbox_delay_work;
-
-    unsigned short  msg_type;   /* 消息类型，HIFI_CHN_MSG_TYPE */
-    unsigned short  pcm_mode;   /* PLAYBACK 或 CAPTURE */
-    void *          substream;  /* 通道SubStream对象的地址 */
+    struct list_head node;
+    unsigned int     msg_timestamp;
+    unsigned short   msg_type;   /* 消息类型，HIFI_CHN_MSG_TYPE */
+    unsigned short   pcm_mode;   /* PLAYBACK 或 CAPTURE */
+    void *           substream;  /* 通道SubStream对象的地址 */
 };
 #endif
 

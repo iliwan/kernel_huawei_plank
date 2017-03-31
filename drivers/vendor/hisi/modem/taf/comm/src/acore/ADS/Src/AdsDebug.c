@@ -124,6 +124,20 @@ VOS_VOID ADS_ShowPeriodPktNum(VOS_VOID)
     vos_printf("ADS_ShowPeriodPktNum Cur DL PeriodPktNum is %d\r\n", g_stAdsCtx.astAdsSpecCtx[0].stAdsStatsInfoCtx.stDLDataStats.ulDLCurDataRate);
     vos_printf("ADS_ShowPeriodPktNum Cur UL PeriodPktNum is %d\r\n", g_stAdsCtx.astAdsSpecCtx[0].stAdsStatsInfoCtx.stULDataStats.ulULCurDataRate);
 }
+VOS_VOID ADS_SetTxWakeLockTmrLen(VOS_UINT32 ulValue)
+{
+    g_stAdsCtx.stAdsIpfCtx.ulTxWakeLockTmrLen = ulValue;
+    return;
+}
+
+
+VOS_VOID ADS_SetRxWakeLockTmrLen(VOS_UINT32 ulValue)
+{
+    g_stAdsCtx.stAdsIpfCtx.ulRxWakeLockTmrLen = ulValue;
+    return;
+}
+
+
 VOS_VOID ADS_ShowEntityStats(VOS_VOID)
 {
     VOS_UINT8                           i;
@@ -237,11 +251,12 @@ VOS_VOID ADS_ShowDLProcStats(VOS_VOID)
     vos_printf("ADS下行空中断次数                               %d\n",g_stAdsStats.stDlComStatsInfo.ulDlRecvAdqEmptyBreakNum);
     vos_printf("ADS下行ADQ0为空的次数                           %d\n",g_stAdsStats.stDlComStatsInfo.aulDlGetAdqEmptyNum[IPF_EMPTY_ADQ0] + g_stAdsStats.stDlComStatsInfo.aulDlGetAdqEmptyNum[IPF_EMPTY_ADQ]);
     vos_printf("ADS下行ADQ1为空的次数                           %d\n",g_stAdsStats.stDlComStatsInfo.aulDlGetAdqEmptyNum[IPF_EMPTY_ADQ1] + g_stAdsStats.stDlComStatsInfo.aulDlGetAdqEmptyNum[IPF_EMPTY_ADQ]);
+    vos_printf("ADS下行ADQ空保护定时器启动次数                  %d\n",g_stAdsStats.stDlComStatsInfo.ulDlAdqStartEmptyTmrNum);
+    vos_printf("ADS下行ADQ空保护定时器超时次数                  %d\n",g_stAdsStats.stDlComStatsInfo.ulDlAdqEmptyTmrTimeoutNum);
 #endif
     vos_printf("ADS处理下行ALL事件次数                          %d\n",g_stAdsStats.stDlComStatsInfo.ulDlAllEvent);
     vos_printf("ADS处理下行RD事件次数                           %d\n",g_stAdsStats.stDlComStatsInfo.ulDlRdEventNum);
     vos_printf("ADS处理下行ADQ EMPTY事件次数                    %d\n",g_stAdsStats.stDlComStatsInfo.ulDlAdEmptyNum);
-    vos_printf("ADS处理下行OTHER事件次数                        %d\n",g_stAdsStats.stDlComStatsInfo.ulDlOtherEvent);
     vos_printf("ADS处理下行EMPTY事件次数                        %d\n",g_stAdsStats.stDlComStatsInfo.ulDlEmptyEvent);
 
 #if(FEATURE_OFF == FEATURE_SKB_EXP)
@@ -256,8 +271,10 @@ VOS_VOID ADS_ShowDLProcStats(VOS_VOID)
     vos_printf("ADS下行申请AD1失败的次数                        %d\n",g_stAdsStats.stDlComStatsInfo.aulDlAllocAdFailNum[IPF_AD_1]);
 
 #endif
+
     vos_printf("ADS下行保护定时器超时次数                       %d\n",g_stAdsStats.stDlComStatsInfo.ulDlRdTiProtectExpiredNum);
     vos_printf("ADS下行保护定时器超时事件次数                   %d\n",g_stAdsStats.stDlComStatsInfo.ulDlRdProctectEventNum);
+
     vos_printf("ADS下行流控超时计数                             %d\n",g_stAdsStats.stDlComStatsInfo.ulDlFcTmrExpiredCnt);
     vos_printf("ADS下行流控激活计数                             %d\n",g_stAdsStats.stDlComStatsInfo.ulDlFcActivateCnt);
 

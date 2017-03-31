@@ -13,12 +13,14 @@
 #include "hw_flash.h"
 
 /* LM3642 Registers define */
+
+#define REG_CHIP_ID			0x00
 #define REG_ENABLE			0x0a
 #define REG_FLAGS			0x0b
 #define REG_FLASH_FEATURES		0x08
 #define REG_CURRENT_CONTROL		0x09
 #define REG_IVFM			0x01
-//#define REG_TORCH_RAMP_TIME		0x06
+#define REG_TORCH_RAMP_TIME		0x06
 
 #define MODE_STANDBY			0x00
 //#define MODE_INDICATOR			0x01
@@ -27,10 +29,25 @@
 //#define STROBE_PIN			0x20
 //#define TORCH_PIN			0x10
 #define TX_PIN				0x40
+#define MODE_FLASH_TIME		0x0D
+#define DEFAULT_FLASH_TIME  0x52
+#define ENABLE_BIT_IVFM     0x80
+#define ENABLE_MODE_FLASH   0xA3
+#define ENABLE_MODE_TORCH   0x92
 
 #define FLASH_LED_MAX			16
 #define TORCH_LED_MAX			8
 #define FLASH_LED_LEVEL_INVALID  0xff
+#define INVALID_GPIO            999
+#define GPIO_OFF                0
+#define GPIO_ON                 1
+
+
+typedef enum {
+    TORCH = 0,
+    STROBE,
+    MAX_PIN,
+}lm3642_pin_type;
 
 /* Internal data struct define */
 struct hw_lm3642_private_data_t {
@@ -40,6 +57,8 @@ struct hw_lm3642_private_data_t {
 	unsigned int torch_led_num;
 	unsigned int flash_current;
 	unsigned int torch_current;
+	unsigned int torch_video_current;
+	unsigned int pin[MAX_PIN];
 
 	/* flash control pin */
 	unsigned int strobe;
@@ -71,30 +90,78 @@ static int lm3642_set_strobe(struct hw_flash_ctrl_t *flash_ctrl,
 }
 #endif
 
+void dump_all_reg(struct hw_flash_ctrl_t *flash_ctrl)
+{
+    struct hw_flash_i2c_client *i2c_client;
+    struct hw_flash_i2c_fn_t *i2c_func;
+    unsigned char current_val=0;
+    unsigned char enable_val=0;
+    unsigned char feature_val=0;
+    unsigned char ivfm_val=0;
+    unsigned char torch_ramp_val=0;
+
+    i2c_client = flash_ctrl->flash_i2c_client;
+    i2c_func = flash_ctrl->flash_i2c_client->i2c_func_tbl;
+
+    i2c_func->i2c_read(i2c_client, REG_CURRENT_CONTROL, &current_val);
+    i2c_func->i2c_read(i2c_client, REG_ENABLE, &enable_val);
+    i2c_func->i2c_read(i2c_client, REG_FLASH_FEATURES, &feature_val);
+    i2c_func->i2c_read(i2c_client, REG_IVFM, &ivfm_val);
+    i2c_func->i2c_read(i2c_client, REG_TORCH_RAMP_TIME, &torch_ramp_val);
+    cam_info("%s current_reg=0x%x,enable_reg=0x%x,feature_reg=0x%x,ivfm_reg=0x%x,torch_ramp=0x%x.\n", 
+    __func__, current_val, enable_val, feature_val, ivfm_val, torch_ramp_val);
+}
+
 static int hw_lm3642_init(struct hw_flash_ctrl_t *flash_ctrl)
 {
-	struct hw_lm3642_private_data_t *pdata;
-	int rc = 0;
+    struct hw_lm3642_private_data_t *pdata;
+    int rc = 0;
+    struct hw_flash_i2c_client *i2c_client;
+    struct hw_flash_i2c_fn_t *i2c_func;
+    unsigned int val = 0;
 
-	cam_debug("%s ernter.\n", __func__);
+    cam_debug("%s ernter.\n", __func__);
 
-	if (NULL == flash_ctrl) {
-		cam_err("%s flash_ctrl is NULL.", __func__);
-		return -1;
-	}
+    if (NULL == flash_ctrl) {
+	cam_err("%s flash_ctrl is NULL.", __func__);
+	return -1;
+    }
 
-	pdata = (struct hw_lm3642_private_data_t *)flash_ctrl->pdata;
-#if 1
-	flash_ctrl->pctrl = devm_pinctrl_get_select(flash_ctrl->dev,
+    i2c_client = flash_ctrl->flash_i2c_client;
+    i2c_func = flash_ctrl->flash_i2c_client->i2c_func_tbl;
+    pdata = (struct hw_lm3642_private_data_t *)flash_ctrl->pdata;
+
+    i2c_func->i2c_read(i2c_client, REG_FLAGS, &val);
+    cam_info("%s flag_reg=%d.\n", __func__, val);
+    i2c_func->i2c_write(i2c_client, REG_ENABLE, ENABLE_BIT_IVFM);
+
+    flash_ctrl->pctrl = devm_pinctrl_get_select(flash_ctrl->dev,
 						PINCTRL_STATE_DEFAULT);
 
-	rc = gpio_request(pdata->strobe, "flash-strobe");
-	if (rc < 0) {
-		cam_err("%s failed to request strobe pin.", __func__);
-		return -EIO;
-	}
-#endif
-	return rc;
+      rc = gpio_request(pdata->pin[STROBE], "flash-storbe");
+      if (rc < 0) {
+          cam_err("%s failed to request storbe pin.", __func__);
+          goto err1;
+      }
+
+      rc = gpio_request(pdata->pin[TORCH], "flash-torch");
+      if (rc < 0) {
+          cam_err("%s failed to request torch pin.", __func__);
+          goto err2;
+      }
+
+    return 0;
+
+    err2:
+    if(pdata->pin[TORCH] != INVALID_GPIO) {
+        gpio_free(pdata->pin[TORCH]);
+    }
+    err1:
+    if(pdata->pin[STROBE] != INVALID_GPIO) {
+        gpio_free(pdata->pin[STROBE]);
+    }
+
+    return rc;
 }
 
 static int hw_lm3642_exit(struct hw_flash_ctrl_t *flash_ctrl)
@@ -112,7 +179,13 @@ static int hw_lm3642_exit(struct hw_flash_ctrl_t *flash_ctrl)
 
 	pdata = (struct hw_lm3642_private_data_t *)flash_ctrl->pdata;
 
-	gpio_free(pdata->strobe);
+    if(pdata->pin[TORCH] != INVALID_GPIO) {
+        gpio_free(pdata->pin[TORCH]);
+    }
+    if(pdata->pin[STROBE] != INVALID_GPIO) {
+        gpio_free(pdata->pin[STROBE]);
+    }
+
 	flash_ctrl->pctrl = devm_pinctrl_get_select(flash_ctrl->dev,
 						PINCTRL_STATE_IDLE);
 
@@ -122,13 +195,13 @@ static int hw_lm3642_exit(struct hw_flash_ctrl_t *flash_ctrl)
 static int hw_lm3642_flash_mode(struct hw_flash_ctrl_t *flash_ctrl,
 	int data)
 {
-	struct hw_flash_i2c_client *i2c_client;
-	struct hw_flash_i2c_fn_t *i2c_func;
-	struct hw_lm3642_private_data_t *pdata;
-	unsigned char val;
-	unsigned int current_level = 0;
+    struct hw_flash_i2c_client *i2c_client;
+    struct hw_flash_i2c_fn_t *i2c_func;
+    struct hw_lm3642_private_data_t *pdata;
 
-	cam_debug("%s data=%d.\n", __func__, data);
+    unsigned char val = 0 ;
+    unsigned int current_level = 0;
+
 	cam_info("%s 220250 data=%d.\n", __func__, data);
 	if (NULL == flash_ctrl || NULL == flash_ctrl->pdata) {
 		cam_err("%s flash_ctrl is NULL.", __func__);
@@ -137,7 +210,8 @@ static int hw_lm3642_flash_mode(struct hw_flash_ctrl_t *flash_ctrl,
 
 	i2c_client = flash_ctrl->flash_i2c_client;
 	i2c_func = flash_ctrl->flash_i2c_client->i2c_func_tbl;
-	pdata = flash_ctrl->pdata;
+    pdata = (struct hw_lm3642_private_data_t *)flash_ctrl->pdata;
+
 	if (FLASH_LED_LEVEL_INVALID == pdata->flash_current)
 	{
 		current_level = data;
@@ -146,22 +220,23 @@ static int hw_lm3642_flash_mode(struct hw_flash_ctrl_t *flash_ctrl,
 	{
 		current_level = pdata->flash_current;
 	}
-	/* clear error flag,resume chip */
-	i2c_func->i2c_read(i2c_client, REG_FLAGS, &val);
-	i2c_func->i2c_read(i2c_client, REG_CURRENT_CONTROL, &val);
 
+    i2c_func->i2c_read(i2c_client, REG_FLAGS, &val);
+    cam_info("%s flag_reg=%d.\n", __func__, val);
 	/* set LED Flash current value */
+	i2c_func->i2c_read(i2c_client, REG_CURRENT_CONTROL, &val);
 	val = (val & 0xf0) | (current_level & 0x0f);
 	cam_info("%s led flash current val=0x%x, current level=%d.\n", __func__, val, current_level);
 
-	i2c_func->i2c_write(i2c_client, REG_CURRENT_CONTROL, val);
-	if (flash_ctrl->flash_mask_enable) {
-		i2c_func->i2c_write(i2c_client, REG_ENABLE, MODE_FLASH|TX_PIN);
-	} else {
-		i2c_func->i2c_write(i2c_client, REG_ENABLE, MODE_FLASH);
-	}
+	i2c_func->i2c_write(i2c_client, REG_CURRENT_CONTROL, val & 0x7f);
+    i2c_func->i2c_write(i2c_client, REG_FLASH_FEATURES, MODE_FLASH_TIME);
+    i2c_func->i2c_write(i2c_client, REG_ENABLE, ENABLE_MODE_FLASH);
 
-	return 0;
+    if(pdata->pin[STROBE] != INVALID_GPIO) {
+        gpio_direction_output(pdata->pin[STROBE], GPIO_ON);
+    }
+
+    return 0;
 }
 
 static int hw_lm3642_torch_mode(struct hw_flash_ctrl_t *flash_ctrl,
@@ -169,20 +244,20 @@ static int hw_lm3642_torch_mode(struct hw_flash_ctrl_t *flash_ctrl,
 {
 	struct hw_flash_i2c_client *i2c_client;
 	struct hw_flash_i2c_fn_t *i2c_func;
-	struct hw_lm3642_private_data_t *pdata;
-	unsigned char val;
-	unsigned int current_level = 0;
+    struct hw_lm3642_private_data_t *pdata;
+    unsigned char val = 0 ;
+    unsigned int current_level = 0;
 
-	cam_debug("%s data=%d.\n", __func__, data);
 	cam_info("%s 220250 data=%d.\n", __func__, data);
 	if (NULL == flash_ctrl || NULL ==flash_ctrl->pdata) {
-		cam_err("%s flash_ctrl is NULL.", __func__);
-		return -1;
-	}
+        cam_err("%s flash_ctrl is NULL.", __func__);
+        return -1;
+    }
 
-	i2c_client = flash_ctrl->flash_i2c_client;
-	i2c_func = flash_ctrl->flash_i2c_client->i2c_func_tbl;
-	pdata = (struct hw_lm3642_private_data_t *)flash_ctrl->pdata;
+    i2c_client = flash_ctrl->flash_i2c_client;
+    i2c_func = flash_ctrl->flash_i2c_client->i2c_func_tbl;
+
+    pdata = (struct hw_lm3642_private_data_t *)flash_ctrl->pdata;
 	if (FLASH_LED_LEVEL_INVALID == pdata->torch_current)
 	{
 		current_level = data;
@@ -191,6 +266,61 @@ static int hw_lm3642_torch_mode(struct hw_flash_ctrl_t *flash_ctrl,
 	{
 		current_level = pdata->torch_current;
 	}
+
+	/* clear error flag,resume chip */
+    i2c_func->i2c_read(i2c_client, REG_FLAGS, &val);
+    cam_info("%s flag_reg=%d.\n", __func__, val);
+
+	/* set LED Flash current value */
+	i2c_func->i2c_read(i2c_client, REG_CURRENT_CONTROL, &val);
+	val = (val & 0x0f) | (current_level << 4);
+	cam_info("%s the led torch current val=0x%x, current_level=%d.\n", __func__, val, current_level);
+
+	i2c_func->i2c_write(i2c_client, REG_CURRENT_CONTROL, val & 0x7f);
+    i2c_func->i2c_write(i2c_client, REG_ENABLE, ENABLE_MODE_TORCH);
+    if(pdata->pin[TORCH] != INVALID_GPIO) {
+        gpio_direction_output(pdata->pin[TORCH], GPIO_ON);
+    }
+
+    return 0;
+}
+
+static int hw_lm3642_torch_video_mode(struct hw_flash_ctrl_t *flash_ctrl,
+	int data)
+{
+	struct hw_flash_i2c_client *i2c_client;
+	struct hw_flash_i2c_fn_t *i2c_func;
+	struct hw_lm3642_private_data_t *pdata;
+	unsigned char val = 0;
+	unsigned int current_level = 0;
+
+	cam_info("%s 220250 data=%d.\n", __func__, data);
+	if (NULL == flash_ctrl || NULL ==flash_ctrl->pdata) {
+            cam_err("%s flash_ctrl is NULL.", __func__);
+	    return -1;
+	}
+
+	i2c_client = flash_ctrl->flash_i2c_client;
+	i2c_func = flash_ctrl->flash_i2c_client->i2c_func_tbl;
+	pdata = (struct hw_lm3642_private_data_t *)flash_ctrl->pdata;
+
+	cam_info("%s torch_video_current = %d.\n", __func__, pdata->torch_video_current);
+	if(FLASH_LED_LEVEL_INVALID == pdata->torch_video_current)
+	{
+	    if (FLASH_LED_LEVEL_INVALID == pdata->torch_current)
+	    {
+	        current_level = data;
+	    }
+	    else
+	    {
+	        current_level = pdata->torch_current;
+	    }
+	}
+	else
+	{
+	    current_level = pdata->torch_video_current;
+	}
+
 	/* clear error flag,resume chip */
 	i2c_func->i2c_read(i2c_client, REG_FLAGS, &val);
 	i2c_func->i2c_read(i2c_client, REG_CURRENT_CONTROL, &val);
@@ -199,8 +329,12 @@ static int hw_lm3642_torch_mode(struct hw_flash_ctrl_t *flash_ctrl,
 	val = (val & 0x0f) | (current_level << 4);
 	cam_info("%s the led torch current val=0x%x, current_level=%d.\n", __func__, val, current_level);
 
-	i2c_func->i2c_write(i2c_client, REG_CURRENT_CONTROL, val);
-	i2c_func->i2c_write(i2c_client, REG_ENABLE, MODE_TORCH);
+	i2c_func->i2c_write(i2c_client, REG_CURRENT_CONTROL, val & 0x7f);
+    i2c_func->i2c_write(i2c_client, REG_ENABLE, ENABLE_MODE_TORCH);
+
+    if(pdata->pin[TORCH] != INVALID_GPIO) {
+        gpio_direction_output(pdata->pin[TORCH], GPIO_ON);
+    }
 
 	return 0;
 }
@@ -220,7 +354,10 @@ static int hw_lm3642_on(struct hw_flash_ctrl_t *flash_ctrl, void *data)
 	mutex_lock(flash_ctrl->hw_flash_mutex);
 	if (FLASH_MODE == cdata->mode) {
 		rc = hw_lm3642_flash_mode(flash_ctrl, cdata->data);
-	} else {
+	} else if (TORCH_VIDEO_MODE == cdata->mode){
+		rc = hw_lm3642_torch_video_mode(flash_ctrl, cdata->data);
+	}
+	else {
 		rc = hw_lm3642_torch_mode(flash_ctrl, cdata->data);
 	}
 	flash_ctrl->state.mode = cdata->mode;
@@ -234,7 +371,8 @@ static int hw_lm3642_off(struct hw_flash_ctrl_t *flash_ctrl)
 {
 	struct hw_flash_i2c_client *i2c_client;
 	struct hw_flash_i2c_fn_t *i2c_func;
-	unsigned char val;
+	struct hw_lm3642_private_data_t *pdata;
+	unsigned char val = 0;
 
 	cam_debug("%s ernter.\n", __func__);
 	cam_info("%s 220250 ernter.\n", __func__);
@@ -242,15 +380,33 @@ static int hw_lm3642_off(struct hw_flash_ctrl_t *flash_ctrl)
 		cam_err("%s flash_ctrl is NULL.", __func__);
 		return -1;
 	}
-
+	
+	pdata = (struct hw_lm3642_private_data_t *)flash_ctrl->pdata;
 	mutex_lock(flash_ctrl->hw_flash_mutex);
 	flash_ctrl->state.mode = STANDBY_MODE;
 	flash_ctrl->state.data = 0;
 	i2c_client = flash_ctrl->flash_i2c_client;
 	i2c_func = flash_ctrl->flash_i2c_client->i2c_func_tbl;
 
+    if(pdata->pin[STROBE] != INVALID_GPIO) {
+        gpio_direction_output(pdata->pin[STROBE], GPIO_OFF);
+    }
+
+    if(pdata->pin[TORCH] != INVALID_GPIO) {
+        gpio_direction_output(pdata->pin[TORCH], GPIO_OFF);
+    }
+
+    i2c_func->i2c_read(i2c_client, REG_ENABLE, &val);
+	cam_info("%s enable_reg=%d.\n", __func__, val);
 	i2c_func->i2c_read(i2c_client, REG_FLAGS, &val);
-	i2c_func->i2c_write(i2c_client, REG_ENABLE, MODE_STANDBY);
+	cam_info("%s flag_reg=0x%x.\n", __func__, val);
+	if(val != 0)
+	{
+		dump_all_reg(flash_ctrl);
+	}
+
+	i2c_func->i2c_write(i2c_client, REG_ENABLE, ENABLE_BIT_IVFM);
+	i2c_func->i2c_write(i2c_client, REG_FLASH_FEATURES, DEFAULT_FLASH_TIME);
 	mutex_unlock(flash_ctrl->hw_flash_mutex);
 
 	return 0;
@@ -262,6 +418,7 @@ static int hw_lm3642_match(struct hw_flash_ctrl_t *flash_ctrl)
 	struct hw_flash_i2c_fn_t *i2c_func;
 	struct hw_lm3642_private_data_t *pdata;
 	unsigned char id;
+	unsigned char id_reg;
 
 	cam_debug("%s ernter.\n", __func__);
 
@@ -274,13 +431,19 @@ static int hw_lm3642_match(struct hw_flash_ctrl_t *flash_ctrl)
 	i2c_func = flash_ctrl->flash_i2c_client->i2c_func_tbl;
 	pdata = (struct hw_lm3642_private_data_t *)flash_ctrl->pdata;
 
-	i2c_func->i2c_read(i2c_client, REG_FLASH_FEATURES, &id);
+	i2c_func->i2c_read(i2c_client, REG_FLASH_FEATURES, &id_reg);
+	cam_info("%s id_reg=0x%x.\n", __func__, id_reg);
+	
+	i2c_func->i2c_read(i2c_client, REG_CHIP_ID, &id);
 	cam_info("%s id=0x%x.\n", __func__, id);
-	if (id != pdata->chipid) {
+	
+	if ((id_reg != pdata->chipid) && ((id & 0x7) != 0)) {
 		cam_err("%s match error, id(0x%x) != 0x%x.",
-			__func__, (id&0x7), pdata->chipid);
+			__func__, (id & 0x7), pdata->chipid);
 		return -1;
 	}
+	
+	i2c_func->i2c_write(i2c_client, REG_FLASH_FEATURES, DEFAULT_FLASH_TIME);
 	i2c_func->i2c_write(i2c_client, REG_IVFM, 0x00);
 
 	return 0;
@@ -303,14 +466,16 @@ static int hw_lm3642_get_dt_data(struct hw_flash_ctrl_t *flash_ctrl)
 	pdata = (struct hw_lm3642_private_data_t *)flash_ctrl->pdata;
 	of_node = flash_ctrl->dev->of_node;
 
-	rc = of_property_read_u32(of_node, "huawei,flash-pin",
-		&pdata->strobe);
-	cam_info("%s hisi,flash-pin %d, rc %d\n", __func__,
-		pdata->strobe, rc);
-	if (rc < 0) {
-		cam_err("%s failed %d\n", __func__, __LINE__);
-		return rc;
-	}
+    rc = of_property_read_u32_array(of_node, "huawei,flash-pin",pdata->pin, MAX_PIN);
+    if (rc < 0) {
+        cam_err("%s failed line %d\n", __func__, __LINE__);
+        return rc;
+    } else {
+        for (i=TORCH; i<MAX_PIN; i++) {
+            cam_info("%s pin[%d]=%d.\n", __func__, i,
+            pdata->pin[i]);
+        }
+    }
 
 	rc = of_property_read_u32(of_node, "huawei,flash-chipid",
 		&pdata->chipid);
@@ -340,6 +505,16 @@ static int hw_lm3642_get_dt_data(struct hw_flash_ctrl_t *flash_ctrl)
 		pdata->torch_current = FLASH_LED_LEVEL_INVALID;
 		//return rc;
 	}
+
+	rc = of_property_read_u32(of_node, "huawei,torch_video_current",
+		&pdata->torch_video_current);
+	cam_info("%s hisi,torch_video_current %d, rc %d\n", __func__,
+		pdata->torch_video_current, rc);
+	if (rc < 0) {
+		cam_err("%s failed %d\n", __func__, __LINE__);
+		pdata->torch_video_current = FLASH_LED_LEVEL_INVALID;
+	}
+
 
 	rc = of_property_read_u32(of_node, "huawei,flash_led_num",
 		&pdata->flash_led_num);

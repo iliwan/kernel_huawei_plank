@@ -1,4 +1,2 @@
-# Makefile for the AD7146 driver.
-#
-
-obj-$(CONFIG_HUAWEI_HALL_INPUTHUB)   += ak8789.o hall_sensor.o ak8789_report.o
+obj-$(CONFIG_ARCH_HI3630)  += kirin920/
+obj-$(CONFIG_HISI_3635)  += kirin930/

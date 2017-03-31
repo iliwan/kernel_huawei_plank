@@ -642,19 +642,19 @@ static mali_scheduler_mask mali_timeline_tracker_activate(struct mali_timeline_t
 		_mali_osk_atomic_dec(&gp_tracker_count);
 		break;
 	case MALI_TIMELINE_TRACKER_PP:
-		schedule_mask = mali_scheduler_activate_pp_job((struct mali_pp_job *) tracker->job);
-
 		if (mali_pp_job_is_virtual((struct mali_pp_job *)tracker->job)) {
 			_mali_osk_atomic_dec(&virt_pp_tracker_count);
 		} else {
 			_mali_osk_atomic_dec(&phy_pp_tracker_count);
 		}
+
+		schedule_mask = mali_scheduler_activate_pp_job((struct mali_pp_job *) tracker->job);
 		break;
 	case MALI_TIMELINE_TRACKER_SOFT:
 		timeline = tracker->timeline;
 		MALI_DEBUG_ASSERT_POINTER(timeline);
 
-		mali_soft_job_system_activate_job((struct mali_soft_job *) tracker->job);
+		schedule_mask |= mali_soft_job_system_activate_job((struct mali_soft_job *) tracker->job);
 
 		/* Start a soft timer to make sure the soft job be released in a limited time */
 		mali_spinlock_reentrant_wait(system->spinlock, tid);

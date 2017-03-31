@@ -344,7 +344,9 @@ enum RRC_SS_ID_ENUM
     LRRC_LCSEL_SS_WAIT_BGS_RESUME_CNF,                /* 等待LCSELPC 背景搜恢复的子状态 */
     /* bgs end */
 
+    RRC_CSEL_SS_WAIT_LPHY_FREQ_RSSI_SORT_CNF,         /*等待物理层频点排序的结果*/
     /* END of CSEL模块的子状态 */
+
 
     /* CMM模块的子状态 */
     RRC_CMM_SS_IDLE,
@@ -392,8 +394,10 @@ enum RRC_SS_ID_ENUM
     RRC_SIB_SS_CSEL_WAIT_REL_CNF,
     /* END of SIB模块的子状态 */
 
+    /* begin: 2014-03- 20 CL MULT add */
     LRRC_LRRC_SS_WAIT_CDMA_CNF,                      /* 等待CDMA重定向/重选响应的子状态 */
     LRRC_LRRC_SS_WAIT_CDMA_STOP_CNF,                 /* 等待CDMA重定向/重选停止响应的子状态 */
+    /* end: 2014-03- 20 CL MULT add */
     /* 状态机预处状态，子要用于不进状态机的消息的处理 */
     RRC_SS_PRE_PROCESS,
 

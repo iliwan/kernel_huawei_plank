@@ -527,7 +527,7 @@ VOS_UINT32 VOS_FixedQueueWrite( VOS_UINT32 ulQueueID, VOS_VOID * pBufferAddr,
         return VOS_ERR;
     }
     else
-    {
+    {
         if ( VOS_OK != VOS_SmV( vos_QueueCtrlBlcok[ulQueueID].Sem_ID) )
         {
 #if ((VOS_OS_VER == VOS_VXWORKS) || (VOS_OS_VER == VOS_RTOSCK))
@@ -554,6 +554,41 @@ VOS_UINT32 VOS_FixedQueueWrite( VOS_UINT32 ulQueueID, VOS_VOID * pBufferAddr,
 
     return VOS_OK;
 }
+
+/*****************************************************************************
+ Function   : VOS_FixedQueueWriteDirect
+ Description: Write a message to a specific queue synchronuslly
+ Input      : ulQueueID    -- Queue ID
+              pBufferAddr  -- Message buffer
+ Output     : None
+ Return     : VOS_OK on success or errno on failure
+ Other      : If the buffer size to write is larger than max message length,
+              the writing would be failed.Used by OSA only.
+ *****************************************************************************/
+VOS_UINT32 VOS_FixedQueueWriteDirect( VOS_UINT32 ulQueueID, VOS_VOID * pBufferAddr, VOS_UINT32 Pri)
+{
+    VOS_UINT32          ulReturn;
+
+    /* only one queue */
+    ulReturn = VOS_AddQueue(ulQueueID, 0, (VOS_UINT_PTR)pBufferAddr, Pri);
+
+    if (VOS_ERR == ulReturn )
+    {
+        LogPrint1("# Queue ID %d is full.\r\n",(int)ulQueueID);
+
+        return VOS_ERR;
+    }
+
+    if ( VOS_OK != VOS_SmV( vos_QueueCtrlBlcok[ulQueueID].Sem_ID) )
+    {
+        LogPrint("# VOS_SmV error.\r\n");
+
+        return VOS_ERR;
+    }
+
+    return VOS_OK;
+}
+
 
 /*****************************************************************************
  Function   : VOS_FixedQueueRead
@@ -622,6 +657,38 @@ VOS_UINT32 VOS_FixedQueueRead( VOS_UINT32 ulQueueID,
 
         return  VOS_ERR;
     }
+}
+
+
+VOS_VOID* VOS_FixedQueueReadMsg( VOS_UINT32 ulFidID )
+{
+    VOS_INT                             i;
+    VOS_ULONG                           ulLockLevel;
+    VOS_UINT_PTR                        TempValue;
+    VOS_UINT32                          ulQueueID;
+
+    VOS_SpinLockIntLock(&g_stVosQueueSpinLock, ulLockLevel);
+
+    ulQueueID = VOS_GetQueueIDFromFid(ulFidID);
+
+    for ( i=(VOS_INT)(vos_QueueCtrlBlcok[ulQueueID].QNum - 1); i>=0; i-- )
+    {
+        if (vos_QueueCtrlBlcok[ulQueueID].Q[i].QEntries > 0 )
+        {
+            TempValue = *vos_QueueCtrlBlcok[ulQueueID].Q[i].QOut;
+
+            VOS_SpinUnlockIntUnlock(&g_stVosQueueSpinLock, ulLockLevel);
+
+            TempValue += VOS_MSG_BLK_HEAD_LEN;
+
+            return  (VOS_VOID *)TempValue;
+        }
+    }
+
+    VOS_SpinUnlockIntUnlock(&g_stVosQueueSpinLock, ulLockLevel);
+
+    return  VOS_NULL_PTR;
+
 }
 
 /*****************************************************************************

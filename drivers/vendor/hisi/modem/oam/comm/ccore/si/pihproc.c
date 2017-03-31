@@ -1140,8 +1140,6 @@ VOS_UINT32 SI_PIH_DeactvieCardTimeOut(VOS_VOID)
     /*若当前卡已经去激活，通知AP操作结果*/
     if (USIMM_CARD_SERVIC_ABSENT == ucCardState)
     {
-        /*清除 NV中保存的EF_LOCI\EF_FPLMN\EF_PSLOCI\EF_LOCIGPRS信息*/
-        SI_PIH_VsimWriteableFileClear();
         return SI_PIH_EventCallBack(&stEvent);
     }
     else
@@ -1159,8 +1157,6 @@ VOS_UINT32 SI_PIH_DeactvieCardTimeOut(VOS_VOID)
         }
         else
         {
-            /*清除 NV中保存的EF_LOCI\EF_FPLMN\EF_PSLOCI\EF_LOCIGPRS信息*/
-            SI_PIH_VsimWriteableFileClear();
             stEvent.PIHError = TAF_ERR_TIME_OUT;
             return SI_PIH_EventCallBack(&stEvent);
         }
@@ -1262,56 +1258,6 @@ VOS_UINT32 SI_PIH_SciCfgQueryHandle(SI_PIH_MSG_HEADER_STRU *pstMsg)
 }
 
 #if (FEATURE_ON == FEATURE_VSIM)
-VOS_VOID SI_PIH_VsimWriteableFileUpdate(VOS_UINT16 usFileId, VOS_UINT8 *pucFileContent)
-{
-
-    if (EFFPLMN == usFileId)
-    {
-        if (VOS_OK != NV_Write(en_NV_Item_VSIM_Fplmn_Info, pucFileContent, sizeof(VSIM_CARD_FPLMN_FILE_NV_STRU)))
-        {
-            PIH_WARNING_LOG("SI_PIH_VsimWriteableFileUpdate: write Fplmn Info failed.");
-        }
-    }
-    else if (EFLOCI == usFileId)
-    {
-        if (VOS_OK != NV_Write(en_NV_Item_VSIM_Loci_Info, pucFileContent, sizeof(VSIM_CARD_LOCI_FILE_NV_STRU)))
-        {
-            PIH_WARNING_LOG("SI_PIH_VsimWriteableFileUpdate: write Loic Info failed.");
-        }
-    }
-    else if ((EFPSLOCI == usFileId) || (EFLOCIGPRS == usFileId))
-    {
-        if (VOS_OK != NV_Write(en_NV_Item_VSIM_PsLoci_Info, pucFileContent, sizeof(VSIM_CARD_PSLOCI_FILE_NV_STRU)))
-        {
-            PIH_WARNING_LOG("SI_PIH_VsimWriteableFileUpdate: write PsLoic Info failed.");
-        }
-    }
-    else
-    {
-        PIH_WARNING_LOG("SI_PIH_VsimWriteableFileUpdate: Wrong file ID.");
-    }
-
-    return;
-}
-
-
-VOS_VOID SI_PIH_VsimWriteableFileClear(VOS_VOID)
-{
-    VOS_UINT8                           i;
-    VOS_UINT8                           aucFileContent[255];
-    VOS_UINT16                          ausFileList[]={EFFPLMN, EFPSLOCI, EFLOCI, EFLOCIGPRS};
-
-    VOS_MemSet(aucFileContent, (VOS_CHAR)0xFF, sizeof(aucFileContent));
-
-    for (i = 0; i < ARRAYSIZE(ausFileList); i++)
-    {
-        SI_PIH_VsimWriteableFileUpdate(ausFileList[i], aucFileContent);
-    }
-
-    return;
-}
-
-
 VOS_VOID SI_PIH_BcdNumToAsciiNum(VOS_UINT8 *pucAsciiNum, VOS_UINT8 *pucBcdNum, VOS_UINT8 ucBcdNumLen)
 {
     VOS_UINT8       ucTmp;
@@ -2599,7 +2545,7 @@ VOS_UINT32 SI_PIH_HvCheckCardHandle(SI_PIH_HVCHECKCARD_REQ_STRU *pstMsg)
 
     for(i=0; i<SI_PIH_GET_SCISTATUS_MAX; i++)
     {
-        lSCIResult = DRV_USIMMSCI_GET_CARD_STAU(); /*如果复位成功则返回成功*/
+        lSCIResult = (VOS_INT32)DRV_USIMMSCI_GET_CARD_STAU(); /*如果复位成功则返回成功*/
 
         if (SCI_CARD_STATE_BUSY != lSCIResult)
         {

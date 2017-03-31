@@ -30,9 +30,9 @@ dwc_otg-objs	+= dwc_otg_cfi.o
 endif
 
 ifeq ($(CONFIG_HI3635_USB),y)
-ccflags-y	+= -DFORCE_ID_STATE
+ccflags-y       += -DFORCE_ID_STATE
 dwc_otg-objs    += dwc_otg_hi3635.o
-dwc_otg-objs	+= hi3635_usb_vbus.o
+dwc_otg-objs    += hi3635_usb_vbus.o
 else
 dwc_otg-objs	+=  dwc_otg_hi6210.o
 dwc_otg-objs	+=  hi6xxx_susb.o 

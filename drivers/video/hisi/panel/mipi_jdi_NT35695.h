@@ -14,122 +14,122 @@ enum {
 /******************************************
 * LCD defect check code
 */
-char defect_check_rst0[] = {
+static char defect_check_rst0[] = {
 	0xFF,
 	0x10,
 };
 
-char defect_check_rst1[] = {
+static char defect_check_rst1[] = {
 	0x28,
 	0x00,
 };//delay 50
 
-char defect_check_rst2[] = {
+static char defect_check_rst2[] = {
 	0x10,
 	0x00,
 };//delay 100
 
-char defect_step1_0[] = {
+static char defect_step1_0[] = {
 	0xFF,
 	0x24,
 };
 
-char defect_step1_1[] = {
+static char defect_step1_1[] = {
 	0xE3,
 	0x00,
 };
 
-char defect_step1_2[] = {
+static char defect_step1_2[] = {
 	0xFB,
 	0x01,
 };
 
-char defect_step1_3[] = {
+static char defect_step1_3[] = {
 	0xFF,
 	0x25,
 };
 
-char defect_step1_4[] = {
+static char defect_step1_4[] = {
 	0x2F,
 	0x03,
 };
 
-char defect_step1_5[] = {
+static char defect_step1_5[] = {
 	0x30,
 	0x0F,
 };
 
-char defect_step1_6[] = {
+static char defect_step1_6[] = {
 	0xFB,
 	0x01,
 };
 
-char defect_step1_7[] = {
+static char defect_step1_7[] = {
 	0xFF,
 	0x10,
 };
 
-char defect_step1_8[] = {
+static char defect_step1_8[] = {
 	0x11,
 	0x00,
 };//delay 200
 
-char defect_step1_9[] = {
+static char defect_step1_9[] = {
 	0xFF,
 	0xE0,
 };
 
-char defect_step1_10[] = {
+static char defect_step1_10[] = {
 	0xB8,
 	0XAD,
 };
 
-char defect_step1_11[] = {
+static char defect_step1_11[] = {
 	0x2F,
 	0xFF,
 };
 
-char defect_step1_12[] = {
+static char defect_step1_12[] = {
 	0x30,
 	0xFF,
 };
 
-char defect_step1_13[] = {
+static char defect_step1_13[] = {
 	0x31,
 	0x1F,
 };
 
-char defect_step1_14[] = {
+static char defect_step1_14[] = {
 	0x34,
 	0x10,
 };
 
-char defect_step1_15[] = {
+static char defect_step1_15[] = {
 	0xB5,
 	0xEE,
 };
 
-char defect_step1_16[] = {
+static char defect_step1_16[] = {
 	0xFF,
 	0xF0,
 };
 
-char defect_step1_17[] = {
+static char defect_step1_17[] = {
 	0xBD,
 	0X02,
 };
 
-char defect_step2_0[] = {
+static char defect_step2_0[] = {
 	0xC6,
 	0x80,
 };
 
-char defect_step2_1[] = {
+static char defect_step2_1[] = {
 	0xB9,
 	0xA2,
 };//delay 800
 
-char defect_step2_2[] = {
+static char defect_step2_2[] = {
 	0xB9,
 	0xA1,
 };//delay 800
@@ -137,47 +137,47 @@ char defect_step2_2[] = {
 //REGR 0xD9,0x3F
 //REGR 0xBC,0x68
 
-char defect_step3_0[] = {
+static char defect_step3_0[] = {
 	0xB9,
 	0x80,
 };//delay 40
 
-char defect_step3_1[] = {
+static char defect_step3_1[] = {
 	0xC6,
 	0x00,
 };
 
-char defect_step3_2[] = {
+static char defect_step3_2[] = {
 	0xB3,
 	0xFF,
 };
 
-char defect_step3_3[] = {
+static char defect_step3_3[] = {
 	0xB4,
 	0xFF,
 };
 
-char defect_step3_4[] = {
+static char defect_step3_4[] = {
 	0xB5,
 	0xFF,
 };
 
-char defect_step3_5[] = {
+static char defect_step3_5[] = {
 	0xB6,
 	0xFF,
 };
 
-char defect_step3_6[] = {
+static char defect_step3_6[] = {
 	0xB7,
 	0xFF,
 };
 
-char defect_step3_7[] = {
+static char defect_step3_7[] = {
 	0xB8,
 	0xFF,
 };
 
-char defect_step3_8[] = {
+static char defect_step3_8[] = {
 	0xB9,
 	0xA4,
 };//delay 800
@@ -185,153 +185,153 @@ char defect_step3_8[] = {
 //REGR 0xD9,0x3F
 //REGR 0xBC,0x78
 
-char defect_step3_9[] = {
+static char defect_step3_9[] = {
 	0xB9,
 	0x80,
 };
 
-char defect_step3_10[] = {
+static char defect_step3_10[] = {
 	0xB9,
 	0xA8,
 };//delay 800
 
-char defect_step4_0[] = {
+static char defect_step4_0[] = {
 	0xB9,
 	0x80,
 };
 
-char defect_step4_1[] = {
+static char defect_step4_1[] = {
 	0xB3,
 	0x00,
 };
 
-char defect_step4_2[] = {
+static char defect_step4_2[] = {
 	0xB4,
 	0x00,
 };
 
-char defect_step4_3[] = {
+static char defect_step4_3[] = {
 	0xB5,
 	0x00,
 };
 
-char defect_step4_4[] = {
+static char defect_step4_4[] = {
 	0xB6,
 	0x00,
 };
 
-char defect_step4_5[] = {
+static char defect_step4_5[] = {
 	0xB7,
 	0x00,
 };
 
-char defect_step4_6[] = {
+static char defect_step4_6[] = {
 	0xB8,
 	0x00,
 };
 
-char defect_step4_7[] = {
+static char defect_step4_7[] = {
 	0xB9,
 	0xA4,
 };//delay 800
 
-char defect_step4_8[] = {
+static char defect_step4_8[] = {
 	0xB9,
 	0x80,
 };
 
-char defect_step4_9[] = {
+static char defect_step4_9[] = {
 	0xB9,
 	0xA8,
 };//delay 800
 //step 5 test1
 #ifdef LAST_4_STEPS_ONLY_FOR_BIST_CHECK
-char defect_step5_0[] = {
+static char defect_step5_0[] = {
 	0xB9,
 	0x80,
 };
 #endif
-char defect_step5_1[] = {
+static char defect_step5_1[] = {
 	0xFF,
 	0x24,
 };
 
-char defect_step5_2[] = {
+static char defect_step5_2[] = {
 	0xE3,
 	0x00,
 };
 
-char defect_step5_no_reload[] = {
+static char defect_step5_no_reload[] = {
 	0xFB,
 	0x01,
 };
 
-char defect_step5_3[] = {
+static char defect_step5_3[] = {
 	0xFF,
 	0x25,
 };
 
-char defect_step5_4[] = {
+static char defect_step5_4[] = {
 	0x2F,
 	0x03,
 };
 
-char defect_step5_5[] = {
+static char defect_step5_5[] = {
 	0x30,
 	0x0F,
 };
 
-char defect_step5_6[] = {
+static char defect_step5_6[] = {
 	0xFB,
 	0x01,
 };
 
-char defect_step5_7[] = {
+static char defect_step5_7[] = {
 	0xFF,
 	0x10,
 };
 
-char defect_step5_8[] = {
+static char defect_step5_8[] = {
 	0x11,
 	0x00,
 };
 
-char defect_step5_9[] = {
+static char defect_step5_9[] = {
 	0xFF,
 	0xE0,
 };
 
-char defect_step5_10[] = {
+static char defect_step5_10[] = {
 	0xB6,
 	0x42,
 };
 
-char defect_step5_11[] = {
+static char defect_step5_11[] = {
 	0xB8,
 	0xAD,
 };
 
-char defect_step5_12[] = {
+static char defect_step5_12[] = {
 	0x2F,
 	0x00,
 };
 
-char defect_step5_13[] = {
+static char defect_step5_13[] = {
 	0x30,
 	0x00,
 };
 
-char defect_step5_14[] = {
+static char defect_step5_14[] = {
 	0x31,
 	0x10,
 };
 
-char defect_step5_15[] = {
+static char defect_step5_15[] = {
 	0x34,
 	0x70,
 };
 
-char defect_step5_16[] = {
+static char defect_step5_16[] = {
 	0xB5,
 	0xE6,
 };
@@ -341,540 +341,540 @@ static char defect_step5_OSC_adj[] = {
 	0x08,
 };
 
-char defect_step5_17[] = {
+static char defect_step5_17[] = {
 	0xFF,
 	0xF0,
 };
 
-char defect_step5_18[] = {
+static char defect_step5_18[] = {
 	0xBD,
 	0x02,
 };
 
-char defect_step5_19[] = {
+static char defect_step5_19[] = {
 	0xB3,
 	0x55,
 };
 
-char defect_step5_20[] = {
+static char defect_step5_20[] = {
 	0xB4,
 	0x55,
 };
 
-char defect_step5_21[] = {
+static char defect_step5_21[] = {
 	0xB5,
 	0x55,
 };
 
-char defect_step5_22[] = {
+static char defect_step5_22[] = {
 	0xB6,
 	0xAA,
 };
 
-char defect_step5_23[] = {
+static char defect_step5_23[] = {
 	0xB7,
 	0xAA,
 };
 
-char defect_step5_24[] = {
+static char defect_step5_24[] = {
 	0xB8,
 	0xAA,
 };
 
-char defect_step5_25[] = {
+static char defect_step5_25[] = {
 	0xB9,
 	0xA4,
 };
 
 // step 5 test2
-char defect_step5_26[] = {
+static char defect_step5_26[] = {
 	0xB9,
 	0x80,
 };
 
-char defect_step5_27[] = {
+static char defect_step5_27[] = {
 	0xB3,
 	0xAA,
 };
 
-char defect_step5_28[] = {
+static char defect_step5_28[] = {
 	0xB4,
 	0xAA,
 };
 
-char defect_step5_29[] = {
+static char defect_step5_29[] = {
 	0xB5,
 	0xAA,
 };
 
-char defect_step5_30[] = {
+static char defect_step5_30[] = {
 	0xB6,
 	0x55,
 };
 
-char defect_step5_31[] = {
+static char defect_step5_31[] = {
 	0xB7,
 	0x55,
 };
 
-char defect_step5_32[] = {
+static char defect_step5_32[] = {
 	0xB8,
 	0x55,
 };
-char defect_step5_33[] = {
+static char defect_step5_33[] = {
 	0xB9,
 	0xA4,
 };
 
 //step 6 test1
-char defect_step6_0[] = {
+static char defect_step6_0[] = {
 	0xB9,
 	0x80,
 };
-char defect_step6_1[] = {
+static char defect_step6_1[] = {
 	0xFF,
 	0x24,
 };
 
-char defect_step6_2[] = {
+static char defect_step6_2[] = {
 	0xE3,
 	0x00,
 };
 
-char defect_step6_3[] = {
+static char defect_step6_3[] = {
 	0xFB,
 	0x01,
 };
 
-char defect_step6_4[] = {
+static char defect_step6_4[] = {
 	0xFF,
 	0x25,
 };
 
-char defect_step6_5[] = {
+static char defect_step6_5[] = {
 	0x2F,
 	0x03,
 };
 
-char defect_step6_6[] = {
+static char defect_step6_6[] = {
 	0x30,
 	0x0F,
 };
 
-char defect_step6_7[] = {
+static char defect_step6_7[] = {
 	0xFB,
 	0x01,
 };
 
-char defect_step6_8[] = {
+static char defect_step6_8[] = {
 	0xFF,
 	0x10,
 };
 
-char defect_step6_9[] = {
+static char defect_step6_9[] = {
 	0x11,
 	0x00,
 };
 
-char defect_step6_10[] = {
+static char defect_step6_10[] = {
 	0xFF,
 	0xE0,
 };
 
-char defect_step6_11[] = {
+static char defect_step6_11[] = {
 	0xB8,
 	0x2D,
 };
 
-char defect_step6_12[] = {
+static char defect_step6_12[] = {
 	0x2F,
 	0xFF,
 };
 
-char defect_step6_13[] = {
+static char defect_step6_13[] = {
 	0x30,
 	0xFF,
 };
 
-char defect_step6_14[] = {
+static char defect_step6_14[] = {
 	0x31,
 	0x1F,
 };
 
-char defect_step6_15[] = {
+static char defect_step6_15[] = {
 	0x34,
 	0x10,
 };
 
-char defect_step6_16[] = {
+static char defect_step6_16[] = {
 	0xB5,
 	0xEE,
 };
 
-char defect_step6_17[] = {
+static char defect_step6_17[] = {
 	0xFF,
 	0xF0,
 };
 
-char defect_step6_18[] = {
+static char defect_step6_18[] = {
 	0xBD,
 	0x02,
 };
 
-char defect_step6_19[] = {
+static char defect_step6_19[] = {
 	0xC6,
 	0xC0,
 };
 
-char defect_step6_20[] = {
+static char defect_step6_20[] = {
 	0xB9,
 	0xA2,
 };
 
-char defect_step6_21[] = {
+static char defect_step6_21[] = {
 	0xB9,
 	0xA1,
 };
 
 //step7 test1
 
-char defect_step7_0[] = {
+static char defect_step7_0[] = {
 	0xB9,
 	0x80,
 };
 
-char defect_step7_1[] = {
+static char defect_step7_1[] = {
 	0xC6,
 	0x00,
 };
 
-char defect_step7_2[] = {
+static char defect_step7_2[] = {
 	0xFF,
 	0x24,
 };
 
-char defect_step7_3[] = {
+static char defect_step7_3[] = {
 	0xE3,
 	0x00,
 };
 
-char defect_step7_4[] = {
+static char defect_step7_4[] = {
 	0xFB,
 	0x01,
 };
 
-char defect_step7_5[] = {
+static char defect_step7_5[] = {
 	0xFF,
 	0x25,
 };
 
-char defect_step7_6[] = {
+static char defect_step7_6[] = {
 	0x2F,
 	0x03,
 };
 
-char defect_step7_7[] = {
+static char defect_step7_7[] = {
 	0x30,
 	0x0F,
 };
 
-char defect_step7_8[] = {
+static char defect_step7_8[] = {
 	0xFB,
 	0x01,
 };
 
-char defect_step7_9[] = {
+static char defect_step7_9[] = {
 	0xFF,
 	0x10,
 };
 
-char defect_step7_10[] = {
+static char defect_step7_10[] = {
 	0x11,
 	0x00,
 };
 
-char defect_step7_11[] = {
+static char defect_step7_11[] = {
 	0xFF,
 	0xE0,
 };
 
-char defect_step7_12[] = {
+static char defect_step7_12[] = {
 	0xB8,
 	0xAD,
 };
 
-char defect_step7_13[] = {
+static char defect_step7_13[] = {
 	0x2F,
 	0xFF,
 };
 
-char defect_step7_14[] = {
+static char defect_step7_14[] = {
 	0x30,
 	0xFF,
 };
 
-char defect_step7_15[] = {
+static char defect_step7_15[] = {
 	0x31,
 	0x1F,
 };
 
-char defect_step7_16[] = {
+static char defect_step7_16[] = {
 	0x34,
 	0x10,
 };
 
-char defect_step7_17[] = {
+static char defect_step7_17[] = {
 	0xB5,
 	0x7E,
 };
 
-char defect_step7_18[] = {
+static char defect_step7_18[] = {
 	0xFF,
 	0xF0,
 };
 
-char defect_step7_19[] = {
+static char defect_step7_19[] = {
 	0xBD,
 	0x30,
 };
 
-char defect_step7_20[] = {
+static char defect_step7_20[] = {
 	0xB3,
 	0xFF,
 };
 
-char defect_step7_21[] = {
+static char defect_step7_21[] = {
 	0xB4,
 	0xFF,
 };
 
-char defect_step7_22[] = {
+static char defect_step7_22[] = {
 	0xB5,
 	0xFF,
 };
 
-char defect_step7_23[] = {
+static char defect_step7_23[] = {
 	0xB6,
 	0xFF,
 };
 
-char defect_step7_24[] = {
+static char defect_step7_24[] = {
 	0xB7,
 	0xFF,
 };
 
-char defect_step7_25[] = {
+static char defect_step7_25[] = {
 	0xB8,
 	0xFF,
 };
 
-char defect_step7_26[] = {
+static char defect_step7_26[] = {
 	0xB9,
 	0xA4,
 };
 
 //step8 test1
-char defect_step8_0[] = {
+static char defect_step8_0[] = {
 	0xB9,
 	0x80,
 };
 
-char defect_step8_1[] = {
+static char defect_step8_1[] = {
 	0xFF,
 	0x10,
 };
 
-char defect_step8_2[] = {
+static char defect_step8_2[] = {
 	0x11,
 	0x00,
 };
 
-char defect_step8_3[] = {
+static char defect_step8_3[] = {
 	0xFF,
 	0xE0,
 };
 
-char defect_step8_4[] = {
+static char defect_step8_4[] = {
 	0xB8,
 	0x2D,
 };
 
-char defect_step8_5[] = {
+static char defect_step8_5[] = {
 	0x2F,
 	0x00,
 };
 
-char defect_step8_6[] = {
+static char defect_step8_6[] = {
 	0x30,
 	0x00,
 };
 
-char defect_step8_7[] = {
+static char defect_step8_7[] = {
 	0x31,
 	0x10,
 };
 
-char defect_step8_8[] = {
+static char defect_step8_8[] = {
 	0x34,
 	0x70,
 };
 
-char defect_step8_9[] = {
+static char defect_step8_9[] = {
 	0xB5,
 	0x46,
 };
 
-char defect_step8_10[] = {
+static char defect_step8_10[] = {
 	0xFF,
 	0xF0,
 };
 
-char defect_step8_11[] = {
+static char defect_step8_11[] = {
 	0xBD,
 	0x33,
 };
 
-char defect_step8_12[] = {
+static char defect_step8_12[] = {
 	0xB3,
 	0x00,
 };
 
-char defect_step8_13[] = {
+static char defect_step8_13[] = {
 	0xB4,
 	0x00,
 };
 
-char defect_step8_14[] = {
+static char defect_step8_14[] = {
 	0xB5,
 	0x00,
 };
 
-char defect_step8_15[] = {
+static char defect_step8_15[] = {
 	0xB6,
 	0x00,
 };
 
-char defect_step8_16[] = {
+static char defect_step8_16[] = {
 	0xB7,
 	0x00,
 };
 
-char defect_step8_17[] = {
+static char defect_step8_17[] = {
 	0xB8,
 	0x00,
 };
 
-char defect_step8_18[] = {
+static char defect_step8_18[] = {
 	0xB9,
 	0xA4,
 };
 
-char defect_end_0[] = {
+static char defect_end_0[] = {
 	0xB9,
 	0x80,
 };
 
-char defect_end_1[] = {
+static char defect_end_1[] = {
 	0xFF,
 	0x10,
 };
 
-char defect_end_2[] = {
+static char defect_end_2[] = {
 	0xFF,
 	0x24,
 };
 
-char defect_end_3[] = {
+static char defect_end_3[] = {
 	0xE3,
 	0x02,
 };
 
-char defect_end_4[] = {
+static char defect_end_4[] = {
 	0xFB,
 	0x01,
 };
 
-char defect_end_5[] = {
+static char defect_end_5[] = {
 	0xFF,
 	0x25,
 };
 
-char defect_end_6[] = {
+static char defect_end_6[] = {
 	0x2F,
 	0x00,
 };
 
-char defect_end_7[] = {
+static char defect_end_7[] = {
 	0x30,
 	0x00,
 };
 
-char defect_end_8[] = {
+static char defect_end_8[] = {
 	0xFB,
 	0x01,
 };
 
-char defect_end_9[] = {
+static char defect_end_9[] = {
 	0xFF,
 	0x10,
 };
 
-char defect_end_10[] = {
+static char defect_end_10[] = {
 	0x10,
 	0x00,
 };
 
-char defect_end_11[] = {
+static char defect_end_11[] = {
 	0xFF,
 	0xE0,
 };
 
-char defect_end_12[] = {
+static char defect_end_12[] = {
 	0xB8,
 	0XAD,
 };
 
-char defect_end_13[] = {
+static char defect_end_13[] = {
 	0x2F,
 	0x00,
 };
 
-char defect_end_14[] = {
+static char defect_end_14[] = {
 	0x30,
 	0x00,
 };
 
-char defect_end_15[] = {
+static char defect_end_15[] = {
 	0x31,
 	0x16,
 };
 
-char defect_end_16[] = {
+static char defect_end_16[] = {
 	0x34,
 	0x70,
 };
 
-char defect_end_17[] = {
+static char defect_end_17[] = {
 	0xB5,
 	0xE6,
 };
 
-char defect_end_18[] = {
+static char defect_end_18[] = {
 	0xFF,
 	0x10,
 };
 
-char defect_end_19[] = {
+static char defect_end_19[] = {
 	0x11,
 	0x00,
 };
 
-char defect_end_20[] = {
+static char defect_end_20[] = {
 	0x29,
 	0x00,
 };
 
-struct dsi_cmd_desc jdi_display_bist_check_cmds1[] = {
+static struct dsi_cmd_desc jdi_display_bist_check_cmds1[] = {
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(defect_check_rst0), defect_check_rst0},
 	{DTYPE_DCS_WRITE1, 0, 50, WAIT_TYPE_MS,
@@ -925,7 +925,7 @@ struct dsi_cmd_desc jdi_display_bist_check_cmds1[] = {
 		sizeof(defect_step2_2), defect_step2_2},
 };
 
-struct dsi_cmd_desc jdi_display_bist_check_cmds2[] = {
+static struct dsi_cmd_desc jdi_display_bist_check_cmds2[] = {
 	{DTYPE_DCS_WRITE1, 0, 200, WAIT_TYPE_MS,
 		sizeof(defect_step3_0), defect_step3_0},
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
@@ -946,14 +946,14 @@ struct dsi_cmd_desc jdi_display_bist_check_cmds2[] = {
 		sizeof(defect_step3_8), defect_step3_8},
 };
 
-struct dsi_cmd_desc jdi_display_bist_check_cmds3[] = {
+static struct dsi_cmd_desc jdi_display_bist_check_cmds3[] = {
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(defect_step3_9), defect_step3_9},
 	{DTYPE_DCS_WRITE1, 0, 3200, WAIT_TYPE_MS,
 		sizeof(defect_step3_10), defect_step3_10},
 };
 
-struct dsi_cmd_desc jdi_display_bist_check_cmds4_1[] = {
+static struct dsi_cmd_desc jdi_display_bist_check_cmds4_1[] = {
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(defect_step4_0), defect_step4_0},
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
@@ -972,14 +972,14 @@ struct dsi_cmd_desc jdi_display_bist_check_cmds4_1[] = {
 		sizeof(defect_step4_7), defect_step4_7},
 };
 
-struct dsi_cmd_desc jdi_display_bist_check_cmds4_2[] = {
+static struct dsi_cmd_desc jdi_display_bist_check_cmds4_2[] = {
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(defect_step4_8), defect_step4_8},
 	{DTYPE_DCS_WRITE1, 0, 3200, WAIT_TYPE_MS,
 		sizeof(defect_step4_9), defect_step4_9},
 };
 
-struct dsi_cmd_desc jdi_display_bist_check_cmds5_1[] = {
+static struct dsi_cmd_desc jdi_display_bist_check_cmds5_1[] = {
 #ifdef LAST_4_STEPS_ONLY_FOR_BIST_CHECK
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(defect_step5_0), defect_step5_0},
@@ -1046,7 +1046,7 @@ struct dsi_cmd_desc jdi_display_bist_check_cmds5_1[] = {
 		sizeof(defect_step5_25), defect_step5_25},
 };
 
-struct dsi_cmd_desc jdi_display_bist_check_cmds5_2[] = {
+static struct dsi_cmd_desc jdi_display_bist_check_cmds5_2[] = {
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(defect_step5_26), defect_step5_26},
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
@@ -1065,7 +1065,7 @@ struct dsi_cmd_desc jdi_display_bist_check_cmds5_2[] = {
 		sizeof(defect_step5_33), defect_step5_33},
 };
 
-struct dsi_cmd_desc jdi_display_bist_check_cmds6[] = {
+static struct dsi_cmd_desc jdi_display_bist_check_cmds6[] = {
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(defect_step6_0), defect_step6_0},
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
@@ -1118,7 +1118,7 @@ struct dsi_cmd_desc jdi_display_bist_check_cmds6[] = {
 		sizeof(defect_step6_21), defect_step6_21},
 };
 
-struct dsi_cmd_desc jdi_display_bist_check_cmds7[] = {
+static struct dsi_cmd_desc jdi_display_bist_check_cmds7[] = {
 	{DTYPE_DCS_WRITE1, 0, 150, WAIT_TYPE_MS,
 		sizeof(defect_step7_0), defect_step7_0},
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
@@ -1181,7 +1181,7 @@ struct dsi_cmd_desc jdi_display_bist_check_cmds7[] = {
 		sizeof(defect_step7_26), defect_step7_26},
 };
 
-struct dsi_cmd_desc jdi_display_bist_check_cmds8[] = {
+static struct dsi_cmd_desc jdi_display_bist_check_cmds8[] = {
 	{DTYPE_DCS_WRITE1, 0, 150, WAIT_TYPE_MS,
 		sizeof(defect_step8_0), defect_step8_0},
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
@@ -1228,7 +1228,7 @@ struct dsi_cmd_desc jdi_display_bist_check_cmds8[] = {
 		sizeof(defect_step8_18), defect_step8_18},
 };
 
-struct dsi_cmd_desc jdi_display_bist_check_end[] = {
+static struct dsi_cmd_desc jdi_display_bist_check_end[] = {
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(defect_end_0), defect_end_0},
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
@@ -1273,7 +1273,7 @@ struct dsi_cmd_desc jdi_display_bist_check_end[] = {
 		sizeof(defect_end_20), defect_end_20},
 };
 
-struct dsi_cmd_desc* jdi_display_bist_check_cmds[] = {  
+static struct dsi_cmd_desc* jdi_display_bist_check_cmds[] = {  
 	jdi_display_bist_check_cmds1,  
 	jdi_display_bist_check_cmds2,  
 	jdi_display_bist_check_cmds3,  
@@ -1286,7 +1286,7 @@ struct dsi_cmd_desc* jdi_display_bist_check_cmds[] = {
 	jdi_display_bist_check_cmds8,  
 };  
 
-int bist_check_cmds_size[] = {  
+static int bist_check_cmds_size[] = {  
 	ARRAY_SIZE(jdi_display_bist_check_cmds1),  
 	ARRAY_SIZE(jdi_display_bist_check_cmds2),  
 	ARRAY_SIZE(jdi_display_bist_check_cmds3),  

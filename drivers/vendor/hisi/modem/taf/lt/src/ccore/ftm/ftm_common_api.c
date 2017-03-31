@@ -123,22 +123,22 @@ VOS_VOID ftm_mntn_rttmsginfo()
             HAL_SDMLOG("消息ID : 0x%08x   请求时间: 0x%08x\n",
                 g_stFtmMntn.stFtm2RttMsg.astMsg[j].ulMsgId,
                 g_stFtmMntn.stFtm2RttMsg.astMsg[j].ulSlice);
-        }
+        }
     }
 
     ulStart = g_stFtmMntn.stRtt2FtmMsg.ulPtr;
 
-    HAL_SDMLOG("RTT发送到M核FTM模块的消息总数:%d, 最后10条消息\n", g_stFtmMntn.stRtt2FtmMsg.ulTotalCount);
+    HAL_SDMLOG("RTT发送到M核FTM模块的消息总数:%d, 最后10条消息\n", g_stFtmMntn.stRtt2FtmMsg.ulTotalCount);
 
     for(i = 0; i < FTM_MNTN_MSG_MAXNUM; i++)
     {
-        j = (ulStart + i)%FTM_MNTN_MSG_MAXNUM;
+        j = (ulStart + i)%FTM_MNTN_MSG_MAXNUM;
 
         if(0 != g_stFtmMntn.stRtt2FtmMsg.astMsg[j].ulSlice)
         {
             HAL_SDMLOG("消息ID : 0x%08x   请求时间: 0x%08x\n",
                 g_stFtmMntn.stRtt2FtmMsg.astMsg[j].ulMsgId,
-                g_stFtmMntn.stRtt2FtmMsg.astMsg[j].ulSlice);
+                g_stFtmMntn.stRtt2FtmMsg.astMsg[j].ulSlice);
         }
 
    }

@@ -43,7 +43,7 @@
 #include <huawei_platform/log/log_jank.h>
 
 #if defined (CONFIG_HUAWEI_DSM)
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #endif
 
 #define PWM_LEVEL 100
@@ -977,9 +977,17 @@ static int mipi_yassy_panel_set_backlight(struct platform_device* pdev)
         vcc_cmds_tx(NULL, yassy_lcd_bl_enable_cmds, \
                     ARRAY_SIZE(yassy_lcd_bl_enable_cmds));
     }
-    last_level = level;
+    #ifdef FINAL_RELEASE_MODE
+    if ((level == 0) || (last_level == 0 && level !=0))
+    {
+        //modified for beta test, it will be modified after beta test.
+        balongfb_loge(" set backlight succ ,balongfd->bl_level = %d, level = %d \n",balongfd->bl_level,level);
+    }
+    #else
     //modified for beta test, it will be modified after beta test.
-    balongfb_loge(" set backlight succ ,balongfd->bl_level = %d, level = %d \n", balongfd->bl_level, level);
+    balongfb_logi(" set backlight succ ,balongfd->bl_level = %d, level = %d \n",balongfd->bl_level,level);
+    #endif
+    last_level = level;
 
     if (unlikely(g_debug_enable))
     {

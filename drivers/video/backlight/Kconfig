@@ -156,7 +156,6 @@ config LCD_TUNING_DEVICE
 	help
 		This framework adds support for low-level control of the LCD
 		display effect. This includes support for gamma, color enhance, etc.
-
 #
 # Backlight
 #

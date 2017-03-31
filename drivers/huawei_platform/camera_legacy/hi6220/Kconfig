@@ -161,6 +161,25 @@ config HI6210_CAMERA_OV13850_OFILM
     default n
     ---help---
         OV13850_OFILM camera driver
+config HI6210_CAMERA_OV8856_SUNNY
+    tristate "OV8856_SUNNY camera"
+    depends on VIDEO_HI6210_CAMERA && VIDEO_HIK3_ISP_CAMERA
+    default n
+    ---help---
+        OV8856_SUNNY camera driver
 
+config HI6210_CAMERA_IMX219_LITEON
+    tristate "IMX219_LITEON camera"
+    depends on VIDEO_HI6210_CAMERA && VIDEO_HIK3_ISP_CAMERA
+    default n
+    ---help---
+        IMX219_LITEON camera driver
+
+config HI6210_CAMERA_HI843S_OFILM
+    tristate "HI843S_OFILM camera"
+    depends on VIDEO_HI6210_CAMERA && VIDEO_HIK3_ISP_CAMERA
+    default n
+    ---help---
+        HI843S_OFILM camera driver
 endif
 

@@ -152,7 +152,7 @@ struct spi_modem{
 
 extern int  modem_spi_init(struct cbp_platform_data *pdata);
 extern void  modem_spi_exit(void);
-extern int modem_err_indication_usr(int revocery);
+extern int modem_err_indication_usr(int revocery, struct cbp_reset_info_s resetinfo);
 
 struct rnic_buf_in_packet{
     struct list_head  node;

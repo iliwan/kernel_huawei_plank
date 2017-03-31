@@ -66,6 +66,9 @@
 #ifndef CONFIG_HI3635_USB
 extern struct hiusb_info *g_hiusb_info;
 #endif
+#ifdef CONFIG_HUAWEI_USB_OTGSWITCH
+extern int g_otg_enable;
+#endif
 static int dwc_otg_setup_params(dwc_otg_core_if_t * core_if);
 
 /**
@@ -1265,6 +1268,9 @@ int dwc_otg_core_init(dwc_otg_core_if_t * core_if)
 {
 	int i = 0;
 	int ret = 0;
+    #ifdef CONFIG_HUAWEI_USB_OTGSWITCH
+    int vbus_is_on = 0;
+    #endif
 	dwc_otg_core_global_regs_t *global_regs = core_if->core_global_regs;
 	dwc_otg_dev_if_t *dev_if = core_if->dev_if;
 	gahbcfg_data_t ahbcfg = {.d32 = 0 };
@@ -1273,7 +1279,13 @@ int dwc_otg_core_init(dwc_otg_core_if_t * core_if)
 
     printk(KERN_INFO "%s +\n",__func__);
 	DWC_DEBUGPL(DBG_CILV, "dwc_otg_core_init(%p)\n", core_if);
-
+#ifdef CONFIG_HUAWEI_USB_OTGSWITCH
+    if(vbus_status())
+    {
+        vbus_is_on = 1;
+    }
+    DWC_INFO("[USB_DEBUG]%s,vbus state=%d .\n",__func__,vbus_is_on);
+#endif
 	/* Common Initialization */
 	usbcfg.d32 = DWC_READ_REG32(&global_regs->gusbcfg);
 
@@ -1295,6 +1307,33 @@ int dwc_otg_core_init(dwc_otg_core_if_t * core_if)
             usbcfg.b.force_host_mode=0;
             usbcfg.b.force_dev_mode=1;
 	}*/
+    #ifdef CONFIG_HUAWEI_USB_OTGSWITCH
+    DWC_INFO("[USB_DEBUG]---op_state=%d,otg_enable=%d\n",core_if->op_state,g_otg_enable);
+    if(g_otg_enable == 0){
+        DWC_INFO("[USB_DEBUG]------devices\n");
+        usbcfg.b.force_host_mode=0;
+        usbcfg.b.force_dev_mode=1;
+    }
+    else
+    {
+        if(B_PERIPHERAL == core_if->op_state)
+        {
+            DWC_INFO("[USB_DEBUG]%s,op_state is B_PERIPHERAL\n",__func__);
+            usbcfg.b.force_host_mode=0;
+            usbcfg.b.force_dev_mode=1;
+        }
+        else if((A_HOST == core_if->op_state) && !vbus_is_on)
+        {
+            DWC_INFO("[USB_DEBUG]%s,op_state is A_HOST\n",__func__);
+        }
+        else
+        {
+            DWC_INFO("[USB_DEBUG]%s,else is op_state is B_PERIPHERAL\n",__func__);
+            usbcfg.b.force_host_mode=0;
+            usbcfg.b.force_dev_mode=1;
+        }
+    }
+    #endif
 #endif
 	DWC_WRITE_REG32(&global_regs->gusbcfg, usbcfg.d32);
 

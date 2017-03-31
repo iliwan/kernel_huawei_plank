@@ -17,32 +17,57 @@
 #include "hisi_cci.h"
 #include "../io/hisi_isp_io.h"
 
-static inline int get_i2c_bus_mutex(int bus_mutex)
+static inline int get_i2c_bus_mutex(int index, int wait)
 {
 	int count = 0;
 	int rc = 0;
 
-	while (count < ISP_I2C_POLL_MAX_COUNT) {
-		if ((GETREG8(bus_mutex) & SCCB_MASTER_LOCK) != SCCB_MASTER_LOCK) {
-			SETREG8(bus_mutex, SCCB_MASTER_LOCK);
-			break;
+	if (SCCB_BUS_MUTEX_NOWAIT == wait) {
+		if (((GETREG8(REG_SCCB_BUS_MUTEX(index)) & SCCB_MASTER_LOCK) != SCCB_MASTER_LOCK)
+			&& ((GETREG8(REG_MCU_HOLD_FLAG(index)) & SCCB_MCU_HOLD_FLAG) != SCCB_MCU_HOLD_FLAG)){
+			SETREG8(REG_SCCB_BUS_MUTEX(index), SCCB_MASTER_LOCK);
+			SETREG8(REG_HOST_HOLD_FLAG(index), SCCB_HOST_HOLD_FLAG);
+			rc = 0;
+		} else {
+			cam_warn("%s bus_mux=%d, mcu hold=%d, host hold=%d.",
+				__func__, GETREG8(REG_SCCB_BUS_MUTEX(index)), GETREG8(REG_MCU_HOLD_FLAG(index)),
+				GETREG8(REG_HOST_HOLD_FLAG(index)));
+			cam_warn("%s: bus mutex lock, wait(%d).", __func__, wait);
+			rc = -1;
 		}
-		udelay(ISP_I2C_POLL_INTERVAL);
-		//cam_err("%s: bus mutex lock and timeout, wait_flag %d, count %d", __func__, wait_flag, count);
-		count++;
-	}
+	} else if (wait == SCCB_BUS_MUTEX_WAIT) {
+		while (count < ISP_I2C_POLL_MAX_COUNT) {
+			if (((GETREG8(REG_SCCB_BUS_MUTEX(index)) & SCCB_MASTER_LOCK) != SCCB_MASTER_LOCK)
+				&& ((GETREG8(REG_MCU_HOLD_FLAG(index)) & SCCB_MCU_HOLD_FLAG) != SCCB_MCU_HOLD_FLAG)){
+				SETREG8(REG_SCCB_BUS_MUTEX(index), SCCB_MASTER_LOCK);
+				SETREG8(REG_HOST_HOLD_FLAG(index), SCCB_HOST_HOLD_FLAG);
+				rc = 0;
+				break;
+			}
+			udelay(ISP_I2C_POLL_INTERVAL);
+			//cam_err("%s: bus mutex lock and timeout, wait_flag %d, count %d", __func__, wait_flag, count);
+			count++;
+		}
 
-	if (count >= ISP_I2C_POLL_MAX_COUNT) {
-		cam_err("%s: bus mutex lock failed, count %d", __func__, count);
-		rc = -EBUSY;
+		if (count >= ISP_I2C_POLL_MAX_COUNT) {
+			cam_err("%s bus_mux=%d, mcu hold=%d, host hold=%d.",
+				__func__, GETREG8(REG_SCCB_BUS_MUTEX(index)), GETREG8(REG_MCU_HOLD_FLAG(index)),
+				GETREG8(REG_HOST_HOLD_FLAG(index)));
+			cam_err("%s: bus mutex lock failed, count %d", __func__, count);
+			rc = -EBUSY;
+		}
+	} else {
+		cam_err("%s: invalid wait(%d).", __func__, wait);
+		rc = -1;
 	}
 
 	return rc;
 }
 
-static inline void free_i2c_bus_mutex(int bus_mutex)
+static inline void free_i2c_bus_mutex(int index)
 {
-	SETREG8(bus_mutex, SCCB_MASTER_UNLOCK);
+	SETREG8(REG_HOST_HOLD_FLAG(index), SCCB_HOST_UNHOLD_FLAG);
+	SETREG8(REG_SCCB_BUS_MUTEX(index), SCCB_MASTER_UNLOCK);
 }
 
 static inline int wait_i2c_bus_idle(u32 reg_status)
@@ -82,11 +107,15 @@ int isp_read_sensor_byte(i2c_t *i2c_info, u16 reg, u16 *val)
 {
 	unsigned long flags;
 	int reg_device_id, reg_firmware_id, reg_reg_h, reg_reg_l, reg_cmd, reg_status;
-	int reg_value_l, reg_value_len, reg_bus_mutex;
+	int reg_value_l, reg_value_len;
 	volatile int val_h, val_l;
 	volatile int device_id, firmware_id;
 	u8 byte_ctrl = 0;
 
+    if  (reg > MAX_SENSOR_REG_VALUE) {
+        cam_err("%s: sensor reg value(%u) out of bounds", __func__, reg);
+        return -EINVAL;
+    }
 	if (i2c_info->index == I2C_PRIMARY) {
 		reg_device_id = REG_SCCB_MAST1_SLAVE_ID;
 		reg_firmware_id = REG_SCCB_FIRMWARE1_ID;
@@ -96,7 +125,6 @@ int isp_read_sensor_byte(i2c_t *i2c_info, u16 reg, u16 *val)
 		reg_status = REG_SCCB_MAST1_STATUS;
 		reg_value_l = REG_SCCB_MAST1_INPUT_DATA_L;
 		reg_value_len = REG_SCCB_MAST1_2BYTE_CONTROL;
-		reg_bus_mutex = REG_SCCB_MAST1_BUS_MUTEX;
 	} else {
 		reg_device_id = REG_SCCB_MAST2_SLAVE_ID;
 		reg_firmware_id = REG_SCCB_FIRMWARE2_ID;
@@ -106,10 +134,9 @@ int isp_read_sensor_byte(i2c_t *i2c_info, u16 reg, u16 *val)
 		reg_status = REG_SCCB_MAST2_STATUS;
 		reg_value_l = REG_SCCB_MAST2_INPUT_DATA_L;
 		reg_value_len = REG_SCCB_MAST2_2BYTE_CONTROL;
-		reg_bus_mutex = REG_SCCB_MAST2_BUS_MUTEX;
 	}
 
-	if (get_i2c_bus_mutex(reg_bus_mutex)) {
+	if (get_i2c_bus_mutex(i2c_info->index, SCCB_BUS_MUTEX_WAIT)) {
 		cam_err("%s, line %d: I2c get mutex timeout!", __func__, __LINE__);
 		return -EFAULT;
 	}
@@ -185,25 +212,29 @@ int isp_read_sensor_byte(i2c_t *i2c_info, u16 reg, u16 *val)
 	SETREG8(reg_device_id, device_id);
 
 	spin_unlock_irqrestore(&i2c_lock, flags);
-	free_i2c_bus_mutex(reg_bus_mutex);
+	free_i2c_bus_mutex(i2c_info->index);
 	return 0;
 
 error_out1:
 	spin_unlock_irqrestore(&i2c_lock, flags);
 error_out2:
-	free_i2c_bus_mutex(reg_bus_mutex);
+	free_i2c_bus_mutex(i2c_info->index);
 	return -EFAULT;
 }
 
-int isp_write_sensor_byte(i2c_t *i2c_info, u16 reg, u16 val, u8 mask)
+int isp_write_sensor_byte(i2c_t *i2c_info, u16 reg, u16 val, u8 mask, int wait)
 {
 
 	unsigned long flags;
 	int reg_device_id, reg_firmware_id, reg_reg_h, reg_reg_l, reg_cmd, reg_status;
-	int reg_value_h, reg_value_l, reg_value_len, reg_bus_mutex;
+	int reg_value_h, reg_value_l, reg_value_len;
 	u16 old_val = 0;
 	u8 byte_ctrl = 0;
 
+    if  (reg > MAX_SENSOR_REG_VALUE) {
+        cam_err("%s: sensor reg value(%u) out of bounds", __func__, reg);
+        return -EINVAL;
+    }
 	if (i2c_info->index == I2C_PRIMARY) {
 		reg_device_id = REG_SCCB_MAST1_SLAVE_ID;
 		reg_firmware_id = REG_SCCB_FIRMWARE1_ID;
@@ -214,7 +245,6 @@ int isp_write_sensor_byte(i2c_t *i2c_info, u16 reg, u16 val, u8 mask)
 		reg_value_h = REG_SCCB_MAST1_OUTPUT_DATA_H;
 		reg_value_l = REG_SCCB_MAST1_OUTPUT_DATA_L;
 		reg_value_len = REG_SCCB_MAST1_2BYTE_CONTROL;
-		reg_bus_mutex = REG_SCCB_MAST1_BUS_MUTEX;
 	} else {
 		reg_device_id = REG_SCCB_MAST2_SLAVE_ID;
 		reg_firmware_id = REG_SCCB_FIRMWARE2_ID;
@@ -225,7 +255,6 @@ int isp_write_sensor_byte(i2c_t *i2c_info, u16 reg, u16 val, u8 mask)
 		reg_value_h = REG_SCCB_MAST2_OUTPUT_DATA_H;
 		reg_value_l = REG_SCCB_MAST2_OUTPUT_DATA_L;
 		reg_value_len = REG_SCCB_MAST2_2BYTE_CONTROL;
-		reg_bus_mutex = REG_SCCB_MAST2_BUS_MUTEX;
 	}
 
 	if (mask != 0x00) {
@@ -234,8 +263,9 @@ int isp_write_sensor_byte(i2c_t *i2c_info, u16 reg, u16 val, u8 mask)
 		val = old_val | (val & ~mask);
 	}
 
-	if (get_i2c_bus_mutex(reg_bus_mutex)) {
-		cam_err("%s, line %d: I2c get mutex timeout!", __func__, __LINE__);
+	if (get_i2c_bus_mutex(i2c_info->index, wait)) {
+		cam_err("%s, line %d, addr 0x%x, reg 0x%x: I2c get mutex timeout!",
+			__func__, __LINE__, i2c_info->addr, reg);
 		return -EFAULT;
 	}
 
@@ -270,7 +300,7 @@ int isp_write_sensor_byte(i2c_t *i2c_info, u16 reg, u16 val, u8 mask)
 	}
 
 	spin_unlock_irqrestore(&i2c_lock, flags);
-	free_i2c_bus_mutex(reg_bus_mutex);
+	free_i2c_bus_mutex(i2c_info->index);
 
 	if (I2C_16BIT == i2c_info->val_bits)
 		udelay(50);
@@ -280,10 +310,8 @@ int isp_write_sensor_byte(i2c_t *i2c_info, u16 reg, u16 val, u8 mask)
 error_out1:
 	spin_unlock_irqrestore(&i2c_lock, flags);
 error_out2:
-	free_i2c_bus_mutex(reg_bus_mutex);
+	free_i2c_bus_mutex(i2c_info->index);
 	return -EFAULT;
-
-	return 0;
 }
 
 int isp_write_sensor_seq(i2c_t *i2c_info, const struct sensor_i2c_reg *buf, u32 size)
@@ -292,7 +320,7 @@ int isp_write_sensor_seq(i2c_t *i2c_info, const struct sensor_i2c_reg *buf, u32 
 	int rc = 0;
 	/* use AP write mode */
 	for (i = 0; i < size; i++) {
-		rc = isp_write_sensor_byte(i2c_info, buf[i].subaddr, buf[i].value, buf[i].mask);
+		rc = isp_write_sensor_byte(i2c_info, buf[i].subaddr, buf[i].value, buf[i].mask, SCCB_BUS_MUTEX_WAIT);
 		if (rc < 0) {
 			cam_err("%s  write sensor seq error, i=%d, subaddr=0x%x, value=0x%x, mask=0x%x.",
 				__func__, i, buf[i].subaddr, buf[i].value, buf[i].mask);
@@ -303,13 +331,14 @@ int isp_write_sensor_seq(i2c_t *i2c_info, const struct sensor_i2c_reg *buf, u32 
 	return 0;
 }
 
- int isp_write_vcm(u8 i2c_addr, u16 reg, u16 val, i2c_length length)
+ int isp_write_vcm(int index, u8 i2c_addr, u16 reg, u16 val, i2c_length length)
  {
 	unsigned long flags;
 	volatile u8 original_config;
-	int reg_bus_mutex = REG_SCCB_MAST1_BUS_MUTEX;
 
-	if (get_i2c_bus_mutex(reg_bus_mutex)) {
+	cam_debug("%s reg=0x%x, val=0x%x,length=0x%x.", __func__, reg, val, length);
+
+	if (get_i2c_bus_mutex(index, SCCB_BUS_MUTEX_WAIT)) {
 		cam_err("%s, line %d: I2c get mutex timeout!", __func__, __LINE__);
 		return -EFAULT;
 	}
@@ -361,12 +390,12 @@ int isp_write_sensor_seq(i2c_t *i2c_info, const struct sensor_i2c_reg *buf, u32 
 	}
 
 	spin_unlock_irqrestore(&i2c_lock, flags);
-	free_i2c_bus_mutex(reg_bus_mutex);
+	free_i2c_bus_mutex(index);
 	return 0;
 
 error_out1:
 	spin_unlock_irqrestore(&i2c_lock, flags);
 error_out2:
-	free_i2c_bus_mutex(reg_bus_mutex);
+	free_i2c_bus_mutex(index);
 	return -EFAULT;
 }

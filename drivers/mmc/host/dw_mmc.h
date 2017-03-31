@@ -212,6 +212,21 @@
 #define SD_SLOT_VOL_OPEN 1
 #define SD_SLOT_VOL_CLOSE 0
 
+#define DW_MCI_DATA_ERROR_FLAGS	(SDMMC_INT_DTO | SDMMC_INT_DCRC | \
+                                 SDMMC_INT_HTO | SDMMC_INT_SBE  | \
+				                 SDMMC_INT_EBE)
+#define DW_MCI_CMD_ERROR_FLAGS	(SDMMC_INT_RTO | SDMMC_INT_RCRC | \
+				                 SDMMC_INT_RESP_ERR)
+#define DW_MCI_ERROR_FLAGS	    (DW_MCI_DATA_ERROR_FLAGS | \
+                                 DW_MCI_CMD_ERROR_FLAGS  | SDMMC_INT_HLE)
+
+#ifdef CONFIG_MMC_DW_IDMAC
+#define IDMAC_INT_CLR           (SDMMC_IDMAC_INT_AI | SDMMC_IDMAC_INT_NI | \
+                                 SDMMC_IDMAC_INT_CES | SDMMC_IDMAC_INT_DU | \
+                                 SDMMC_IDMAC_INT_FBE | SDMMC_IDMAC_INT_RI | \
+                                 SDMMC_IDMAC_INT_TI)
+#endif
+
 struct dw_mci_hs_priv_data {
 	int				id;
 	int				old_timing;
@@ -343,5 +358,6 @@ struct dw_mci_drv_data {
 	int		(*slowdown_clk)(struct dw_mci *host, int timing);
     int     (*execute_tuning)(struct dw_mci_slot *slot,u32 opcode,struct dw_mci_tuning_data *tuning_data);
     int     (*start_signal_voltage_switch)(struct mmc_host *mmc,struct mmc_ios *ios);
+    void    (*work_fail_reset)(struct dw_mci *host);
 };
 #endif /* _DW_MMC_H_ */

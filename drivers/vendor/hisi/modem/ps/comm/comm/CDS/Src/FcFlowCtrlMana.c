@@ -506,9 +506,11 @@ unsigned int FC_LCPU_Process( unsigned int arg )
                 /* HARQ½µËÙ */
                 FC_HarqDown();
             }
+            /* modify by jiqiang 2014.03.19 pclint begin */
             else
             {
             }
+            /* modify by jiqiang 2014.03.19 pclint end */
         }
     }
     else if(arg < g_stFcLteCpuCtrl.ulUpgradeThres)
@@ -531,10 +533,12 @@ unsigned int FC_LCPU_Process( unsigned int arg )
             }
             CDS_WARNING_LOG1(UEPS_PID_CDS,"FC_LCPU_Process : Modulus: ", (VOS_UINT32)(g_dBsrCpuModu * 10000.0));
         }
+        /* modify by jiqiang 2014.03.19 pclint begin */
         else
         {
             ;
         }
+        /* modify by jiqiang 2014.03.19 pclint end */
      }
     else
     {

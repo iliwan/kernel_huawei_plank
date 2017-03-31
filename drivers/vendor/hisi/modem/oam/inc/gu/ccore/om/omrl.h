@@ -35,6 +35,7 @@
 #include "pslogadapter.h"
 #endif
 
+/* Modify by H59254 */
 #if (FEATURE_ON == FEATURE_MERGE_OM_CHAN)
 #include "SOCPInterface.h"
 #include "ombufmngr.h"
@@ -49,6 +50,7 @@ extern "C" {
 
 #pragma pack(4)
 
+/* Modify by H59254 */
 #if (FEATURE_OFF == FEATURE_MERGE_OM_CHAN)
 /*****************************************************************************
   2 ∫Í∂®“Â

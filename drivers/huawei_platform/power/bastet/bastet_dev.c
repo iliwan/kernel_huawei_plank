@@ -106,9 +106,9 @@ int post_indicate_packet(bst_ind_type type, void *info, unsigned int len)
 		memcpy(pkt->data.value, info, len);
 	}
 
-	spin_lock(&bastet_data.read_lock);
+	spin_lock_bh(&bastet_data.read_lock);
 	list_add_tail(&pkt->list, &bastet_data.read_queue);
-	spin_unlock(&bastet_data.read_lock);
+	spin_unlock_bh(&bastet_data.read_lock);
 
 	wake_up_interruptible_sync_poll(&bastet_data.read_wait,
 								POLLIN | POLLRDNORM | POLLRDBAND);
@@ -277,6 +277,15 @@ static long bastet_ioctl(struct file *flip, unsigned int cmd, unsigned long arg)
 			break;
 		}
 #endif
+		case BST_IOC_SOCK_SYNC_PREPARE: {
+			struct bst_set_sock_sync_delay sync_prop;
+
+			if (copy_from_user(&sync_prop, argp, sizeof(sync_prop)))
+				break;
+
+			rc = prepare_bastet_sock(&sync_prop);
+			break;
+		}
 		default: {
 			BASTET_LOGE("unknown ioctl: %d", cmd);
 			break;
@@ -296,17 +305,17 @@ static long compat_bastet_ioctl(struct file *flip, unsigned int cmd, unsigned lo
 
 static int bastet_open(struct inode *inode, struct file *filp)
 {
-	spin_lock(&bastet_data.read_lock);
+	spin_lock_bh(&bastet_data.read_lock);
 
 	if (bastet_dev_en) {
 		BASTET_LOGE("bastet device has been opened");
-		spin_unlock(&bastet_data.read_lock);
+		spin_unlock_bh(&bastet_data.read_lock);
 		return -EPERM;
 	}
 
 	bastet_dev_en = true;
 
-	spin_unlock(&bastet_data.read_lock);
+	spin_unlock_bh(&bastet_data.read_lock);
 	BASTET_LOGI("success");
 
 	return 0;
@@ -324,9 +333,9 @@ static int bastet_packet_read(char __user *buf, size_t count)
 		return -EINVAL;
 	}
 
-	spin_lock(&bastet_data.read_lock);
+	spin_lock_bh(&bastet_data.read_lock);
 	if (list_empty(&bastet_data.read_queue)) {
-		spin_unlock(&bastet_data.read_lock);
+		spin_unlock_bh(&bastet_data.read_lock);
 		return -EAGAIN;
 	}
 
@@ -348,7 +357,7 @@ static int bastet_packet_read(char __user *buf, size_t count)
 		isfree = true;
 	}
 
-	spin_unlock(&bastet_data.read_lock);
+	spin_unlock_bh(&bastet_data.read_lock);
 	if (copy_to_user(buf, data + pkt->data.cons, size)) {
 		pkt->data.cons = 0;
 		if (isfree) {
@@ -374,16 +383,16 @@ static int bastet_packet_read(char __user *buf, size_t count)
 static ssize_t bastet_read(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
 {
 	int ret = 0;
-	spin_lock(&bastet_data.read_lock);
+	spin_lock_bh(&bastet_data.read_lock);
 	while(list_empty(&bastet_data.read_queue)) {
-		spin_unlock(&bastet_data.read_lock);
+		spin_unlock_bh(&bastet_data.read_lock);
 		ret = wait_event_interruptible(bastet_data.read_wait, !list_empty(&bastet_data.read_queue));
 		if (ret) {
 			return ret;
 		}
-		spin_lock(&bastet_data.read_lock);
+		spin_lock_bh(&bastet_data.read_lock);
 	}
-	spin_unlock(&bastet_data.read_lock);
+	spin_unlock_bh(&bastet_data.read_lock);
 
 	return bastet_packet_read(buf, count);
 }
@@ -424,7 +433,7 @@ static int bastet_release(struct inode *inode, struct file *filp)
 	struct list_head *p, *n;
 	struct data_packet *pkt = NULL;
 	
-	spin_lock(&bastet_data.read_lock);
+	spin_lock_bh(&bastet_data.read_lock);
 
 	if (list_empty(&bastet_data.read_queue)) {
 		goto out_release;
@@ -438,7 +447,7 @@ static int bastet_release(struct inode *inode, struct file *filp)
 
 out_release:
 	bastet_dev_en = false;
-	spin_unlock(&bastet_data.read_lock);
+	spin_unlock_bh(&bastet_data.read_lock);
 	BASTET_LOGI("success");
 
 	return 0;

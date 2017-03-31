@@ -7,6 +7,7 @@
 
 obj-y				+= irqchip/
 obj-y				+= bus/
+obj-y     += hwusb/
 
 # GPIO must come after pinctrl as gpios may need to mux pins etc
 obj-y				+= pinctrl/
@@ -113,6 +114,7 @@ obj-$(CONFIG_EISA)		+= eisa/
 obj-y				+= lguest/
 obj-$(CONFIG_CPU_FREQ)		+= cpufreq/
 obj-$(CONFIG_CPU_IDLE)		+= cpuidle/
+#*just for compile*
 obj-y				+= mmc/
 obj-$(CONFIG_MEMSTICK)		+= memstick/
 obj-y				+= leds/
@@ -161,7 +163,9 @@ obj-$(CONFIG_IIO)		+= iio/
 obj-$(CONFIG_VME_BUS)		+= vme/
 obj-$(CONFIG_IPACK_BUS)		+= ipack/
 obj-$(CONFIG_NTB)		+= ntb/
-obj-$(CONFIG_HISI_CS)           += coresight/
+obj-$(CONFIG_CORESIGHT)		+= coresight/
+obj-$(CONFIG_ANDROID)		+= android/
+# obj-$(CONFIG_HISI_CS)           += coresight/
 obj-$(CONFIG_IMAGINATION_VCODEC)  += vcodec/imagination/
 obj-$(CONFIG_HIK3_VPP)          += vcodec/vpp/
 obj-$(CONFIG_CNM_JPU)      += vcodec/jpu/v8_jpu/
@@ -173,11 +177,12 @@ obj-y += hisi/
 obj-$(CONFIG_HUAWEI_HW_DEV_DCT)  += devdetect/
 
 obj-$(CONFIG_GATOR)		  += gator/
+obj-$(CONFIG_OF)		  += hsad/
 
 ifeq ($(CONFIG_UTTEST), y) 
 LINUXINCLUDE := -I$(BALONG_TOPDIR)/build/tools/ut_tool/linux_stub/arch/$(SRCARCH)/include $(LINUXINCLUDE)
 endif 
-
+obj-$(CONFIG_SENSORS_CLASS)		+= sensors/
 obj-$(CONFIG_TZDRIVER)          += tzdriver/
 obj-$(CONFIG_POWER_SUPPLY)     += power/
 obj-$(CONFIG_BT)               += bluetooth/

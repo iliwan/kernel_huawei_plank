@@ -621,9 +621,13 @@ void mali_scheduler_abort_session(struct mali_session_data *session)
 					pp_job);
 			mali_pp_job_mark_unstarted_failed(pp_job);
 
-			if (mali_pp_job_is_complete(pp_job)) {
-				mali_pp_job_list_move(pp_job,
-						      &removed_jobs_pp);
+			if (MALI_FALSE == mali_pp_job_has_unstarted_sub_jobs(pp_job)) {
+				if (mali_pp_job_is_complete(pp_job)) {
+					mali_pp_job_list_move(pp_job,
+							&removed_jobs_pp);
+				} else {
+					mali_pp_job_list_remove(pp_job);
+				}
 			}
 		}
 	}
@@ -640,9 +644,13 @@ void mali_scheduler_abort_session(struct mali_session_data *session)
 					pp_job);
 			mali_pp_job_mark_unstarted_failed(pp_job);
 
-			if (mali_pp_job_is_complete(pp_job)) {
-				mali_pp_job_list_move(pp_job,
-						      &removed_jobs_pp);
+			if (MALI_FALSE == mali_pp_job_has_unstarted_sub_jobs(pp_job)) {
+				if (mali_pp_job_is_complete(pp_job)) {
+					mali_pp_job_list_move(pp_job,
+							&removed_jobs_pp);
+				} else {
+					mali_pp_job_list_remove(pp_job);
+				}
 			}
 		}
 	}
@@ -1194,7 +1202,7 @@ static void mali_scheduler_do_pp_job_delete(void *arg)
 
 	_MALI_OSK_LIST_FOREACHENTRY(job, tmp, &list,
 				    struct mali_pp_job, list) {
-		
+
 		_mali_osk_list_delinit(&job->list);
 		mali_pp_job_delete(job); /* delete the job object itself */
 	}
@@ -1266,7 +1274,7 @@ static void mali_scheduler_do_pp_job_queue(void *arg)
 			/* unlock scheduler in this uncommon case */
 			mali_scheduler_unlock();
 
-			mali_timeline_tracker_release(
+			schedule_mask |= mali_timeline_tracker_release(
 				mali_pp_job_get_tracker(job));
 
 			/* Notify user space and close the job object */

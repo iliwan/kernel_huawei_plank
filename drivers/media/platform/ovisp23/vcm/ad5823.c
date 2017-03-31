@@ -15,7 +15,7 @@
 
 #define VCM_ID_CODE		0x5823
 
-int ad5823_ioctl(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
+static int ad5823_ioctl(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
 {
 	struct vcm_cfg_data *cdata = (struct vcm_cfg_data*)data;
 	long   rc = 0;
@@ -33,7 +33,7 @@ int ad5823_ioctl(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
 	return rc;
 }
 
-int ad5823_i2c_read(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
+static int ad5823_i2c_read(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
 {
 	struct vcm_cfg_data *cdata = (struct vcm_cfg_data *)data;
 	//struct vcm_i2c_reg reg;
@@ -45,7 +45,7 @@ int ad5823_i2c_read(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
 	return rc;
 }
 
-int ad5823_i2c_write(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
+static int ad5823_i2c_write(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
 {
 	struct vcm_cfg_data *cdata = (struct vcm_cfg_data *)data;
 	int   rc = 0;
@@ -55,7 +55,8 @@ int ad5823_i2c_write(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
 	cam_debug("%s: address=0x%x, value=0x%x\n", __func__,
 		cdata->cfg.reg.address, cdata->cfg.reg.value);
 
-	rc = isp_write_vcm(vcm_ctrl->vcm->vcm_info->slave_address,
+	rc = isp_write_vcm(vcm_ctrl->vcm->vcm_info->index,
+			vcm_ctrl->vcm->vcm_info->slave_address,
 			(u16)cdata->cfg.reg.address,
 			(u16)cdata->cfg.reg.value,
 			vcm_ctrl->vcm->vcm_info->data_type);
@@ -142,7 +143,7 @@ static int __init ad5823_module_init(void)
 	rc = platform_driver_probe(&ad5823_platform_driver,
 		ad5823_platform_probe);
 	if (rc < 0) {
-		cam_err("%s platform_driver_probe error.\n", __func__);
+		cam_notice("%s platform_driver_probe error.\n", __func__);
 	}
 	return rc;
 }

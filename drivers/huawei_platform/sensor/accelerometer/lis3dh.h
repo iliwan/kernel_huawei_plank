@@ -62,6 +62,7 @@ Problem NO.         Name        Time         Reason
 #define	LIS3DH_ACC_DEV_NAME			"lis3dh_acc"
 #define ACCL_DATA_SIZE 6
 #define	ST_ACCL_POWER_NAME			"ST_ACCELEROMETER_VDD_SENSOR"
+#define PRINT_ACCDATA_PERIOD		30
 
 /* Accelerometer Sensor Full Scale */
 #define	LIS3DH_ACC_FS_MASK			0x30

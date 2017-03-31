@@ -49,6 +49,10 @@ enum    IMSA_MTC_MSG_ID_ENUM
     /* IMSA->MTC */
     ID_IMSA_MTC_SRV_CONN_STATUS_NOTIFY    = 0x0001,             /* _H2ASN_MsgChoice IMSA_MTC_SRV_CONN_STATUS_NOTIFY_STRU */
 
+
+    /* IMSA->MTC */
+    ID_MTC_IMSA_MODEM1_INFO_IND           = 0x1001,             /* _H2ASN_MsgChoice MTC_IMSA_MODEM1_INFO_IND_STRU */
+
     ID_IMSA_MTC_MSG_ID_ENUM_BUTT
 };
 typedef VOS_UINT32 IMSA_MTC_MSG_ID_ENUM_UINT32;
@@ -64,6 +68,16 @@ enum    IMSA_SRV_CONN_STATUS_EXIST_ENUM
     IMSA_SRV_CONN_STATUS_BUTT
 };
 typedef VOS_UINT8 IMSA_SRV_CONN_STATUS_EXIST_ENUM_UINT8;
+
+
+enum MTC_IMSA_MODEM_POWER_STATE_ENUM
+{
+    MTC_IMSA_MODEM_POWER_OFF            = 0x00,
+    MTC_IMSA_MODEM_POWER_ON,
+
+    MTC_IMSA_MODEM_POWER_STATE_BUTT
+};
+typedef VOS_UINT8 MTC_IMSA_MODEM_POWER_STATE_ENUM_UINT8;
 
 /*****************************************************************************
   5 STRUCT
@@ -82,6 +96,14 @@ typedef struct
     IMSA_SRV_CONN_STATUS_EXIST_ENUM_UINT8   enIsImsSrvExist;    /* 是否存在IMS业务  0表示不存在， 1表示存在*/
     VOS_UINT8                               aucReserved[3];
 } IMSA_MTC_SRV_CONN_STATUS_NOTIFY_STRU;
+typedef struct
+{
+    VOS_MSG_HEADER                                                              /*_H2ASN_Skip*/
+    IMSA_MTC_MSG_ID_ENUM_UINT32                     ulMsgId;                    /*_H2ASN_Skip*/
+    MTC_IMSA_MODEM_POWER_STATE_ENUM_UINT8           enPowerState;               /* Modem1开关机状态 */
+    VOS_UINT8                                       aucReserved[3];
+}MTC_IMSA_MODEM1_INFO_IND_STRU;
+
 
 
 typedef struct

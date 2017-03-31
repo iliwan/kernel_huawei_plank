@@ -31,6 +31,7 @@ enum tft_cabc
 	CABC_UI = 1,
 	CABC_VID = 3,
 };
+/* END:   Added by huohua, 2012/02/14 */
 
 struct lcd_properities {
 	enum lcd_type type;
@@ -40,6 +41,7 @@ struct lcd_properities {
 struct lcd_tuning_ops {
 	int (*set_gamma)(struct lcd_tuning_dev *ltd, enum lcd_gamma gamma);
 	int (*set_cabc)(struct platform_device *dev, int cabc);
+	/* END:   Added by huohua, 2012/02/14 */
 };
 
 struct lcd_tuning_dev {

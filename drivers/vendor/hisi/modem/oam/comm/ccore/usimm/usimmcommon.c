@@ -349,7 +349,10 @@ VOS_UINT32 USIMM_STATUSProc(VOS_VOID)
     {
         USIMM_ERROR_LOG("USIMM_StatusHandle:The Status Command is not Same,The Card Should be Changed");
 
-        return USIMM_SW_OTHER_ERROR;
+        if(g_stUsimmFeatureCfg.unCfg.stFeatureCfg.ulIgnoreDFCheck == VOS_FALSE)
+        {
+            return USIMM_SW_OTHER_ERROR;
+        }
     }
 
     return VOS_OK;
@@ -750,7 +753,7 @@ VOS_UINT32 USIMM_PINVerify(USIMM_PIN_TYPE_ENUM_UINT32 enPINType,VOS_UINT8 ucPINC
 VOS_UINT32 USIMM_InitUsimFDNBDNStatus(VOS_VOID)
 {
     VOS_UINT32                  ulResult;
-    VOS_UINT8                   ucData;
+    VOS_UINT8                   ucData = 0;
 
     ulResult = USIMM_GetTFFile(USIMM_UMTS_APP, EFEST, sizeof(ucData), &ucData);
 
@@ -2822,9 +2825,9 @@ VOS_VOID  USIMM_SetAccFileAccess( VOS_VOID )
 
         ucByteOffset    = (ulRandomNum < 8)?1:0;
         ucBitOffset     = ulRandomNum % 8;
-
+        /*lint -save -e701*/
         aucData[ucByteOffset] |= (VOS_UINT8)(1<<ucBitOffset);
-
+        /*lint -restore*/
         VOS_MemCpy(pusData, aucData, sizeof(VOS_UINT16));
     }
 

@@ -88,11 +88,12 @@ static cam_dbg_info_t cam_dbg_info;
 static u32 cam_dbgfs_pwdncfg = 1;
 static cam_pwdn_status_t cam_pwdn_status = {0};
 #ifdef CONFIG_DEBUG_FS
+#ifdef CAM_DEBUG_NODE
 struct dentry *cam_dbgfs_dir = NULL;
 static u8 cam_dbgfs_flash_timeout = 2;
 static u8 cam_dbgfs_flash_timeout_valid = 0;
 #endif
-
+#endif
 #ifdef ISP_DEBUG_ZSL
 /* GLOBAL VARIABLES */
 #define ISP_CMD_REG_MAX         (1024)
@@ -1014,6 +1015,7 @@ void dump_isp_cmd_reg(void)
 	print_info("0x1c00d:0x%0x", DBG_GETREG8(0x1c00d));
 	print_info("0x1c00e:0x%0x", DBG_GETREG8(0x1c00e));
 	print_info("0x1c00f:0x%0x", DBG_GETREG8(0x1c00f));
+	print_info("EOF 0x1ca25:0x%0x", DBG_GETREG8(0x1ca25));//add for debug
 
        //SCCB Master 1
 	print_info("0x63600:0x%0x", DBG_GETREG8(0x63600));
@@ -1342,8 +1344,9 @@ u32 get_cam_dbgfs_pwdncfg(void)
 
 int check_videoharden_power(void)
 {
-	u32 reg_value = 0;
 
+#ifdef DUMP_SCCTRL_ISP_REG
+	u32 reg_value = 0;
 	reg_value = phy_reg_readl(SOC_AO_SCTRL_BASE_ADDR, SOC_AO_SCTRL_SC_PW_MTCMOS_STAT0_ADDR(0), 0, 31);
 
 	if(!(reg_value &MTCOMS_ISP)){
@@ -1397,11 +1400,12 @@ int check_videoharden_power(void)
 	    return -1;
 
 	}
-
+#endif
 	return 0;
 }
 
 #ifdef CONFIG_DEBUG_FS
+#ifdef CAM_DEBUG_NODE
 /*
  **************************************************************************
  * FunctionName: flash_test_help;
@@ -1637,6 +1641,7 @@ void __exit cam_dbgfs_exit(void)
 
 late_initcall(cam_dbgfs_init);
 module_exit(cam_dbgfs_exit);
+#endif
 #endif
 
 /************************* END ******************************/

@@ -54,18 +54,18 @@
 #define VIACBP82D_POWER_DRIVER_NAME    "huawei,viacbp82d-power"
 
 
-/* ioctl for vomodem, which must be same as viatelutils.h  */
-#define VMDM_IOCTL_RESET    _IO( 'v', 0x01)
-#define VMDM_IOCTL_POWER    _IOW('v', 0x02, int)
-#define VMDM_IOCTL_CRL    _IOW('v', 0x03, int)
-#define VMDM_IOCTL_DIE        _IO( 'v', 0x04)
-#define VMDM_IOCTL_WAKE        _IO( 'v', 0x05)
 
-
-#define POWER_SET_DEBUGOFF     0
-#define POWER_SET_DEBUGON      1
-#define POWER_SET_OFF          2
-#define POWER_SET_ON           3
+typedef enum MODEM_CONTROL {
+    POWER_SET_DEBUGOFF = 0,
+    POWER_SET_DEBUGON,
+    POWER_SET_OFF,
+    POWER_SET_ON,
+    MODEM_CTRL_RESET,
+    MODEM_CTRL_DIE,     //5
+    MODEM_CTRL_WAKE_LOCK,
+    MODEM_CTRL_WAKE_LOCK_RELEASE,    //7
+    MODEM_CONTROL_MAX,
+}MODEM_CONTROL_T;
 
 static const char* const via_state_str[] = {
     "MODEM_STATE_OFF",
@@ -88,7 +88,6 @@ int cbp_rst_ind_gpio = 0;
 unsigned int cbp_reset_ind_connect_to_codec = 0;//1: connected to;  0: not connected to
 int cbp_sim_switch_gpio = 0;
 int cbp_backup_gpio = 0;
-int agps_gpio = GPIO_OEM_UNKNOW;
 struct timer_list cbp_backup_timer;
 static atomic_t cbp_backup_timer_started = ATOMIC_INIT(0);
 
@@ -123,6 +122,10 @@ enum ASC_USERSPACE_NOTIFIER_CODE{
 #define CBP_BACKUP_GPIO_DELECT_DELAY  (150) //ms
 #define QUEUE_NUM   8
 
+#define VIA_RESETINFO_WR_APPEND  (1)
+#define VIA_RESETINFO_WR_COVER   (0)
+#define VIA_RESETINFO_WR_CLEAR   "0"
+
 struct viatel_modem_data {
     struct platform_device *via_pdev;
     struct fasync_struct *fasync;
@@ -147,12 +150,83 @@ static void cbp_backup_check_ramdump_timer(unsigned long data);
 
 static int cbp_need_apr = 0;
 static char time_buf[16] ={0};
+static char g_cbp_resetinfo[MDM_RESETINFO_SIZE] = {0};
+static struct mutex g_cbp_resetinfo_lock;
 
 static struct platform_device viacbp82d_3rd_modem_info = {
     .name = MODEM_DEVICE_BOOT(MODEM_VIACBP82D),
     .id = -1,
 };
 
+static int via_resetinfo_read(void *buf, int size)
+{
+    int real_size = -1;
+    if(!buf) {
+        hwlog_err("%s %d: the pointer of buf is null\n", __func__, __LINE__);
+        return -1;
+    }
+
+    mutex_lock(&g_cbp_resetinfo_lock);
+    real_size = snprintf(buf, size, "%s", g_cbp_resetinfo);
+    mutex_unlock(&g_cbp_resetinfo_lock);
+    return real_size;
+}
+
+/*
+if append_flag == 1, write data into g_cbp_resetinfo by append,
+else if append_flag == 0 by cover
+*/
+static int via_resetinfo_write(void *buf, int append_flag)
+{
+    int real_size = -1;
+    if(!buf) {
+        hwlog_err("%s %d: the pointer of buf is null\n", __func__, __LINE__);
+        return -1;
+    }
+
+    hwlog_info("%s %d: start write resetinfo to g_cbp_resetinfo\n",__func__, __LINE__);
+    mutex_lock(&g_cbp_resetinfo_lock);
+    if(VIA_RESETINFO_WR_COVER == append_flag) {
+        memset(g_cbp_resetinfo, 0, sizeof(g_cbp_resetinfo));
+        if(strcmp(buf, VIA_RESETINFO_WR_CLEAR)) {
+            real_size = snprintf(g_cbp_resetinfo, MDM_RESETINFO_SIZE, "%s", buf);
+        }
+    }else if(VIA_RESETINFO_WR_APPEND == append_flag) {
+        real_size = snprintf(g_cbp_resetinfo+strlen(g_cbp_resetinfo), MDM_RESETINFO_SIZE-strlen(g_cbp_resetinfo), "%s", buf);
+    }else {
+        hwlog_err("%s %d: unknow append_flag!\n", __func__, __LINE__);
+        real_size = -1;
+    }
+    mutex_unlock(&g_cbp_resetinfo_lock);
+    return real_size;
+}
+
+
+static void oem_cbp_reset_by_ap(struct cbp_reset_info_s resetinfo)
+{
+    char rst_buf[MDM_RESETINFO_SIZE] = {0};
+    if(via_modem_state != MODEM_STATE_READY) {
+        hwlog_err("%s %d: VIA is in reset!\n", __func__, __LINE__);
+        return;
+    }
+
+    snprintf(rst_buf, MDM_RESETINFO_SIZE, "system reboot reason: %s\n"
+        "reboot_task:0x0\ntask_name:%s\nreboot_int:0xffffffff\nmodid:0x%x\n"
+        "<system_error> ccore enter system error!\nstack:\n%s\nsemGive\n",
+        resetinfo.task_name, resetinfo.task_name, resetinfo.modid, resetinfo.stack);
+    hwlog_info("%s %d: resetinfo:%s", __func__, __LINE__, rst_buf);
+
+    if(via_resetinfo_write(rst_buf, VIA_RESETINFO_WR_COVER)) {
+        hwlog_err("%s %d:via_resetinfo_write write failed!\n", __func__,__LINE__);
+    }
+
+    if (0 == atomic_read(&cbp_backup_timer_started)) {
+            mod_timer(&cbp_backup_timer, jiffies + msecs_to_jiffies(WAIT_CBP_BACKUP_RAMDUMP_RST_TIME));
+            atomic_set(&cbp_backup_timer_started, 1);
+    }
+
+    oem_reset_modem_by_backup();
+}
 
 static int oem_gpio_get_cbp_rst_ind_value()
 {
@@ -167,8 +241,15 @@ static int oem_gpio_get_cbp_rst_ind_value()
 
 static void cbp_backup_check_ramdump_timer(unsigned long data)
 {
+    char rst_buf[CBP_EXCEPT_STACK_LEN]={0};
+
     atomic_set(&cbp_backup_timer_started, 0);
-    hwlog_err("%s %d: VIA CBP can not produce ramdump by AP pull backup GPIO!\n", __func__, __LINE__);
+    snprintf(rst_buf, CBP_EXCEPT_STACK_LEN, "%s %d: VIA CBP can not produce ramdump by AP pull backup GPIO!\n", __func__,__LINE__);
+    if(via_resetinfo_write(rst_buf, VIA_RESETINFO_WR_APPEND)) {
+        hwlog_err("%s %d:via_resetinfo_write write failed!\n", __func__,__LINE__);
+    }
+    hwlog_info("%s", rst_buf);
+
     oem_reset_modem();
     hwlog_err("%s %d: finish hardware reset VIA CBP.\n", __func__, __LINE__);
 }
@@ -334,7 +415,7 @@ void oem_power_off_modem(void)
 }
 EXPORT_SYMBOL(oem_power_off_modem);
 
-int modem_err_indication_usr(int revocery)
+int modem_err_indication_usr(int revocery, struct cbp_reset_info_s resetinfo)
 {
    hwlog_info("%s %d revocery=%d\n",__func__,__LINE__,revocery);
    if(revocery){
@@ -342,12 +423,7 @@ int modem_err_indication_usr(int revocery)
         /*1, check the rst_ind*/
         /*2, set GPIO_7_3 low*/
         hwlog_info("%s %d rst_ind %d\n", __func__, __LINE__, oem_gpio_get_cbp_rst_ind_value());
-
-        if (0 == atomic_read(&cbp_backup_timer_started)) {
-            mod_timer(&cbp_backup_timer, jiffies + msecs_to_jiffies(WAIT_CBP_BACKUP_RAMDUMP_RST_TIME));
-            atomic_set(&cbp_backup_timer_started, 1);
-        }
-        oem_reset_modem_by_backup();
+        oem_cbp_reset_by_ap(resetinfo);
 
         //cbp_need_apr = 1;
         set_time_stamp();
@@ -497,62 +573,6 @@ static int misc_modem_open(struct inode *inode, struct file *filp)
     return ret;
 }
 
-static long misc_modem_ioctl(struct file *file, unsigned int
-        cmd, unsigned long arg)
-{
-    void __user *argp = (void __user *) arg;
-    int flag,ret=-1;
-
-    switch (cmd) {
-        case VMDM_IOCTL_RESET:
-            oem_reset_modem();
-            break;
-        case VMDM_IOCTL_POWER:
-            if (copy_from_user(&flag, argp, sizeof(flag)))
-                return -EFAULT;
-            if (flag < 0 || flag > 1)
-                return -EINVAL;
-            if(flag){
-                oem_power_on_modem();
-            }else{
-                oem_power_off_modem();
-            }
-            break;
-    case VMDM_IOCTL_CRL:
-        if (copy_from_user(&flag, argp, sizeof(flag)))
-                return -EFAULT;
-        if (flag < 0 || flag > 1)
-            return -EINVAL;
-        if(flag){
-            ret=0;
-        }else{
-            ret=0;
-        }
-        break;
-    case VMDM_IOCTL_DIE:
-        oem_let_cbp_die();
-        break;
-    case VMDM_IOCTL_WAKE:
-        if (copy_from_user(&flag, argp, sizeof(flag)))
-            return -EFAULT;
-        if (flag < 0 || flag > 1)
-            return -EINVAL;
-        if(flag){
-            hwlog_info("hold on wakelock.\n");
-            wake_lock(&vmdata->wlock);
-        }else{
-            hwlog_info("release wakelock.\n");
-            wake_unlock(&vmdata->wlock);
-        }
-        break;
-    default:
-        break;
-
-    }
-
-    return 0;
-}
-
 static int misc_modem_release(struct inode *inode, struct file *filp)
 {
     struct viatel_modem_data *d = (struct viatel_modem_data *)(filp->private_data);
@@ -583,6 +603,7 @@ static int modem_data_init(struct viatel_modem_data *d)
     INIT_WORK(&d->via_uevent_work, via_uevent_work_func);
     d->rst_ntf.notifier_call = modem_reset_notify_misc;
     atomic_set(&d->count, 0);
+    mutex_init(&g_cbp_resetinfo_lock);
 
     return ret;
 }
@@ -614,23 +635,43 @@ static ssize_t modem_boot_set(struct device *pdev, struct device_attribute *attr
         return -EINVAL;
     }
 
-    if (state == POWER_SET_ON) {
-        modem_boot_change_state(state);
-        oem_power_on_modem();
-    } else if (state == POWER_SET_OFF) {
-        modem_boot_change_state(state);
-        via_modem_state = MODEM_STATE_OFF;
-        via_monitor_uevent_notify(MODEM_STATE_OFF);
-        oem_power_off_modem();
-    } else if (state == POWER_SET_DEBUGON) {
-        modem_boot_change_state(state);
-        oem_power_on_modem();
-    } else if (state == POWER_SET_DEBUGOFF) {
-        modem_boot_change_state(state);
-        oem_power_off_modem();
-    } else {
-        hwlog_err("Power PHY error state. %s\n", buf);
-    }
+	switch(state){
+		case POWER_SET_DEBUGOFF:
+			modem_boot_change_state(state);
+			oem_power_off_modem();
+			break;
+		case POWER_SET_DEBUGON:
+			modem_boot_change_state(state);
+			oem_power_on_modem();
+			break;
+		case POWER_SET_OFF:
+			modem_boot_change_state(state);
+			via_modem_state = MODEM_STATE_OFF;
+			via_monitor_uevent_notify(MODEM_STATE_OFF);
+			oem_power_off_modem();
+			break;
+		case POWER_SET_ON:
+			modem_boot_change_state(state);
+			oem_power_on_modem();
+			break;
+		case MODEM_CTRL_RESET:
+			oem_reset_modem();
+			break;
+		case MODEM_CTRL_DIE:
+			oem_let_cbp_die();
+			break;
+		case MODEM_CTRL_WAKE_LOCK:
+			hwlog_info("hold on wakelock.\n");
+			wake_lock(&vmdata->wlock);
+			break;
+		case MODEM_CTRL_WAKE_LOCK_RELEASE:
+			hwlog_info("release wakelock.\n");
+			wake_unlock(&vmdata->wlock);
+			break;
+		default:
+			hwlog_info("default: do nothing!\n");
+			break;
+	}
 
     return count;
 }
@@ -732,6 +773,14 @@ ssize_t modem_via_backup_store(struct device *dev, struct device_attribute *attr
         oem_reset_modem_by_backup();
     }else if( !strncmp(buf, "0", strlen("0"))){
         oem_gpio_direction_output(cbp_backup_gpio, 0);
+    }else if( !strncmp(buf, CBP_EXCEPT_RILD_AT_TIMEOUT, strlen(CBP_EXCEPT_RILD_AT_TIMEOUT))) {
+        struct cbp_reset_info_s resetinfo;
+
+        memset(&resetinfo, 0, sizeof(resetinfo));
+        memcpy(resetinfo.task_name, CBP_EXCEPT_REASON_RILD, (strlen(CBP_EXCEPT_REASON_RILD)+1));
+        resetinfo.modid = CBP_EXCE_MID_RILD_AT_TIMEOUT;
+        memcpy(resetinfo.stack, "at timeout", strlen("at timeout")+1);
+        oem_cbp_reset_by_ap(resetinfo);
     }else{
         hwlog_info("Unknow command.\n");
     }
@@ -765,30 +814,27 @@ ssize_t modem_via_rst_mdm_store(struct device *dev, struct device_attribute *att
         return count;
 }
 
-ssize_t modem_via_agps_clk_show(struct device *dev, struct device_attribute *attr, char *buf)
+ssize_t modem_via_resetinfo_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-    int val= 0;
-    if(GPIO_OEM_VALID(agps_gpio))
-    {
-        val = !!oem_gpio_get_value(agps_gpio);
-    }
-
-    return snprintf(buf,PAGE_SIZE,"%d",val);
+    int count = -1;
+    hwlog_info("%s %d: start to read resetinfo from g_cbp_resetinfo", __func__,__LINE__);
+    count = via_resetinfo_read(buf, PAGE_SIZE);
+    return count;
 }
 
-ssize_t modem_via_agps_clk_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+ssize_t modem_via_resetinfo_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-    if(GPIO_OEM_VALID(agps_gpio))
-    {
-        if( !strncmp(buf, "1", strlen("1"))){
-            oem_gpio_direction_output(agps_gpio, 1);
-        }else if( !strncmp(buf, "0", strlen("0"))){
-            oem_gpio_direction_output(agps_gpio, 0);
-        }else{
-            hwlog_info("Unknow command.\n");
-        }
-    }
+    int ret = -1;
 
+    hwlog_info("%s %d: start to call modem_via_resetinfo_store\n", __func__,__LINE__);
+    if( !strncmp(buf, VIA_RESETINFO_WR_CLEAR, strlen(VIA_RESETINFO_WR_CLEAR)) ) {
+        ret = via_resetinfo_write(VIA_RESETINFO_WR_CLEAR, VIA_RESETINFO_WR_COVER);
+        if(ret != 0) {
+            hwlog_err("%s %d: via_resetinfo_write write failed!\n", __func__,__LINE__);
+            count = -1;
+        }
+        hwlog_info("%s %d: resetinfo has been clean.\n", __func__,__LINE__);
+    }
     return count;
 }
 
@@ -798,14 +844,15 @@ static DEVICE_ATTR(modem_state, S_IRUGO | S_IWUSR, modem_state_show, modem_state
 static DEVICE_ATTR(sim_switch, S_IRUGO | S_IWUSR, modem_sim_switch_show, modem_sim_switch_store);
 static DEVICE_ATTR(via_backup, S_IRUGO | S_IWUSR, modem_via_backup_show, modem_via_backup_store);
 static DEVICE_ATTR(via_rst_mdm, S_IRUGO | S_IWUSR, modem_via_rst_mdm_show, modem_via_rst_mdm_store);
-static DEVICE_ATTR(agps_clk_switch, S_IRUGO | S_IWUSR, modem_via_agps_clk_show, modem_via_agps_clk_store);
+static DEVICE_ATTR(via_resetinfo, S_IRUGO | S_IWUGO, modem_via_resetinfo_show, modem_via_resetinfo_store);
+
 static struct attribute *viacbp82d_3rd_modem_attributes[] = {
     &dev_attr_modem_state.attr,
     &dev_attr_state.attr,
     &dev_attr_sim_switch.attr,
     &dev_attr_via_backup.attr,
     &dev_attr_via_rst_mdm.attr,
-    &dev_attr_agps_clk_switch.attr,
+    &dev_attr_via_resetinfo.attr,
     NULL,
 };
 
@@ -958,16 +1005,6 @@ static int modem_boot_probe(struct platform_device *pdev)
         goto err_get_gpio;
     }
 
-    agps_gpio = of_get_named_gpio(np, "via_agps", 0);
-    hwlog_info("%s get CBP_VIATEL_AGPS gpio %d\n", __func__, agps_gpio);
-    if(GPIO_OEM_VALID(agps_gpio)){
-        ret = oem_gpio_request(agps_gpio, "via_agps_gpio");
-        if(0 > ret){
-            hwlog_err("%s: gpio request agps_gpio failed", __FUNCTION__);
-        }
-        oem_gpio_direction_output(agps_gpio, 0);
-    }
-
     return 0;
 
 err_get_gpio:
@@ -1028,14 +1065,10 @@ static struct platform_driver modem_boot_driver = {
 
 
 static const struct file_operations misc_modem_fops = {
-    .owner = THIS_MODULE,
-    .open = misc_modem_open,
-    .unlocked_ioctl = misc_modem_ioctl,
-#ifdef CONFIG_COMPAT
-    .compat_ioctl = misc_modem_ioctl,
-#endif
-    .release = misc_modem_release,
-    .fasync    = misc_modem_fasync,
+	.owner = THIS_MODULE,
+	.open = misc_modem_open,
+	.release = misc_modem_release,
+	.fasync	= misc_modem_fasync,
 };
 
 static struct miscdevice misc_modem_device = {
@@ -1061,7 +1094,7 @@ static int __init modem_boot_init(void)
         hwlog_err("misc regiser via modem failed\n");
         goto err_misc_device_register;
     }
-
+	hwlog_info("%s %d: Exit.\n", __func__, __LINE__);
     return ret;
 
 err_misc_device_register:

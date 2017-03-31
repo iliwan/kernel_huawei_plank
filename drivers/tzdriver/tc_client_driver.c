@@ -145,6 +145,8 @@ typedef struct tag_TC_NS_Callback_List{
 } TC_NS_Callback_List;
 static TC_NS_Callback_List ta_callback_func_list;
 //static unsigned int irq;
+static struct task_struct *teecd_task = NULL;
+static atomic_t agent_count = ATOMIC_INIT(0);
 /************global reference end*************/
 #define AGENT_FS_ID 0x46536673      //FSfs
 typedef unsigned int (*rtc_timer_callback_func) (TEEC_timer_property*);
@@ -344,14 +346,18 @@ static int set_login_information(TC_NS_DEV_File* dev_file,
 	}
 	/* get package name len and package name */
 	context->params[3].memref.size_addr = &dev_file->pkg_name_len;
+	context->params[3].memref.size_h_addr = (unsigned int)((unsigned long)&dev_file->pkg_name_len >> 32);
 	/* The 3rd parameter buffer points to the pkg name buffer in the 
 	 * device file pointer */
 	context->params[3].memref.buffer = dev_file->pkg_name;
+	context->params[3].memref.buffer_h_addr  = (unsigned int )((unsigned long)dev_file->pub_key >> 32);
 
 	/* Set public key len and public key*/
 	if (dev_file->pub_key_len != 0) {
 		context->params[2].memref.size_addr = &dev_file->pub_key_len;
+		context->params[2].memref.size_h_addr = (unsigned int)((unsigned long)&dev_file->pkg_name_len >> 32);
 		context->params[2].memref.buffer = dev_file->pub_key;
+		context->params[2].memref.buffer_h_addr = (unsigned int)((unsigned long)dev_file->pub_key >>32);
 	} else {
 		uint32_t ca_uid;
 		/* If get public key failed, then get uid in kernel */
@@ -362,9 +368,11 @@ static int set_login_information(TC_NS_DEV_File* dev_file,
 		}
 		dev_file->pub_key_len = sizeof(ca_uid);
 		context->params[2].memref.size_addr  = &dev_file->pub_key_len;
+		context->params[2].memref.size_h_addr = (unsigned int)((unsigned long)&dev_file->pkg_name_len >> 32);
 
 		memcpy(dev_file->pub_key, &ca_uid, dev_file->pub_key_len);
 		context->params[2].memref.buffer = dev_file->pub_key;
+		context->params[2].memref.buffer_h_addr  = (unsigned int )((unsigned long)dev_file->pub_key >> 32);
 	}
 
 	/* Now we mark the 2 parameters as input temp buffers */
@@ -645,7 +653,7 @@ static int TC_NS_TST_CMD(TC_NS_DEV_File *dev_id, void* argp){
     }
 
     //a_addr contain the command id
-    if(copy_from_user(&cmd_id, (void *)client_context.params[0].value.a_addr, sizeof(cmd_id))){
+    if(copy_from_user(&cmd_id, (void *)(client_context.params[0].value.a_addr | (unsigned long)(client_context.params[0].value.a_h_addr) << 32), sizeof(cmd_id))){
         TCERR("copy from user failed:cmd_id\n");
         ret =  -ENOMEM;
         return ret;
@@ -657,7 +665,7 @@ static int TC_NS_TST_CMD(TC_NS_DEV_File *dev_id, void* argp){
             break;
         case TST_CMD_02:
             TST_get_timer_type(&timer_type);
-            if(copy_to_user((void *)client_context.params[1].value.a_addr, &timer_type, sizeof(timer_type))){
+            if(copy_to_user((void *)(client_context.params[1].value.a_addr | (unsigned long)(client_context.params[1].value.a_h_addr) << 32), &timer_type, sizeof(timer_type))){
                 TCERR("copy to user failed:timer_type\n");
                 ret =  -ENOMEM;
                 return ret;
@@ -827,14 +835,14 @@ static int TC_NS_load_image_operation(TC_NS_ClientContext *client_context,
         /* TCDEBUG("--->param type is %d\n", param_type); */
         if (param_type == TEEC_MEMREF_PARTIAL_INOUT) {
             if(copy_from_user(&operation->params[index].memref.size,
-                (void *)client_param->memref.size_addr, sizeof(unsigned int))) {
+                (void *)(client_param->memref.size_addr | (unsigned long)(client_param->memref.size_h_addr) << 32), sizeof(unsigned int))) {
                 TCERR("allocate buffer client_param->memref.size_addr copy from user failed\n");
                     ret = -1;
                     return ret;
             }
 
             list_for_each_entry(shared_mem, &dev_file->shared_mem_list, head) {
-                if (shared_mem->user_addr == (void *)client_param->memref.buffer) {
+                if (shared_mem->user_addr == (void *)(client_param->memref.buffer | (unsigned long)(client_param->memref.buffer_h_addr) << 32)) {
                     if(shared_mem->len >= operation->params[index].memref.size){
                         operation->params[index].memref.buffer =
                             virt_to_phys((void *)shared_mem->kernel_addr + client_param->memref.offset);
@@ -878,7 +886,7 @@ static int TC_NS_load_image_operation(TC_NS_ClientContext *client_context,
     return ret;
 }
 
-static int TC_NS_load_image(TC_NS_DEV_File *dev_file, void* argp)
+static int TC_NS_load_image(TC_NS_DEV_File *dev_file, void* argp, unsigned cmd)
 {
     int ret;
     unsigned int smc_cmd_phys;
@@ -913,7 +921,17 @@ static int TC_NS_load_image(TC_NS_DEV_File *dev_file, void* argp)
         ret = -ENOMEM;
         goto operation_erro;
     }
-
+    if (TC_NS_CLIENT_IOCTL_NEED_LOAD_APP == cmd) {
+        client_context.cmd_id = GLOBAL_CMD_ID_NEED_LOAD_APP;
+    }
+    else if (TC_NS_CLIENT_IOCTL_LOAD_APP_REQ == cmd) {
+        client_context.cmd_id = GLOBAL_CMD_ID_LOAD_SECURE_APP;
+    }
+    else {
+        TCERR("cmd is is not correct(%d)\n", client_context.cmd_id);
+        ret = -EFAULT;
+        goto buf_erro;
+    }
     ret = TC_NS_load_image_operation(&client_context, operation, dev_file);
     if (ret < 0){
         ret = IMG_LOAD_FIND_NO_SHARE_MEM;
@@ -941,7 +959,7 @@ static int TC_NS_load_image(TC_NS_DEV_File *dev_file, void* argp)
     }
 
     /* get ret flag in share memory buffer */
-    load_flag = *((int*)client_context.params[0].memref.buffer);
+    load_flag = *((int*)(client_context.params[0].memref.buffer | (unsigned long)(client_context.params[0].memref.buffer_h_addr) << 32));
     TCDEBUG("load flag is %d, buffer %p\n", load_flag, client_context.params[0].memref.buffer);
     if (load_flag != 1) {
         /* no need to continue load, need load again, load flag will be 1 */
@@ -1023,7 +1041,7 @@ int TC_NS_ClientOpen(TC_NS_DEV_File **dev_file, uint8_t kernel_api)
     return ret;
 }
 
-int TC_NS_ClientClose(TC_NS_DEV_File *dev){
+int TC_NS_ClientClose(TC_NS_DEV_File *dev, int flag){
 	int ret = TEEC_ERROR_GENERIC;
 	TC_NS_Service *service = NULL, *service_temp;
 	TC_NS_Shared_MEM *shared_mem = NULL;
@@ -1054,12 +1072,13 @@ int TC_NS_ClientClose(TC_NS_DEV_File *dev){
 	list_for_each_entry_safe(shared_mem, shared_mem_temp, &dev->shared_mem_list, head){
 		if(shared_mem){
 			list_del(&shared_mem->head);
-			tc_mem_free(shared_mem);
+			if(!flag)
+			    tc_mem_free(shared_mem);
 			dev->shared_mem_cnt--;
 		}
 	}
-
-
+	if(!flag)
+	    TC_NS_unregister_agent_client(dev);
 	if(dev->service_cnt == 0 && list_empty(&dev->services_list)){
 		ret = TEEC_SUCCESS;
 		//del dev from the list
@@ -1117,14 +1136,32 @@ static int tc_client_mmap(struct file *filp, struct vm_area_struct *vma)
 	int ret = TEEC_SUCCESS;
 	TC_NS_DEV_File *dev_file = filp->private_data;
 	unsigned long len = vma->vm_end - vma->vm_start;
-	TC_NS_Shared_MEM *shared_mem;
+	TC_NS_Shared_MEM *shared_mem =NULL;
+	struct __smc_event_data* event_control = NULL;
 
 	if(!dev_file){
 		TCERR("can not find dev in malloc shared buffer!\n");
 		return -1;
 	}
 
-	shared_mem = tc_mem_allocate(dev_file, len);
+    if((teecd_task == current->group_leader)&&(!TC_NS_get_uid())) {
+        if(vma->vm_pgoff == 1) {
+            event_control = find_event_control(AGENT_FS_ID);
+        } else if(vma->vm_pgoff == 2) {
+            event_control = find_event_control(AGENT_MISC_ID);
+        } else if(vma->vm_pgoff == 3) {
+            event_control = find_event_control(AGENT_RPMB_ID);
+        }
+        if (vma->vm_pgoff >=1 && vma->vm_pgoff <= 3) {
+            atomic_inc(&agent_count);
+            TCDEBUG("agent_count is set to %d\n", agent_count);
+        }
+        if(event_control){
+            shared_mem = event_control->buffer;
+        }
+    }
+	if(!shared_mem)
+	    shared_mem = tc_mem_allocate(dev_file, len);
 	if (IS_ERR(shared_mem)) {
 		return -1;
 	}
@@ -1133,7 +1170,12 @@ static int tc_client_mmap(struct file *filp, struct vm_area_struct *vma)
 			    virt_to_phys(shared_mem->kernel_addr) >> PAGE_SHIFT,
 			    len, vma->vm_page_prot)) {
 		TCERR("can not remap_pfn_range!\n");
-		return -1;
+		if(event_control)
+		    return -1;
+		else{
+		    tc_mem_free(shared_mem);
+		    return -1;
+		}
 	}
 	/*if CA exits while TA is processing, then the shared memory will be in the state of UAF*/
 	//vma->vm_ops = &shared_remap_vm_ops;
@@ -1237,7 +1279,7 @@ static long tc_agent_ioctl(struct file *file, unsigned cmd,
 		return ret;
 	}
 
-	TCDEBUG("TC_NS_ClientIoctl ret = 0x%x\n", ret);
+	TCDEBUG("TC_NS_ClientIoctl ret = 0x%x, cmd is 0x%x\n", ret, cmd);
 	return ret;
 }
 
@@ -1268,7 +1310,7 @@ static long tc_client_ioctl(struct file *file, unsigned cmd,
 	case TC_NS_CLIENT_IOCTL_NEED_LOAD_APP:{
 		mutex_lock(&load_app_lock);
 		load_app_lock_flag = 1;
-		ret = TC_NS_load_image(dev_file, argp);
+		ret = TC_NS_load_image(dev_file, argp, cmd);
 		if (ret != 0)
 			load_app_lock_flag = 0;
                 mutex_lock(&dev_file->service_lock);
@@ -1282,7 +1324,7 @@ static long tc_client_ioctl(struct file *file, unsigned cmd,
 		break;
 	}
 	case TC_NS_CLIENT_IOCTL_LOAD_APP_REQ:{
-		ret = TC_NS_load_image(dev_file, argp);
+		ret = TC_NS_load_image(dev_file, argp, cmd);
 		if (ret != 0)
 			load_app_lock_flag = 0;
 
@@ -1302,7 +1344,7 @@ static long tc_client_ioctl(struct file *file, unsigned cmd,
 		break;
 	}
 	case TC_NS_CLIENT_IOCTL_ALLOC_EXCEPTING_MEM:
-		ret = TC_NS_alloc_exception_mem((unsigned int)argp);
+	    //ret = TC_NS_alloc_exception_mem();
 		break;
 	case TC_NS_CLIENT_IOCTL_CANCEL_CMD_REQ:
 		TCDEBUG("come into cancel cmd\n");
@@ -1335,8 +1377,6 @@ static long tc_client_ioctl(struct file *file, unsigned cmd,
 	//ret = 0;
 
 	TCDEBUG("TC_NS_ClientIoctl ret = 0x%x\n", ret);
-	if (TEE_ERROR_TAGET_DEAD == ret || TEE_ERROR_GT_DEAD == ret)
-		(void)TC_NS_store_exception_info();
 	return ret;
 }
 
@@ -1345,6 +1385,9 @@ static int tc_client_open(struct inode *inode, struct file *file)
 	int ret = TEEC_ERROR_GENERIC;
 	TC_NS_DEV_File *dev = NULL;
 
+	if(!teecd_task){
+	    teecd_task = current->group_leader;
+	}
 	file->private_data = NULL;
 	ret = TC_NS_ClientOpen(&dev, TEE_REQ_FROM_USER_MODE);
 	if (ret == TEEC_SUCCESS)
@@ -1365,7 +1408,17 @@ static int tc_client_close(struct inode *inode, struct file *file)
 		mutex_unlock(&load_app_lock);
         }
         mutex_unlock(&dev->service_lock);
-        ret = TC_NS_ClientClose(dev);
+        if((teecd_task == current->group_leader)&&(!TC_NS_get_uid())) {
+            TCERR("teecd is killed, something bad must be happened!!!\n");
+            TC_NS_send_event_reponse_all();
+            ret = TC_NS_ClientClose(dev, 1);
+            atomic_dec(&agent_count);
+            if(atomic_read(&agent_count) == 0)
+                teecd_task = NULL;
+        } else {
+            TCDEBUG("not teecd do close dev\n");
+            ret = TC_NS_ClientClose(dev, 0);
+        }
 	file->private_data = NULL;
 	return ret;
 }
@@ -1469,11 +1522,11 @@ static __init int tc_init(void)
 		goto smc_data_free;
 
 	/* allocate memory for exception info */
-	ret = TC_NS_alloc_exception_mem(0);
+	/*ret = TC_NS_alloc_exception_mem(0);
 	if (ret) {
 		TCERR("TC_NS_alloc_exception_mem failed %x\n", ret);
 		goto free_shared_mem;
-	}
+	}*/
 
 	return 0;
 	/* if error happens */
@@ -1513,6 +1566,8 @@ MODULE_DESCRIPTION("TrustCore ns-client driver");
 MODULE_VERSION("1.10");
 #ifdef CONFIG_ARCH_HI6XXX
 arch_initcall(tc_init);
+#elif defined(CONFIG_ARCH_HI3630)
+rootfs_initcall(tc_init);
 #else
 module_init(tc_init);
 #endif

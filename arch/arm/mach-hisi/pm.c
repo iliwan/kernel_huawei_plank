@@ -22,21 +22,24 @@
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
-
 #if defined(CONFIG_HI3630_LPM3_IPC)
-#include "hisi_ipc.h"
+#include "include/mach/hisi_ipc.h"
 #endif
 
 #define PSCI_POWER_STATE_ID     (0)
-#define IPC_SR_CMD (0x00000106)
-
-/* gic reg offset */
-#define GIC_ENABLE_OFFSET	(0x100)
-#define GIC_PENDING_OFFSET	(0x200)
-
+#define GIC_ENABLE_OFFSET					(0x100)
+#define GIC_PENDING_OFFSET					(0x200)
 #define IRQ_NUM_MAX		(320)
 #define IRQ_GROUP_MAX		(10)
 #define IRQ_NUM_PER_WORD	(32)
+
+#define	AO_GPIO_GROUP		(22)
+#define	AO_GPIO_IRQ_BASE	(130)
+
+#define PERPWRACK		(0x15c)
+#define NONBOOT_CORE_MASK	(0x7f000)
+extern void pm_status_show(void);
+extern void pm_nvic_pending_dump(void);
 
 char *irq_name[IRQ_NUM_MAX] = {
 	"IPI_WAKEUP",		/* 0 */
@@ -313,37 +316,56 @@ char *irq_name[IRQ_NUM_MAX] = {
 
 static void __iomem *g_enable_base;
 static void __iomem *g_pending_base;
-
-extern void hisi_cci_enable_detect(u32 cluster);
-
 static void __iomem *sctrl_base_addr = NULL;
+static void __iomem *crgctrl_base_addr = NULL;
+static unsigned int g_enable_value[10];
+static void __iomem *ao_gpio_base[5];
+
+static int pm_ao_gpio_irq_dump(unsigned int irq_num)
+{
+	int i, group, data;
+
+	group = (int)irq_num - AO_GPIO_IRQ_BASE;
+	if (group > 4 || group < 0)
+		return -EINVAL;
+
+	data = readl(ao_gpio_base[group] + 0x410)
+			& readl(ao_gpio_base[group] + 0x418);
+
+	for (i = 0; i < 8; i++)
+		if (data & BIT(i))
+			return ((group + AO_GPIO_GROUP) * 8 + i);
+
+	return  -EINVAL;
+}
 
 void pm_gic_dump(void)
 {
 	unsigned int i;
+
+	for (i = 2; i < IRQ_GROUP_MAX; i++)
+		g_enable_value[i] = readl(g_enable_base + i * 4);
+}
+
+void pm_gic_pending_dump(void)
+{
+	unsigned int i;
 	unsigned int j;
 	unsigned int value;
+	unsigned int irq;
+	int gpio;
 
-	pr_info("============gic enable regs============\n");
-	for (i = 0; i < IRQ_GROUP_MAX; i++) {
-		value = readl(g_enable_base + i * 4);
-
-		for (j = 0; j < IRQ_NUM_PER_WORD; j++) {
-			if (((value >> j) & BIT_MASK(0)) && (irq_name[i * IRQ_NUM_PER_WORD + j] != NULL)){
-				pr_info("irq num: %d, irq name: %s\n",
-					i * IRQ_NUM_PER_WORD + j, irq_name[i * IRQ_NUM_PER_WORD + j]);
-			}
-		}
-	}
-
-	pr_info("============gic pending regs============\n");
-	for (i = 0; i < IRQ_GROUP_MAX; i++) {
+	for (i = 2; i < IRQ_GROUP_MAX; i++) {
 		value = readl(g_pending_base + i * 4);
 
 		for (j = 0; j < IRQ_NUM_PER_WORD; j++) {
-			if ((value >> j) & BIT_MASK(0)) {
-				pr_info("irq num: %d, irq name: %s\n",
-					i * IRQ_NUM_PER_WORD + j, irq_name[i * IRQ_NUM_PER_WORD + j]);
+			if ((value & BIT_MASK(j)) && ((value & BIT_MASK(j)) == (g_enable_value[i] & BIT_MASK(j)))) {
+				irq = i * IRQ_NUM_PER_WORD + j;
+				printk("wake up irq num: %d, irq name: %s", irq, irq_name[irq]);
+				gpio = pm_ao_gpio_irq_dump(irq);
+				if (gpio >= 0)
+					printk("(gpio-%d)", gpio);
+				printk("\n");
 			}
 		}
 	}
@@ -354,6 +376,8 @@ static void hisi_pm_suspend(void)
 	struct psci_power_state power_state;
 	int cluster = 0;
 	int cpu = 0;
+	int timecount = 20;
+	int pwrack;
 	int mpidr = read_cpuid_mpidr();
 
 	cpu = mpidr & 0xff;
@@ -367,6 +391,14 @@ static void hisi_pm_suspend(void)
 	gic_cpu_if_down();
 	set_cr(get_cr() & ~CR_C);
 	flush_cache_all();
+	while ((timecount--) > 0) {
+		pwrack = readl(crgctrl_base_addr + PERPWRACK) & NONBOOT_CORE_MASK;
+		if (!pwrack)
+			break;
+		udelay(100);
+	}
+	if (timecount <= 0)
+		printk("core power down anomaly! PERPWRACK[0x%x]\n", pwrack);
 
 #if defined(CONFIG_SECURE_EXTENSION)
 	psci_ops.cpu_suspend(power_state, virt_to_phys(mcpm_entry_point));
@@ -404,19 +436,17 @@ static int k3v3_pm_enter(suspend_state_t state)
 	unsigned long flag = 0;
 
 	printk("k3v3_pm_enter ++\n");
-
+	pm_gic_dump();
 	local_irq_save(flag);
-
 	cpu_suspend(0, k3v3_cpu_suspend);
 
 #ifdef CONFIG_HISI_SR_DEBUG
 	debuguart_reinit();
 #endif
-
-	pm_gic_dump();
-
+	pm_gic_pending_dump();
+	pm_nvic_pending_dump();
+	pm_status_show();
 	local_irq_restore(flag);
-
 	printk("k3v3_pm_enter --\n");
 
 	return 0;
@@ -440,15 +470,58 @@ static void hisi_get_gic_base(void)
 	g_pending_base = hisi_gic_dist_base + GIC_PENDING_OFFSET;
 }
 
+static int hisi_get_gpio_regs(void)
+{
+	int i;
+	struct device_node *np = NULL;
+	char *io_buffer;
+
+	io_buffer = (char *)kmalloc(40 * sizeof(char), GFP_KERNEL);
+
+	for (i = 0; i < 5; i++) {
+		memset(io_buffer, 0, 40);
+		sprintf(io_buffer, "arm,primecell%d", i + AO_GPIO_GROUP);
+		np = of_find_compatible_node(NULL, NULL, io_buffer);
+		ao_gpio_base[i] = of_iomap(np, 0);
+		if (!ao_gpio_base[i])
+			goto err;
+
+		of_node_put(np);
+	}
+
+	kfree(io_buffer);
+	io_buffer = NULL;
+	return 0;
+err:
+	of_node_put(np);
+	kfree(io_buffer);
+	return -ENODEV;
+}
+
 static __init int k3v3_pm_drvinit(void)
 {
 	struct device_node *np = NULL;
+
+	if (hisi_get_gpio_regs()) {
+		pr_info("%s: hisilicon,get gpio base failed!\n", __func__);
+		return -ENODEV;
+	}
+
 	np = of_find_compatible_node(NULL, NULL, "hisilicon,sysctrl");
 	if (!np) {
 		pr_info("%s: hisilicon,sysctrl No compatible node found\n", __func__);
 		return -ENODEV;
 	}
 	sctrl_base_addr = of_iomap(np, 0);
+	of_node_put(np);
+
+	np = of_find_compatible_node(NULL, NULL, "hisilicon,crgctrl");
+	if (!np) {
+		pr_info("%s: hisilicon,crgctrl No compatible node found\n", __func__);
+		return -ENODEV;
+	}
+	crgctrl_base_addr = of_iomap(np, 0);
+	of_node_put(np);
 
 	hisi_get_gic_base();
 

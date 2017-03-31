@@ -832,6 +832,28 @@ pktsetprio(void *pkt, bool update_vtag)
 	return (rc | priority);
 }
 
+#ifdef HW_TX_802_1X_PRIO
+void
+pktset1xprio(void *pkt, int prio)
+{
+	struct ether_header *eh;
+	uint8 *pktdata;
+
+	if(prio == PKTPRIO(pkt))
+		return;
+
+	pktdata = (uint8 *)PKTDATA(OSH_NULL, pkt);
+	ASSERT(ISALIGNED((uintptr)pktdata, sizeof(uint16)));
+
+	eh = (struct ether_header *) pktdata;
+
+	if (eh->ether_type == hton16(ETHER_TYPE_802_1X)) {
+		ASSERT(prio >= 0 && prio <= MAXPRIO);
+		PKTSETPRIO(pkt, prio);
+	}
+}
+#endif
+
 /* Returns TRUE and DSCP if IP header found, FALSE otherwise.
  */
 bool BCMFASTPATH
@@ -2855,6 +2877,7 @@ id16_map_audit(void * id16_map_hndl)
 
 	return (!!insane);
 }
+/* END: Simple id16 allocator */
 
 
 #endif /* BCMDRIVER */

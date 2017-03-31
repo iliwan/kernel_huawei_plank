@@ -2605,7 +2605,7 @@ VOS_UINT32  OM_GetDevVersionInfo(OM_DEVICE_VERSION_INFO_STRU *pDevVersionInfo )
         return VOS_ERR;
     }
 
-    ulRslt = (VOS_UINT32)DRV_MEM_VERCTRL((VOS_INT8*)aucBuffer,
+    ulRslt = (VOS_UINT32)DRV_MEM_VERCTRL((VOS_CHAR*)aucBuffer,
                                  OM_RF_VER_LEN, VER_HARDWARE, VERIONREADMODE);/* 获取硬件RF版本 */
     if (VOS_OK != ulRslt)
     {
@@ -2672,7 +2672,7 @@ VOS_UINT32  OM_StaVersionInfoInit()
 
     VOS_StrNCpy(acVersionBuffer, OAM_PLATFORM_VERSION, VER_MAX_LENGTH);
     /*lint -e64*/
-    ulRslt = (VOS_UINT32)DRV_MEM_VERCTRL((VOS_INT8*)acVersionBuffer,
+    ulRslt = (VOS_UINT32)DRV_MEM_VERCTRL((VOS_CHAR*)acVersionBuffer,
                     (VOS_UINT8)VER_MAX_LENGTH, (VOS_UINT8)VER_OAM, (VOS_UINT8)VERIONWRITEMODE);
     /*lint +e64*/
     if( VOS_OK != ulRslt )

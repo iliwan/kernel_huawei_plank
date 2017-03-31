@@ -109,9 +109,8 @@ static inline void flush_tlb_page(struct vm_area_struct *vma,
 	}
 }
 
-
 static inline void __flush_tlb_range(struct vm_area_struct *vma,
-					unsigned long start, unsigned long end)
+				     unsigned long start, unsigned long end)
 {
 	unsigned long asid = (unsigned long)ASID(vma->vm_mm) << 48;
 	unsigned long addr;
@@ -176,6 +175,7 @@ static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end
         else
                 flush_tlb_all();
 }
+
 
 /*
  * On AArch64, the cache coherency is handled via the set_pte_at() function.

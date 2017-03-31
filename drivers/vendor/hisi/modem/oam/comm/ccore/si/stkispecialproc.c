@@ -632,7 +632,11 @@ VOS_VOID SI_STK_NetworkRejectionEventDownload(NAS_STK_NETWORK_REJECTION_EVENT_ST
 
 VOS_VOID SI_STK_UpdateLocationInfo(NAS_STK_LOC_STATUS_EVENT_INFO_STRU   *pstLocStatusEvent)
 {
-    NAS_STK_SYS_INFO_STRU                   stSysInfo;
+    NAS_STK_SYS_INFO_STRU               stSysInfo;
+    VOS_UINT8                           ucCurRet;
+
+    /* 把当前技术技术保存下来 */
+    ucCurRet = STK_GetCurRat();
 
     STK_UpdateSvcStatus(pstLocStatusEvent->enServiceStatus);
 
@@ -640,8 +644,8 @@ VOS_VOID SI_STK_UpdateLocationInfo(NAS_STK_LOC_STATUS_EVENT_INFO_STRU   *pstLocS
     if ((NAS_STK_SERVICE_STATUS_NO_SERVICE == pstLocStatusEvent->enServiceStatus)
      || (NAS_STK_SERVICE_STATUS_DEEP_SLEEP == pstLocStatusEvent->enServiceStatus))
     {
-        /* 这里什么都不用做，上面STK_UpdateCsSvcStatus会在无服务的状态下把系统信息都清除 */
-        return;
+        /* 上面STK_UpdateCsSvcStatus会在无服务的状态下把系统信息都清除 */
+        STK_UpdateCurRat(pstLocStatusEvent->enRat);
     }
     /* 限制服务&正常服务 */
     else
@@ -654,6 +658,12 @@ VOS_VOID SI_STK_UpdateLocationInfo(NAS_STK_LOC_STATUS_EVENT_INFO_STRU   *pstLocS
         stSysInfo.enUtranMode= g_stStkSysInfo.stSysInfo.enUtranMode;
 
         STK_UpdateSysInfo(&stSysInfo);
+    }
+
+    /* 比较之前的接入技术和现在的接入技术是否相同 */
+    if (ucCurRet != STK_GetCurRat())
+    {
+        SI_STK_AccessTechChangeEventDownload();
     }
 
     return;

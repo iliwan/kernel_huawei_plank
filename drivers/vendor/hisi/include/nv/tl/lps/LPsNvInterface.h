@@ -58,7 +58,9 @@ ERR_MSP_NVIM_NOT_SUPPORT_WRITE       2007           系统模式不允许修改该项
 
 #define LPS_NV_DL_CTRL_PDU_NOTIFY_BIT          (0x00000002)
 
+/*added by lishangfeng 20130320 begin*/
 #define LPS_NV_SEARCHING_OPTIMIZE_FUN_BIT    (0x00000004)
+/*added by lishangfeng 20130320 end*/
 
 #define LPS_NV_GET_MSG4_OLDCR_BIT           ( 0x00000002 )
 
@@ -107,7 +109,9 @@ ERR_MSP_NVIM_NOT_SUPPORT_WRITE       2007           系统模式不允许修改该项
 /* 软银Bandwidth需求开关 */
 #define LPS_NV_GET_BANDWIDTH_SUPPORT_BIT         ( 0x00000400 )
 
+/* modify by lishangfeng freq all begin */
 #define LPS_NV_GET_FREQ_IN_ALL_BANDWITH_SUPPORT_BIT ( 0x00000800 )
+/* modify by lishangfeng freq all end */
 /* 重建开关 */
 #define LPS_NV_GET_REST_STUB_SUPPORT_BIT         ( 0x00001000 )
 
@@ -163,7 +167,9 @@ ERR_MSP_NVIM_NOT_SUPPORT_WRITE       2007           系统模式不允许修改该项
 /* gaojishan-fast-dorm-cfg */
 #define LPS_NV_JP_DCOM_FAST_DORM_BIT  ( 0x40000000 )
 
+/* add by lishangfeng for RRM 5.2.1 test begin */
 #define LPS_NV_RRM_LTE_521_BIT  ( 0x80000000 )
+/* add by lishangfeng for RRM 5.2.1 test end */
 
 /* gaojishan-CMAS-Begin */
 #define LPS_NV_CMAS_REPT_BEFORE_CAMP_SUCC_BIT    (0x00000008 )
@@ -175,29 +181,40 @@ ERR_MSP_NVIM_NOT_SUPPORT_WRITE       2007           系统模式不允许修改该项
 /* v7r2 ca end */
 
 
+/* add for MFBI begin */
+#define LPS_NV_LRRC_MFBI_CAMPON_WIDER_BAND_FLAG_BIT    (0x00000004)
+/* add for MFBI end */
+
 /* lwurc 频段限制指示开关 */
 #define LPS_NV_LWURC_BAND_LIMIT_FLG_BIT            (0x00000020)
 
 /* 启动背景搜，但是只搜索L单模，搜索完毕后回复LMM搜索结果，不再搜索 GU 模 */
 #define LPS_NV_GET_L_BGS_L_SUPPORT_BIT            (0x00000040)
 
+/* modify by lishangfeng 20131212 begin */
 #define LPS_NV_SND_ETWS_IMIDIEATELY_BIT           (0x00000080)                  /* 0x80表示为立即发送；0x00表示收齐后再发送 */
+/* modify by lishangfeng 20131212 end */
 
 #define LPS_NV_L2_TLEVENT_REPORT_BIT           (0x00000100)                  /* TL L2事件上报*/
 #define LPS_NV_L2_LTEPRINT_REPORT_BIT           (0x00000200)                  /* LTE L2 打印信息上报*/
 #define LPS_NV_RRC_LIST_SEARCH_TWICE_BIT           (0x00000400)                  /* LTE 控制LIST搜网先验频点搜索两次开关*/
 #define LPS_NV_RRC_BACKTOLTE_REDRECTFAIL_BIT        (0x00000800)
 #define LPS_NV_L2_CACELLINFO_REPORT_BIT          (0x00002000)                  /*CA SCELL状态信息上报*/
+#define LPS_NV_GET_INTRA_HO_IGNORE_FORBID_TA_BIT    (0x00008000)                /* 本系统切换不判断被禁TA开关 */
 
+#define LPS_NV_GET_HO_RETRAN_ESR_MSG_FLAG_BIT     (0x00010000)                  /* ESR过程中发生切换,未发起TAU流程,重发ESR消息控制开关 */
+#define LPS_NV_GET_CSFB_OPTIMIZE_FLAG_BIT           (0x00020000)                /*csfb场景收不到网侧release场景优化开关*/
 #define LPS_NV_GET_SSC_SUPPORT_BIT                (0x00000001)
 #define LPS_NV_GET_ADRX_SUPPORT_BIT               (0x00000002)
-
-#define LPS_NV_GET_DEL_MOBILE_SUPPORT_BIT         (0x00000008)
 
 /* niuxiufan rrc release modify begin */
 #define LPS_NV_GET_NOT_TRY_FAKE_CELL_FLAG_BIT     (0x00000004)
 /* niuxiufan rrc release modify end */
+
+#define LPS_NV_GET_DEL_MOBILE_SUPPORT_BIT         (0x00000008)
+
 #define LPS_NV_GET_AC_BAR_CTRL_FLAG_BIT           (0x000000010)
+#define LPS_NV_GET_PTMSI_TAU_ACTIVE_FLAG_SUPPORT_BIT (0x00000020)
 
 /*TDS DSP 自检地址*/
 #define ADDR_SELF_ADJUST_PARA       (0x1300F840)
@@ -227,9 +244,11 @@ ERR_MSP_NVIM_NOT_SUPPORT_WRITE       2007           系统模式不允许修改该项
 /* PS功能开关宏定义 */
 #define LPS_FUNC_SW_ON                       (1)
 #define LPS_FUNC_SW_OFF                      (0)
+/*add for DTS20120922*/
 
 /*打印全局变量的最大个数*/
 #define MAX_GLOBAL_PRANT_NUM   5
+/*add for DTS20120922*/
 
 /* TPS 开关组 */
 #define  TPS_NV_GET_FLAG(uVlaue, ulFlag) \
@@ -241,7 +260,7 @@ ERR_MSP_NVIM_NOT_SUPPORT_WRITE       2007           系统模式不允许修改该项
 #define TPS_NV_OP_Cellupdate_stub_BIT            ( 0x00000001 )
 /*CELLUPDATE MODEFIED END*/
 #define TPS_NV_OP_ADRX_GET_BIT            ( 0x00000100 )
-#define TPS_NV_OP_FORCE_ADRX_GET_BIT      ( 0x00000400 )
+#define TPS_NV_OP_FORCE_ADRX_GET_BIT      ( 0x00001000 )
 
 
 /*lilong00280875 DMO begin*/
@@ -376,9 +395,13 @@ enum PS_NV_INDEX_ENUM
     NV_IDX_TX_APT_PDM_MC_COMP_HIGH_TBL,
     NV_IDX_TX_APT_PDM_MC_COMP_MID_TBL,
     NV_IDX_TX_APT_PDM_MC_COMP_LOW_TBL,
+    /* add by lishangfneg mpr begin */
     NV_IDX_TX_MPR,
+    /* add by lishangfneg mpr end */
     NV_IDX_ANT_SAR,
+    /*add by chenhongqiang begin*/
     NV_IDX_LTE_TX_ATTEN,
+    /*add by chenhongqiang end*/
 
     NV_IDX_TX_AMPR,
 
@@ -423,6 +446,7 @@ enum PS_NV_INDEX_ENUM
     NV_IDX_RX_BLK_AGC_SCC_FREQ_COMP_ANT2,
     NV_IDX_DPDT_ANT_SAR,
     EN_IDX_NV_ID_FTM_CAND_CELL_LIST,
+	EN_IDX_NV_ID_LTE_PA_TEMP_DET_CH,
 
     PS_NV_IDX_BUTT
 };
@@ -518,6 +542,7 @@ typedef struct
     VOS_UINT32                          ulSduGap;
 }LPS_NV_FLOW_CONTROL;
 
+/*add for DTS20120922*/
 /*****************************************************************************
  结构名    : LPS_NV_GLOBAL_PRINT
  协议表格  :
@@ -530,6 +555,7 @@ typedef struct
     VOS_UINT32                          ulGlobalPrintFlag;
     VOS_UINT32                          aulPara[MAX_GLOBAL_PRANT_NUM];
 }LPS_NV_GLOBAL_PRINT_STRU;
+/*add for DTS20120922*/
 
 /*****************************************************************************
  结构名    : LPS_NV_MEAS_THRESHOLD_STRU
@@ -609,7 +635,7 @@ typedef struct
      bitFlag06: 设置抓取L2 MAC PDU中的参数 g_ulTcpDlFlg, 默认为关
      bitFlag07: 设置抓取L2 MAC PDU中的参数 g_g_ulTcpUlFlg, 默认为关
      bitFlag08: 设置抓取L2 MAC PDU中的参数 g_ulTcpCtrlPduFlg, 默认为关
-     bitFlag09:
+     bitFlag09: 设置RLC POLLING 参数能力的开关g_ulPollingCfgSwitch,默认为关
      bitFlag10:
      bitFlag11:
      bitFlag12:
@@ -638,6 +664,11 @@ typedef struct
     LPS_NV_LONG_BIT_STRU                stL2Flag1;
 
     /*预留*/
+    /*********************************
+
+    Rev[2]按照华为基站配置参数pollingPdu,默认32，单位个，防止参数太大状态报告不及时，上行内存不释放引起的流量问题
+    Rev[3]按照华为基站配置参数pollingByte，默认为25000，单位字节
+    **********************************/
     VOS_UINT32                          ulRev[32];
 
 }LPS_NV_TL_L2_PARA_STRU;
@@ -759,12 +790,12 @@ typedef struct
      bitFlag10: LTE L2 数传信息上报-缺省值:0;0:关;1:开
      bitFlag11: LIST搜网先验频点是否搜索2次。0:关;1:开
      bitFlag12: 网络指定模式重定向结束后是否继续发起其他模式的重定向流程; 0:发起网络指定模式的重定向之后继续发起其他模式的重定向;1:只发起网络指定模式的重定向
-     bitFlag13:
+     bitFlag13: 是否支持安全上下文激活时处理明文的NAS拒绝消息 缺省值:0 0-不支持；1-支持
      bitFlag14: LTE CA小区状态信息上报-缺省值:0;0:关;1:开
-     bitFlag15:
-     bitFlag16:
-     bitFlag17:
-     bitFlag18:
+     bitFlag15: 为解决网络BUG导致的CSFB流程FR回到L时概率收不到paging的问题,设置的接入层发起的异系统变换到L下发起TAU类型总是type2类型开关.缺省值: 0. 0-关闭 1-打开
+     bitFlag16: LTE模内切换NAS忽略被禁TA,缺省值:0; 0:关; 1:开
+     bitFlag17: ESR过程中发生切换,未发起TAU流程,重发ESR消息控制开关,缺省值:0; 0:不重传 1:重传
+     bitFlag18: csfb场景收不到网侧release场景优化开关，缺省值:0;0:关;1:开
      bitFlag19:
      bitFlag20:
      bitFlag21:
@@ -983,8 +1014,17 @@ typedef struct
                0:功能关闭 1:功能打开
 
      bitFlag10:DMO message function
-	            0:功能关闭 1:功能打开
-     bitFlag11:ADRX强制开启功能 ,强制延长的DRX唤醒周期，可以有效降低待机功耗
+               0:功能关闭 1:功能打开
+
+     bitFlag11:郑州洛阳掉网SMC验证失败优化开关，功能开启则SMC验证失败后通知GUNAS删除本地安全上下文
+               平台层缺省值为0
+               0:功能关闭 1:功能打开
+
+     bitFlag12:CS连接态下T对L测量的评估测报是否上报的优化开关
+               平台层缺省值为1
+               0:功能关闭 1:功能打开
+
+     bitFlag13:ADRX强制开启功能 ,强制延长的DRX唤醒周期，可以有效降低待机功耗
                平台层缺省值为0
                0:功能关闭 1:功能打开
      bitFlag12:
@@ -1161,6 +1201,14 @@ typedef struct
     VOS_UINT32                           ulReserved;            /* 预留1位 */
 }LRRC_NV_RRC_CTRL_STRU;
 
+enum LRRC_NV_LOCK_MODE
+{
+    LRRC_NV_LOCK_MODE_RoadTest                    = 0,/*路测锁频，该锁频模式下,对List搜有限制*/
+    LRRC_NV_LOCK_MODE_POS                         = 1,/*POS机、抄表锁频，该锁频模式下，要求对List搜无限制*/
+    LRRC_NV_LOCK_MODE_BUTT
+};
+typedef VOS_UINT8   LRRC_NV_LOCK_MODE_UINT8;
+
 /*****************************************************************************
  结构名    : LRRC_NV_LOCK_INFO_STRU
  协议表格  :
@@ -1170,14 +1218,18 @@ typedef struct
 typedef struct
 {
     RRC_NV_LOCK_INFO_ENUM_UINT32         enLockInd;
+    /*begin: add by wangmiao00272217 */
+    PS_BOOL_ENUM_UINT8                   ucActiveFlag;                   /*有效标志位，用于下电丢失,PS_TRUE下电有效，否则无效*/
+    LRRC_NV_LOCK_MODE_UINT8              ucLockMode;                     /*锁频模式,*/
+    /*end: add by wangmiao00272217 有效标志位，用于下电丢失,PS_TRUE下电有效，否则无效*/
     VOS_UINT8                            ucBandInd;                      /* 频段指示 */
     VOS_UINT8                            ucForbidReselAndHO;             /* 锁频过程中是否允许切换和重选 */
-    VOS_UINT8                            aucReserved1[2];
     VOS_UINT16                           usCellId;                       /* 小区ID */
-    VOS_UINT16                           usFreqPoint;                    /* 频点信息 */
+    VOS_UINT16                           usFreqPoint;                    /* 频率 */
     RRC_NV_CSEL_FREQ_BAND_INFO_STRU      stLockedBand;                   /* 锁定Band信息 */
 } LRRC_NV_LOCK_INFO_STRU;
 
+/* modify by lishangfeng begin */
 
 /*****************************************************************************
  结构名    : LRRC_NV_CSQ_RPT_INFO_STRU
@@ -1193,6 +1245,7 @@ typedef struct
     VOS_UINT16                       usDetaSINR;    /* 信噪比门限 (0,50)db*/
 } LRRC_NV_CSQ_RPT_INFO_STRU;
 
+/* modify by lishangfeng end */
 
 /* wangrui 20120817 begin */
 /*****************************************************************************
@@ -1792,6 +1845,7 @@ typedef struct
         ulTReselectGsm: 自定义2G重选定时器长度.单位:秒。Balong基线默认值为0，产线需要自行设置，建议值 50.
  结构说明  : LTE RRC 阈值
 *****************************************************************************/
+/* begin:Abandon Frist Itra Meas Result */
 typedef struct
 {
     VOS_UINT32          ulCdrxPeriod;
@@ -1814,6 +1868,7 @@ typedef struct
     VOS_INT32           lBgsL2GuSearchIndThresh;
     VOS_UINT32          aulRsv1;
     VOS_INT32           lDelfaultqQualMin;/*SIB1中不含qQualMin时，使用一个默认值判断是否起同频测量*/
+    VOS_INT32           lRsrqMinforResel;
     VOS_UINT32          aulRsv2;
     VOS_UINT32          aulRsv3;
     VOS_UINT32          aulRsv4;
@@ -1821,16 +1876,18 @@ typedef struct
     VOS_UINT32          aulRsv6;
     VOS_UINT32          aulRsv7;
     VOS_UINT32          aulRsv8;
-    VOS_UINT32          aulRsv9;
-    VOS_UINT32          aulRsv10;
-    VOS_UINT32          aulRsv11;
-    VOS_UINT32          aulRsv12;
-    VOS_UINT32          aulRsv13;
+    /* Begin: 20150801 */
+    VOS_UINT32          ulFrRecvSibRsrpFlag;   /* 设置GU FR 回LTE是否判断rsrp值标识 */
+    VOS_UINT32          ulFrRecvSibRsrqFlag;   /* 设置GU FR 回LTE是否判断rsrp值标识*/
+    VOS_UINT32          ulFrRecvSibRsrq;       /* 设置GU FR 回LTE是否判断rsrp值,设置范围【12 - 40】,代码自动换成负值 */
+    VOS_UINT32          ulFrRecvSibRsrp;       /* 设置GU FR 回LTE是否判断rsrp值,设置范围【100 - 140】,代码自动换成负值 */
+    VOS_UINT32          ulStopIratRedirTimerFlg;  /*自主FR停止定时器时机Flg */
     VOS_UINT32          aulRsv14;
-    VOS_UINT32          aulRsv15;
+    /* End: 20150801 */
 
 }LTE_RRC_THRESHOLD_STRU;
 extern VOS_UINT32   g_ulAbandinFristItraMeasFlg;
+/* end:Abandon Frist Itra Meas Result */
 
 extern VOS_UINT8    g_ucTReselectUtran;
 extern VOS_UINT8    g_ucTReselectGsm;
@@ -1870,7 +1927,7 @@ typedef struct
 {
     VOS_UINT16                          usBandInd;      /* 基本的BAND 号*/
     VOS_UINT16                          usScellBandInd;      /* Scell的BAND 号*/
-    
+
 	/* Band内候补带宽频段信息 */
     LRRC_NV_SUPPORT_BAND_LIST_STRU      astBandInfoWithBandWidth[6];/*RRC_BAND_WIDTH_BUTT*/
 }LRRC_NV_EXT_BAND_LIST_STRU;
@@ -1952,6 +2009,8 @@ extern VOS_UINT32  g_ulSmcControl;
 
 /* DCM定制需求，GU到L的切换不考虑被禁TA的开关 */
 extern VOS_UINT32  g_ulHoIgnoreForbidTaFlag;
+/* 定制需求，模内切换不考虑被禁TA的开关 1:打开 0:关闭 默认关闭 */
+extern VOS_UINT32    g_ulIntraHoIgnoreForbidTaFlag;
 
 /*外场测试桩代码开关 0:关闭  1:打开.默认为关闭*/
 extern VOS_UINT32 g_ulFieldTestSwitch;
@@ -2030,6 +2089,7 @@ extern VOS_UINT32  g_ulPsPagingConnRelFlg;
 extern VOS_UINT32  g_ulPsUlDrbDiscardFlag;
 extern VOS_UINT32  g_ulMbmsSupportSwitch;
 extern VOS_UINT32  g_ulPsBandwidthSupportFlg;
+/* modify by lishangfeng freq all begin */
 extern VOS_UINT32  g_ulPsFreqInAllBandWidthFlg;
 
 extern VOS_UINT32  g_ulHoFailFlag;
@@ -2037,10 +2097,12 @@ extern VOS_UINT16  g_usHoFailT304;
 /* gaojishan-SYSCFG-SAVENV-Begin */
 extern VOS_UINT32  gulJpUBand1Switch;
 
+/*Begin: for sbm delete wcdma band9  */
 extern VOS_UINT8       gucJpUband1MncCnt;
 extern VOS_UINT8       gaucJpUband1Mnc[3];
 extern VOS_UINT8       gaucJpUband1Mcc[3];
 extern VOS_UINT8       gaucJpUband2Mcc[3];
+/*End: for sbm delete wcdma band9  */
 /* gaojishan-SYSCFG-SAVENV-End */
 extern VOS_UINT32  g_ulLReestIratCellSrchFlg;
 /* gaojishan-nccpermit */
@@ -2081,6 +2143,8 @@ extern VOS_UINT32 g_ulAdrxSupportFlag;
 /* niuxiufan rrc release modify begin */
 extern VOS_UINT32 g_ulNotTryFakeCellFlg;
 /* niuxiufan rrc release modify end */
+/* ESR流程发生切换,未发起TAU,重传ESR消息控制开关:规避小区切换后网侧不下发REL问题 */
+extern VOS_UINT32  g_ulNasEmmHoRetransEsrFlag;
 
 /*****************************************************************************
   8 Fuction Extern

@@ -89,6 +89,14 @@ typedef struct _tag_hwcam_graphic_buf_info
     };
 } hwcam_graphic_buf_info_t;
 
+typedef struct _tag_hwcam_ionsize_info
+{
+    union {
+	    size_t										 ionsize;
+	    int64_t										 reserve;
+    };
+} hwcam_ionsize_info_t;
+
 typedef struct _tag_hwcam_buf_status
 {
     int id;
@@ -424,6 +432,10 @@ hwcam_data_table_set_as_used(hwcam_data_table_t* tbl,
 #define HWCAM_V4L2_IOCTL_THERMAL_GUARD \
     _IOWR('A', BASE_VIDIOC_PRIVATE + 0x22, struct v4l2_event)
 
+#define HWCAM_V4L2_IOCTL_GET_ION_AVAILABLE \
+    _IOR('A', BASE_VIDIOC_PRIVATE + 0x23, hwcam_ionsize_info_t)
+
+
 typedef enum _tag_hwcam_v4l2_cid_kind
 {
     HWCAM_V4L2_CID_PIPELINE_MIN                         =   V4L2_CID_PRIVATE_BASE,
@@ -442,8 +454,9 @@ typedef enum _tag_hwcam_cfgreq_constants
     HWCAM_CFGPIPELINE_REQUEST                           =   0x2000,
     HWCAM_CFGSTREAM_REQUEST                             =   0x3000,
     HWCAM_SERVER_CRASH                                  =   0x4000,
-    HWCAM_HARDWARE_SUSPEND                        = 0x5001,
-    HWCAM_HARDWARE_RESUME                        = 0x5002,
+    HWCAM_HARDWARE_SUSPEND                              =   0x5001,
+    HWCAM_HARDWARE_RESUME                               =   0x5002,
+    HWCAM_NOTIFY_USER                                   =   0x6000,
 } hwcam_cfgreq_constants_t;
 
 typedef enum _tag_hwcam_cfgreq2dev_kind

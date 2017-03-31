@@ -82,7 +82,7 @@ static ssize_t show_sim1_absent_stat(struct device *dev, struct device_attribute
 {
     ssize_t len;
 
-    len = sprintf(buf, "%s %d\n", sim1_plat_data->name, sim1_plat_data->sim_status);
+    len = snprintf(buf, PAGE_SIZE, "%s %d\n", sim1_plat_data->name, sim1_plat_data->sim_status);
     return len;
 }
 
@@ -90,7 +90,7 @@ static ssize_t show_sim2_absent_stat(struct device *dev, struct device_attribute
 {
     ssize_t len;
 
-    len = sprintf(buf, "%s %d\n", sim2_plat_data->name, sim2_plat_data->sim_status);
+    len = snprintf(buf, PAGE_SIZE, "%s %d\n", sim2_plat_data->name, sim2_plat_data->sim_status);
     return len;
 }
 /*SIM1: ""*/

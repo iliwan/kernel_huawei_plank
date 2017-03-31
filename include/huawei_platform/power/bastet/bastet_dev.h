@@ -23,6 +23,7 @@
 #ifdef CONFIG_HUAWEI_BASTET_COMM
 #define BST_IOC_GET_MODEM_RAB_ID		_IOR(BST_IOC_MAGIC, 12, struct bst_modem_rab_id)
 #endif
+#define BST_IOC_SOCK_SYNC_PREPARE		_IOW(BST_IOC_MAGIC, 21, struct bst_set_sock_sync_delay)
 
 typedef enum {
 	BST_SOCK_NOT_USED = 0,

@@ -79,6 +79,7 @@ struct sensor_cfg_data;
 #define LDO_VOLTAGE_1P2V		1200000
 #define LDO_VOLTAGE_1P5V		1500000
 #define LDO_VOLTAGE_1P8V		1800000
+#define LDO_VOLTAGE_2P7V		2700000
 #define LDO_VOLTAGE_2P8V		2850000
 //add by hefei
 #define LDO_VOLTAGE_V2P8V		2800000
@@ -337,6 +338,7 @@ int hw_sensor_i2c_read(sensor_t *s_ctrl, void *data);
 int hw_sensor_i2c_write(sensor_t *s_ctrl, void *data);
 int hw_sensor_i2c_read_seq(sensor_t *s_ctrl, void *data);
 int hw_sensor_i2c_write_seq(sensor_t *s_ctrl, void *data);
+int hw_sensor_i2c_read_otp(sensor_t *s_ctrl, void *data);
 int hisi_sensor_apply_expo_gain(sensor_t *s_ctrl, void *data);
 int hisi_sensor_suspend_eg_task(sensor_t *s_ctrl);
 int hw_sensor_get_dt_data(struct platform_device *pdev, sensor_t *sensor);

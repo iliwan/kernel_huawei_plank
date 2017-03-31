@@ -20,3 +20,7 @@ obj-y   += power/
 obj-y	+= storage/
 obj-y   += chipverification/
 obj-$(CONFIG_HUAWEI_DSM) += recovery/
+obj-$(CONFIG_IMMERSION)  += immersion/
+obj-y   += tuners/
+obj-$(CONFIG_HUAWEI_TSIF) += tsif/
+obj-y   += antenna_board_match/

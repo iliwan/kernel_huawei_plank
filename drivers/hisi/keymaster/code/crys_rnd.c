@@ -765,7 +765,7 @@ CEXPORT_C CRYSError_t CRYS_RND_GenerateVector(
 		if(  error != CRYS_OK )
 			goto End;
 	}
-	else   /* 2.3. Set AdditionalInput = 000000...0  */
+	else
 		DX_PAL_MemSetZero(rndState_ptr->AdditionalInput, sizeof(rndState_ptr->AdditionalInput));
 	
 		

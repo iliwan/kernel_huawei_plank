@@ -20,23 +20,25 @@ extern "C" {
 #ifdef PLATFORM_HI3XXX
 #define HIFI_LOG_PATH_PARENT "/data/hisi_logs/"
 #define HIFI_LOG_PATH "/data/hisi_logs/hifi_log/"
-#define FILE_NAME_DUMP_DSP_LOG		 HIFI_LOG_PATH"hifi.log"
-#define FILE_NAME_DUMP_DSP_BIN		 HIFI_LOG_PATH"hifi.bin"
-#define FILE_NAME_DUMP_DSP_PANIC_LOG HIFI_LOG_PATH"hifi_panic.log"
-#define FILE_NAME_DUMP_DSP_PANIC_BIN HIFI_LOG_PATH"hifi_panic.bin"
-#define FILE_NAME_DUMP_DSP_OCRAM_BIN HIFI_LOG_PATH"hifi_ocram.bin"
-#define FILE_NAME_DUMP_DSP_TCM_BIN   HIFI_LOG_PATH"hifi_tcm.bin"
+#define FILE_NAME_DUMP_DSP_LOG		 "hifi.log"
+#define FILE_NAME_DUMP_DSP_BIN		 "hifi.bin"
+#define FILE_NAME_DUMP_DSP_PANIC_LOG "hifi_panic.log"
+#define FILE_NAME_DUMP_DSP_PANIC_BIN "hifi_panic.bin"
+#define FILE_NAME_DUMP_DSP_OCRAM_BIN "hifi_ocram.bin"
+#define FILE_NAME_DUMP_DSP_TCM_BIN	 "hifi_tcm.bin"
 #endif
-#define HIFIDEBUG_PATH                                "hifidebug"
-#define HIFIDEBUG_LEVEL_PROC_FILE                     "debuglevel"
-#define HIFIDEBUG_DSPDUMPLOG_PROC_FILE                "dspdumplog"
+#define HIFIDEBUG_PATH								  "hifidebug"
+#define HIFIDEBUG_LEVEL_PROC_FILE					  "debuglevel"
+#define HIFIDEBUG_DSPDUMPLOG_PROC_FILE				  "dspdumplog"
 #ifdef PLATFORM_HI3XXX
-#define HIFIDEGUB_DSPDEBUGLEVEL_PROC_FILE             "dspdebuglevel"
+#define HIFIDEGUB_DSPDEBUGLEVEL_PROC_FILE			  "dspdebuglevel"
 #endif
 
 #ifndef LOG_TAG
 #define LOG_TAG "hifi_misc "
 #endif
+
+#define HIFI_DUMP_FILE_NAME_MAX_LEN 256
 
 typedef enum {
 	DUMP_DSP_LOG,
@@ -45,7 +47,8 @@ typedef enum {
 
 typedef enum {
 	DSP_NORMAL,
-	DSP_PANIC
+	DSP_PANIC,
+	DSP_LOG_BUF_FULL
 }DSP_ERROR_TYPE;
 
 typedef enum {
@@ -73,7 +76,7 @@ struct hifi_om_s {
 	unsigned int	dsp_debug_level;
 	unsigned int*	dsp_debug_level_addr;
 
-	unsigned int	pre_dump_timestamp;
+	unsigned int	pre_dsp_dump_timestamp;
 	unsigned int*	dsp_time_stamp;
 	unsigned int	pre_exception_no;
 	unsigned int*	dsp_exception_no;
@@ -83,10 +86,15 @@ struct hifi_om_s {
 	unsigned int*	dsp_log_cur_addr;
 	char*			dsp_log_addr;
 	char*			dsp_bin_addr;
+	char*			dsp_ocram_bin_addr;
+	char*			dsp_tcm_bin_addr;
+	char			cur_dump_time[HIFI_DUMP_FILE_NAME_MAX_LEN];
 	bool			first_dump_log;
 	bool			force_dump_log;
 	bool			dsp_hifidebug_show_tag;
 	bool			is_watchdog_coming;
+	DSP_ERROR_TYPE  dsp_error_type;
+
 	bool			dsp_loaded;
 	unsigned int	dsp_loaded_sign;
 

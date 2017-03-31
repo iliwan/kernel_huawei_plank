@@ -1,3 +1,27 @@
+/*****************************************************************************/
+/*                                                                           */
+/*                Copyright 1999 - 2003, Huawei Tech. Co., Ltd.              */
+/*                           ALL RIGHTS RESERVED                             */
+/*                                                                           */
+/* FileName: NVIM_ResumeId.h                                                 */
+/*                                                                           */
+/* Author: Jiang kaibo                                                       */
+/*                                                                           */
+/* Version: 1.0                                                              */
+/*                                                                           */
+/* Date: 2008-06                                                             */
+/*                                                                           */
+/* Description: Def NV Resume ID num.                                        */
+/*                                                                           */
+/* Others:                                                                   */
+/*                                                                           */
+/* History:                                                                  */
+/* 1. Date: 2008-06                                                          */
+/*    Author: Jiang kaibo                                                    */
+/*    Modification: Create this file                                         */
+/*                                                                           */
+/*****************************************************************************/
+
 #ifndef _NVIM_RESUMEID_H
 #define _NVIM_RESUMEID_H
 

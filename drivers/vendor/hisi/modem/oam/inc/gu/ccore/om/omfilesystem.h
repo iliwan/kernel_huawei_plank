@@ -69,6 +69,7 @@
 #define OM_ZSP_FILE_PATH                ("/yaffs0/ZSP.bin")
 #endif
 
+/* Modify by H59254 */
 #if (FEATURE_OFF == FEATURE_MERGE_OM_CHAN)
 
 #define OM_FILE_SEND_RESULT(msg_fun_type, error_no, ReturnPrimId)\
@@ -165,14 +166,14 @@ typedef struct
 {
     VOS_UINT32  ulResult;
     VOS_UINT32  ulLength;
-    VOS_UINT8   aucDirPath[DRV_NAME_MAX + 1];
+    VOS_UINT8   aucDirPath[DRV_NAME_MAX + 1];
 }OM_APP_QUERY_DIR_STRU;
 /*工具侧与OM交互使用的读取文件内容结构*/
 typedef struct
 {
     VOS_UINT32  ulResult;
     VOS_UINT32  ulLength;
-    VOS_CHAR    acFileContent[OM_READ_MAX_LEN];
+    VOS_CHAR    acFileContent[OM_READ_MAX_LEN];
 }OM_APP_READ_FILE_STRU;
 /*文件或文件夹每一项的结构*/
 typedef struct

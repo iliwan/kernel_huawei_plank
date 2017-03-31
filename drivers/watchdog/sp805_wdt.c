@@ -263,21 +263,25 @@ void set_wdt_disable_flag(int iflag)
 
 static void hisi_wdt_mond(struct work_struct *work)
 {
-	struct sp805_wdt *wdt = container_of(work, struct sp805_wdt,
-			hisi_wdt_delayed_work.work);
+    struct sp805_wdt *wdt = container_of(work, struct sp805_wdt,
+        hisi_wdt_delayed_work.work);
 
-	if (1 == disable_wdt_flag) {
-		dev_err(wdt->wdd.dev,"disable wdt ok!!!!!\n");
-		return;
-	}
-       dev_err(wdt->wdd.dev, "****watchdog kick now****\n");
-	wdt_ping(&wdt->wdd);
+    if (1 == disable_wdt_flag) {
+        dev_err(wdt->wdd.dev,"disable wdt ok!!!!!\n");
+        return;
+    }
+    wdt_ping(&wdt->wdd);
+    dev_info(wdt->wdd.dev, "watchdog kick now\n");
 
-	/*schedule_delayed_work(&wdt->hisi_wdt_delayed_work,
-			msecs_to_jiffies(wdt->kick_time * 1000));*/
-	queue_delayed_work_on(0, wdt->hisi_wdt_wq, &wdt->hisi_wdt_delayed_work,
-			msecs_to_jiffies(wdt->kick_time * 1000));
-	return;
+    if (cpu_online(0)) {
+        queue_delayed_work_on(0, wdt->hisi_wdt_wq, &wdt->hisi_wdt_delayed_work,
+            msecs_to_jiffies(wdt->kick_time * 1000));
+    } else {
+        queue_delayed_work(wdt->hisi_wdt_wq, &wdt->hisi_wdt_delayed_work,
+            msecs_to_jiffies(wdt->kick_time * 1000));
+    }
+
+    return;
 }
 #endif
 
@@ -384,7 +388,11 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 
 #ifdef CONFIG_HISILICON_PLATFORM
 /*    schedule_delayed_work(&wdt->hisi_wdt_delayed_work, 0);*/
-    queue_delayed_work_on(0, wdt->hisi_wdt_wq, &wdt->hisi_wdt_delayed_work, 0);
+    if (cpu_online(0)) {
+        queue_delayed_work_on(0, wdt->hisi_wdt_wq, &wdt->hisi_wdt_delayed_work, 0);
+    } else {
+        queue_delayed_work(wdt->hisi_wdt_wq, &wdt->hisi_wdt_delayed_work, 0);
+    }
     wdt_enable(&wdt->wdd);
 #endif
     amba_set_drvdata(adev, wdt);
@@ -441,8 +449,11 @@ static int __maybe_unused sp805_wdt_resume(struct device *dev)
 
     if (watchdog_active(&wdt->wdd) || !wdt->active) {
 #ifdef CONFIG_HISILICON_PLATFORM
-/*        schedule_delayed_work(&wdt->hisi_wdt_delayed_work, 0);*/
-	queue_delayed_work_on(0, wdt->hisi_wdt_wq, &wdt->hisi_wdt_delayed_work, 0);
+        if (cpu_online(0)) {
+            queue_delayed_work_on(0, wdt->hisi_wdt_wq, &wdt->hisi_wdt_delayed_work, 0);
+        } else {
+            queue_delayed_work(wdt->hisi_wdt_wq, &wdt->hisi_wdt_delayed_work, 0);
+        }
 #endif
         ret = wdt_enable(&wdt->wdd);
     }

@@ -64,14 +64,15 @@
 /include/ "hi3635_vdec.dtsi"
 /include/ "hi3635_vpp.dtsi"
 /include/ "hisi_sim_hotplug.dtsi"
+/include/ "huawei_connectivity.dtsi"
 /include/ "huawei_wifi.dtsi"
 /include/ "huawei_bluetooth.dtsi"
 /include/ "huawei_gps.dtsi"
 /include/ "huawei-sensor.dtsi"
 /include/ "bq_bci_battery.dtsi"
 /include/ "huawei_charger.dtsi"
+/include/ "default_3000_68k.dtsi"
 /include/ "hisi_battery.dtsi"
-/include/ "batterys.dtsi"
 /include/ "hisi_coul_drv_test.dtsi"
 /include/ "huawei_touchscreen.dtsi"
 /include/ "huawei_hall_inputhub.dtsi"
@@ -931,8 +932,8 @@
 			hisilicon,hs_det = <0>;
 			hisilicon,hs_3_pole_min_voltage = <0>;
 			hisilicon,hs_3_pole_max_voltage = <8>;
-			hisilicon,hs_4_pole_min_voltage = <1350>;
-			hisilicon,hs_4_pole_max_voltage = <2565>;
+			hisilicon,hs_4_pole_min_voltage = <900>;
+			hisilicon,hs_4_pole_max_voltage = <2650>;
 			hisilicon,btn_play_min_voltage = <0>;
 			hisilicon,btn_play_max_voltage = <100>;
 			hisilicon,btn_volume_up_min_voltage = <130>;
@@ -1181,17 +1182,15 @@
 		ichg_ac = <1000>;
 		status = "ok";
 	};
-	batterys:batterys {
-		default_3000_68k:default_3000_68k {
-			vbat_max = <4100>;
-			temp_para =
-			"-32767","-10","-1","0","4100","0",
-			"-10","0","-1","100","4100","0",
-			"0","10","-1","900","4100","3",
-			"10","45","-1","-1","4100","3",
-			"45","50","900","820","4100","3",
-			"50","32767","900","0","4100","0";
-		};
+	default_3000_68k:default_3000_68k {
+		vbat_max = <4100>;
+		temp_para =
+		"-32767","-10","-1","0","4100","0",
+		"-10","0","-1","100","4100","0",
+		"0","10","-1","900","4100","3",
+		"10","45","-1","-1","4100","3",
+		"45","50","900","820","4100","3",
+		"50","32767","900","0","4100","0";
 	};
 	hisi_battery:hisi_battery {
 		status = "ok";
@@ -1476,6 +1475,7 @@
 		ic_type= "bcm4334";
 		status = "ok";
 	};
+
 	nfc_exist {/*mark nfc hardware exist, for mmi used*/
 		nfc_exist_flag = "1";
 		status = "ok";

@@ -159,6 +159,7 @@ enum RRC_PTL_TI_ENUM
     /* add for AT&T LRRC DAM begin */
     TI_RRC_DAM_CELL_BAR_TIMER,    /* DAM功能中bar小区定时器 */
     /* add for AT&T LRRC DAM end */
+    TI_RRC_CSFB_OPTIMIZE_PROTECT_TIMER,
     TI_RRC_PTL_BUTT
 };
 typedef VOS_UINT16 RRC_PTL_TI_ENUM_UINT16;
@@ -303,6 +304,8 @@ enum RRC_STATE_TI_ENUM
     TI_LRRC_LCSELBG_WAIT_GURRC_CNF,   /* 等待GURRC背景搜CNF的保护定时器 */
     TI_LRRC_LCSELBG_WAIT_GURRC_IND,   /* 等待GURRC背景搜IND的保护定时器 */
     /* bgs end */
+    TI_RRC_CSEL_WAIT_RSSI_SORT_IND,   /*等待物理层频点排序消息*/
+
 
     /* SIB模块定时器 */
     TI_RRC_SIB_WAIT_RL_SETUP_CNF,     /* 物理信道建立定时器 */
@@ -341,8 +344,10 @@ enum RRC_STATE_TI_ENUM
     /* bgs end */
 
     TI_RRC_APP_RSSI_REPORT,           /* RSSI周期上报定时器 */
+    /* begin: 2014-03- 20 CL MULT add */
     TI_LRRC_LRRC_WAIT_CDMA_CNF,
     TI_LRRC_LRRC_WAIT_CDMA_STOP_CNF,
+    /* end: 2014-03- 20 CL MULT add */
     TI_RRC_STATE_BUTT
 };
 typedef VOS_UINT16 RRC_STATE_TI_ENUM_UINT16;

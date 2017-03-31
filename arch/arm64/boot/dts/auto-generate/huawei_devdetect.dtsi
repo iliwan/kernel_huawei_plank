@@ -37,6 +37,8 @@
 		antenna_ctl = <0>;
 		airpress = <0>;
 		handpress = <0>;
+		vibrator_lra = <0>;
+		ps_sensor = <0>;
 		status = "disabled";
 	};
 };

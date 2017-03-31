@@ -335,6 +335,39 @@ VOS_UINT32 Taf_NetScanHandle(
 }
 
 
+/* Modified by c00318887 for file refresh需要触发背景搜, 2015-3-9, begin */
+
+VOS_UINT32 TAF_SetRefreshStub(
+    MN_CLIENT_ID_T                      usClientId,
+    MN_OPERATION_ID_T                   ucOpId,
+    TAF_MMA_REFRESH_STUB_SET_REQ_STRU  *pstRefreshStub
+)
+{
+    return MN_FillAndSndAppReqMsg(usClientId,
+                                  ucOpId,
+                                  TAF_MSG_MMA_REFRESH_STUB_SET_REQ,
+                                  pstRefreshStub,
+                                  sizeof(TAF_MMA_REFRESH_STUB_SET_REQ_STRU),
+                                  I0_WUEPS_PID_MMA);
+}
+
+/* Modified by c00318887 for file refresh需要触发背景搜, 2015-3-9, end */
+
+VOS_UINT32 TAF_SetAutoReselStub(
+    MN_CLIENT_ID_T                                          usClientId,
+    MN_OPERATION_ID_T                                       ucOpId,
+    TAF_MMA_AUTO_RESEL_STUB_SET_REQ_STRU                   *pstAutoReselStub
+)
+{
+    return MN_FillAndSndAppReqMsg(usClientId,
+                                  ucOpId,
+                                  TAF_MSG_MMA_AUTO_RESEL_STUB_SET_REQ,
+                                  pstAutoReselStub,
+                                  sizeof(TAF_MMA_AUTO_RESEL_STUB_SET_REQ_STRU),
+                                  I0_WUEPS_PID_MMA);
+}
+
+
 
 VOS_UINT32 Taf_AbortNetScan (
     MN_CLIENT_ID_T                      usClientId,
@@ -760,9 +793,298 @@ VOS_UINT32 TAF_MMA_DetachReq(
     return VOS_TRUE;
 }
 
+/* Added by zwx247453 for VOLTE SWITCH, 2015-02-02, Begin */
+#if (FEATURE_ON == FEATURE_IMS)
+/*****************************************************************************
+ 函 数 名  : TAF_MMA_SetImsSwitchReq
+ 功能描述  : IMSSwitch接口
+ 输入参数  : ulModuleId     ---  外部模块PID
+             usCliendId     ---  外部模块CliendId
+             ucOpId         ---  外部模块OpId
+             ucImsSwitch    ---  IMS 状态设置参数
+ 输出参数  : 无
+ 返 回 值  : VOS_TRUE:成功,VOS_FALSE:失败
+ 调用函数  :
+ 被调函数  :
+
+ 修改历史      :
+  1.日    期   : 2015年02月02日
+    作    者   : zwx247453
+    修改内容   : 新生成函数
+
+*****************************************************************************/
+VOS_UINT32 TAF_MMA_SetImsSwitchReq(
+    VOS_UINT32                          ulModuleId,
+    VOS_UINT16                          usClientId,
+    VOS_UINT8                           ucOpId,
+    TAF_MMA_IMS_SWITCH_SET_ENUM_UINT8   enImsSwitch
+)
+{
+    TAF_MMA_IMS_SWITCH_SET_REQ_STRU    *pstMsg  = VOS_NULL_PTR;
+    VOS_UINT32                          ulReceiverPid;
+    VOS_UINT32                          ulSenderPid;
+
+#if (OSA_CPU_ACPU == VOS_OSA_CPU)
+    ulReceiverPid = AT_GetDestPid(usClientId, WUEPS_PID_MMA);
+    ulSenderPid   = AT_GetDestPid(usClientId, WUEPS_PID_TAF);
+#else
+    ulReceiverPid = WUEPS_PID_MMA;
+    ulSenderPid   = WUEPS_PID_TAF;
+#endif
+
+    /* 参数检查 */
+    if ((TAF_MMA_IMS_SWITCH_SET_POWER_OFF != enImsSwitch)
+     && (TAF_MMA_IMS_SWITCH_SET_POWER_ON  != enImsSwitch))
+    {
+        return VOS_FALSE;
+    }
+
+    /* 申请消息包TAF_MMA_IMS_SWITCH_SET_REQ_STRU */
+    pstMsg = (TAF_MMA_IMS_SWITCH_SET_REQ_STRU *)PS_ALLOC_MSG_WITH_HEADER_LEN(
+                                           ulSenderPid,
+                                           sizeof(TAF_MMA_IMS_SWITCH_SET_REQ_STRU));
+
+    /* 内存申请失败，返回 */
+    if (VOS_NULL_PTR == pstMsg)
+    {
+        return VOS_FALSE;
+    }
+
+    PS_MEM_SET( (VOS_INT8 *)pstMsg + VOS_MSG_HEAD_LENGTH, 0X00,
+            (VOS_SIZE_T)(sizeof(TAF_MMA_IMS_SWITCH_SET_REQ_STRU) - VOS_MSG_HEAD_LENGTH) );
+
+    /* 根据输入参数填充TAF_MMA_IMS_SWITCH_SET_REQ_STRU */
+    pstMsg->ulSenderPid       = ulSenderPid;
+    pstMsg->ulReceiverPid     = ulReceiverPid;
+    pstMsg->ulMsgName         = ID_TAF_MMA_IMS_SWITCH_SET_REQ;
+    pstMsg->stCtrl.ulModuleId = ulModuleId;
+    pstMsg->stCtrl.usClientId = usClientId;
+    pstMsg->stCtrl.ucOpId     = ucOpId;
+    pstMsg->enImsSwitch       = enImsSwitch;
+
+    /* 发送消息 */
+    if (VOS_OK != PS_SEND_MSG(ulSenderPid, pstMsg))
+    {
+        return VOS_FALSE;
+    }
+
+    return VOS_TRUE;
+}
+
+/*****************************************************************************
+ 函 数 名  : TAF_MMA_QryImsSwitchReq
+ 功能描述  : IMSSwitch接口
+ 输入参数  : ulModuleId     ---  外部模块PID
+             usCliendId     ---  外部模块CliendId
+             ucOpId         ---  外部模块OpId
+ 输出参数  : 无
+ 返 回 值  : VOS_TRUE:成功,VOS_FALSE:失败
+ 调用函数  :
+ 被调函数  :
+
+ 修改历史      :
+  1.日    期   : 2015年02月02日
+    作    者   : zwx247453
+    修改内容   : 新生成函数
+
+*****************************************************************************/
+VOS_UINT32 TAF_MMA_QryImsSwitchReq(
+    VOS_UINT32                          ulModuleId,
+    VOS_UINT16                          usClientId,
+    VOS_UINT8                           ucOpId
+)
+{
+    TAF_MMA_IMS_SWITCH_QRY_REQ_STRU    *pstMsg  = VOS_NULL_PTR;
+    VOS_UINT32                          ulReceiverPid;
+    VOS_UINT32                          ulSenderPid;
+
+#if (OSA_CPU_ACPU == VOS_OSA_CPU)
+    ulReceiverPid = AT_GetDestPid(usClientId, WUEPS_PID_MMA);
+    ulSenderPid   = AT_GetDestPid(usClientId, WUEPS_PID_TAF);
+#else
+    ulReceiverPid = WUEPS_PID_MMA;
+    ulSenderPid   = WUEPS_PID_TAF;
+#endif
+
+
+    /* 申请消息包TAF_MMA_IMS_SWITCH_QRY_REQ_STRU */
+    pstMsg = (TAF_MMA_IMS_SWITCH_QRY_REQ_STRU *)PS_ALLOC_MSG_WITH_HEADER_LEN(
+                                           ulSenderPid,
+                                           sizeof(TAF_MMA_IMS_SWITCH_QRY_REQ_STRU));
+
+    /* 内存申请失败，返回 */
+    if (VOS_NULL_PTR == pstMsg)
+    {
+        return VOS_FALSE;
+    }
+
+    PS_MEM_SET( (VOS_INT8 *)pstMsg + VOS_MSG_HEAD_LENGTH, 0X00,
+            (VOS_SIZE_T)(sizeof(TAF_MMA_IMS_SWITCH_QRY_REQ_STRU) - VOS_MSG_HEAD_LENGTH) );
+
+    /* 根据输入参数填充TAF_MMA_IMS_SWITCH_QRY_REQ_STRU */
+    pstMsg->ulSenderPid       = ulSenderPid;
+    pstMsg->ulReceiverPid     = ulReceiverPid;
+    pstMsg->ulMsgName         = ID_TAF_MMA_IMS_SWITCH_QRY_REQ;
+    pstMsg->stCtrl.ulModuleId = ulModuleId;
+    pstMsg->stCtrl.usClientId = usClientId;
+    pstMsg->stCtrl.ucOpId     = ucOpId;
+
+    /* 发送消息 */
+    if (VOS_OK != PS_SEND_MSG(ulSenderPid, pstMsg))
+    {
+        return VOS_FALSE;
+    }
+
+    return VOS_TRUE;
+}
+
+/*****************************************************************************
+ 函 数 名  : TAF_MMA_SetVoiceDomainReq
+ 功能描述  : VoiceDomain接口
+ 输入参数  : ulModuleId       ---  外部模块PID
+             usCliendId       ---  外部模块CliendId
+             ucOpId           ---  外部模块OpId
+             enVoiceDomain    ---  优先域设置参数
+ 输出参数  : 无
+ 返 回 值  : VOS_TRUE:成功,VOS_FALSE:失败
+ 调用函数  :
+ 被调函数  :
+
+ 修改历史      :
+  1.日    期   : 2015年02月02日
+    作    者   : zwx247453
+    修改内容   : 新生成函数
+
+*****************************************************************************/
+VOS_UINT32 TAF_MMA_SetVoiceDomainReq(
+    VOS_UINT32                          ulModuleId,
+    VOS_UINT16                          usClientId,
+    VOS_UINT8                           ucOpId,
+    TAF_MMA_VOICE_DOMAIN_ENUM_UINT32    enVoiceDomain
+)
+{
+    TAF_MMA_VOICE_DOMAIN_SET_REQ_STRU  *pstMsg  = VOS_NULL_PTR;
+    VOS_UINT32                          ulReceiverPid;
+    VOS_UINT32                          ulSenderPid;
+
+#if (OSA_CPU_ACPU == VOS_OSA_CPU)
+    ulReceiverPid = AT_GetDestPid(usClientId, WUEPS_PID_MMA);
+    ulSenderPid   = AT_GetDestPid(usClientId, WUEPS_PID_TAF);
+#else
+    ulReceiverPid = WUEPS_PID_MMA;
+    ulSenderPid   = WUEPS_PID_TAF;
+#endif
+
+    /* 参数检查 */
+    if (enVoiceDomain >= TAF_MMA_VOICE_DOMAIN_BUTT)
+    {
+        return VOS_FALSE;
+    }
+
+    /* 申请消息包TAF_MMA_VOICE_DOMAIN_SET_REQ_STRU */
+    pstMsg = (TAF_MMA_VOICE_DOMAIN_SET_REQ_STRU *)PS_ALLOC_MSG_WITH_HEADER_LEN(
+                                           ulSenderPid,
+                                           sizeof(TAF_MMA_VOICE_DOMAIN_SET_REQ_STRU));
+
+    /* 内存申请失败，返回 */
+    if (VOS_NULL_PTR == pstMsg)
+    {
+        return VOS_FALSE;
+    }
+
+    PS_MEM_SET( (VOS_INT8 *)pstMsg + VOS_MSG_HEAD_LENGTH, 0X00,
+            (VOS_SIZE_T)(sizeof(TAF_MMA_VOICE_DOMAIN_SET_REQ_STRU) - VOS_MSG_HEAD_LENGTH) );
+
+    /* 根据输入参数填充TAF_MMA_VOICE_DOMAIN_SET_REQ_STRU */
+    pstMsg->ulSenderPid       = ulSenderPid;
+    pstMsg->ulReceiverPid     = ulReceiverPid;
+    pstMsg->ulMsgName         = ID_TAF_MMA_VOICE_DOMAIN_SET_REQ;
+    pstMsg->stCtrl.ulModuleId = ulModuleId;
+    pstMsg->stCtrl.usClientId = usClientId;
+    pstMsg->stCtrl.ucOpId     = ucOpId;
+    pstMsg->enVoiceDomain     = enVoiceDomain;
+
+    /* 发送消息 */
+    if (VOS_OK != PS_SEND_MSG(ulSenderPid, pstMsg))
+    {
+        return VOS_FALSE;
+    }
+
+    return VOS_TRUE;
+}
+
+/*****************************************************************************
+ 函 数 名  : TAF_MMA_QryVoiceDomainReq
+ 功能描述  : VoiceDomain接口
+ 输入参数  : ulModuleId      ---  外部模块PID
+             usCliendId      ---  外部模块CliendId
+             ucOpId          ---  外部模块OpId
+ 输出参数  : 无
+ 返 回 值  : VOS_TRUE:成功,VOS_FALSE:失败
+ 调用函数  :
+ 被调函数  :
+
+ 修改历史      :
+  1.日    期   : 2015年02月02日
+    作    者   : zwx247453
+    修改内容   : 新生成函数
+
+*****************************************************************************/
+VOS_UINT32 TAF_MMA_QryVoiceDomainReq(
+    VOS_UINT32                          ulModuleId,
+    VOS_UINT16                          usClientId,
+    VOS_UINT8                           ucOpId
+)
+{
+    TAF_MMA_VOICE_DOMAIN_QRY_REQ_STRU  *pstMsg  = VOS_NULL_PTR;
+    VOS_UINT32                          ulReceiverPid;
+    VOS_UINT32                          ulSenderPid;
+
+#if (OSA_CPU_ACPU == VOS_OSA_CPU)
+    ulReceiverPid = AT_GetDestPid(usClientId, WUEPS_PID_MMA);
+    ulSenderPid   = AT_GetDestPid(usClientId, WUEPS_PID_TAF);
+#else
+    ulReceiverPid = WUEPS_PID_MMA;
+    ulSenderPid   = WUEPS_PID_TAF;
+#endif
+
+    /* 申请消息包TAF_MMA_VOICE_DOMAIN_QRY_REQ_STRU */
+    pstMsg = (TAF_MMA_VOICE_DOMAIN_QRY_REQ_STRU *)PS_ALLOC_MSG_WITH_HEADER_LEN(
+                                           ulSenderPid,
+                                           sizeof(TAF_MMA_VOICE_DOMAIN_QRY_REQ_STRU));
+
+    /* 内存申请失败，返回 */
+    if (VOS_NULL_PTR == pstMsg)
+    {
+        return VOS_FALSE;
+    }
+
+    PS_MEM_SET( (VOS_INT8 *)pstMsg + VOS_MSG_HEAD_LENGTH, 0X00,
+            (VOS_SIZE_T)(sizeof(TAF_MMA_VOICE_DOMAIN_QRY_REQ_STRU) - VOS_MSG_HEAD_LENGTH) );
+
+    /* 根据输入参数填充TAF_MMA_VOICE_DOMAIN_QRY_REQ_STRU */
+    pstMsg->ulSenderPid       = ulSenderPid;
+    pstMsg->ulReceiverPid     = ulReceiverPid;
+    pstMsg->ulMsgName         = ID_TAF_MMA_VOICE_DOMAIN_QRY_REQ;
+    pstMsg->stCtrl.ulModuleId = ulModuleId;
+    pstMsg->stCtrl.usClientId = usClientId;
+    pstMsg->stCtrl.ucOpId     = ucOpId;
+
+    /* 发送消息 */
+    if (VOS_OK != PS_SEND_MSG(ulSenderPid, pstMsg))
+    {
+        return VOS_FALSE;
+    }
+
+    return VOS_TRUE;
+}
+
+#endif
+/* Added by zwx247453 for VOLTE SWITCH, 2015-02-02, End */
 
 #ifdef  __cplusplus
  #if  __cplusplus
 }
  #endif
 #endif
+

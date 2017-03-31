@@ -11,18 +11,26 @@
  */
 
 #include "isp_driver.h"
+#include "../camera/isp_ops.h"
 
 int hisi_isp_config(struct hisi_isp_ctrl_t *isp_ctrl, void *data)
 {
-	int rc = 0;
+    int rc = 0;
+    if (NULL == data) {
+        cam_err("%s: data is NULL", __func__);
+        return -EFAULT;
+    }
+	struct isp_cfg_data *cdata = (struct isp_cfg_data *)data;
 
-	cam_debug("%s enter.\n", __func__);
+	cam_debug("%s enter: cfgtype=%d. \n", __func__, cdata->cfgtype);
+	switch (cdata->cfgtype) {
+	case CFG_ISP_SET_CLK_RATE:
+		rc = k3_isp_clk_rate_set(cdata->data);
+		break;
+	default:
+		break;
+	}
 
-	mutex_lock(isp_ctrl->hisi_isp_mutex);
-
-	/*TO DO*/
-
-	mutex_unlock(isp_ctrl->hisi_isp_mutex);
 	return rc;
 }
 

@@ -105,6 +105,8 @@ typedef struct TDS_SYNC_OM_STAT
     UINT16 usCdSbfn;
     UINT16 usSnrTh0;
     UINT16 usSnrTh1;
+    UINT16 usValidSyncFrmCnt;
+    UINT16 usResv;
 }TDS_SYNC_OM_STAT_STRU;
 
 #ifdef __cplusplus

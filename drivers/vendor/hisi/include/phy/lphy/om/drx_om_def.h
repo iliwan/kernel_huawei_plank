@@ -74,6 +74,7 @@ typedef struct
     UINT16 usRsvd[6];
 }DRX_DEBUG_STRU;
 
+/* BEGIN: Added by xueqiuyan, 2012/9/18   PN:CMCC_DT*/
 typedef enum
 {
     LPHY_DT_DRX_STATUS_INFO_REQ        =  OM_CMD_ID(LPHY_DRX_MID, OM_TYPE_REQ, 0x1),
@@ -150,6 +151,7 @@ typedef struct __LPHY_DT_DRX_STATUS_INFO_IND_STRU_DT__
 
 
 
+/* END:   Added by xueqiuyan, 2012/9/18 */
 
 #ifdef __cplusplus
 #if __cplusplus

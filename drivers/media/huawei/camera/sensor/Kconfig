@@ -121,7 +121,7 @@ config HUAWEI_CAMERA_USE_OV8858
 	depends on HUAWEI_CAMERA
 
 config HISI_CAMERA_FLASH
-	bool "hisi_flash"
+	tristate "hisi_flash"
     default y
 	depends on HUAWEI_CAMERA
 
@@ -132,6 +132,16 @@ config HUAWEI_CAMERA_USE_IMX179_PLK
 
 config HUAWEI_CAMERA_USE_IMX230_PLK
 	bool "imx230_plk"
+    default y
+	depends on HUAWEI_CAMERA
+
+config HUAWEI_CAMERA_USE_OV13850_LISZT
+	bool "ov13850_liszt"
+    default y
+	depends on HUAWEI_CAMERA
+
+config HUAWEI_CAMERA_USE_AR1335
+	bool "ar1335"
     default y
 	depends on HUAWEI_CAMERA
 

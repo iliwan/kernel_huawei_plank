@@ -18,7 +18,7 @@
 #define REGISTER3		0x03
 #define REGISTER4		0x04
 #define REGISTER5		0x05
-#define REGISTER6		0x06
+/* #define REGISTER6		0x06 */
 #define REGISTER7		0x07
 
 #define FLASH_LED13_MAX	17

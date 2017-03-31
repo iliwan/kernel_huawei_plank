@@ -86,7 +86,7 @@ extern uint32_t hisi_fb_msg_level;
 		printk(KERN_CRIT "[hisifb]%s: "msg, __func__, ## __VA_ARGS__); } while (0)
 #define HISI_FB_ERR(msg, ...)    \
 	do { if (hisi_fb_msg_level > 3)  \
-		printk(KERN_ERR "[hisifb]%s: "msg, __func__, ## __VA_ARGS__); } while (0)
+		printk(KERN_ERR "[hisifb]%s: , line :%d"msg, __func__, __LINE__, ## __VA_ARGS__); } while (0)
 #define HISI_FB_WARNING(msg, ...)    \
 	do { if (hisi_fb_msg_level > 4)  \
 		printk(KERN_WARNING "[hisifb]%s: "msg, __func__, ## __VA_ARGS__); } while (0)

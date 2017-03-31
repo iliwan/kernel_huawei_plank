@@ -30,7 +30,12 @@
 #include "hisi_subdev.h"
 #include "cam_log.h"
 
-#define SEATTLE_FPGA
+
+
+#define DDR_FRONT_FREQ	390  //fix to 400
+#define DDR_BACK_FREQ   800  //fix to 800
+#define DDR_VIDEO_FREQ   390  //fix to 400
+#define DDR_BANDWITH(freq)  ((((freq)*16-16)*60-59)/100)
 
 struct hisi_video_device {
 	struct video_device *vdev;
@@ -40,6 +45,10 @@ struct hisi_video_device {
 int hisi_sd_register(struct hisi_sd_subdev *hisi_subdev);
 int hisi_sd_unregister(struct hisi_sd_subdev *hisi_subdev);
 int is_fpga_board(void);
+char *get_product_name(void);
 void camdrv_msleep(unsigned int ms);
+void k3_isp_fix_ddrfreq(unsigned int ddr_bandwidth);
+void k3_isp_update_ddrfreq(unsigned int ddr_bandwidth);
+void k3_isp_release_ddrfreq(void);
 
 #endif /*_HISI_CAMERA_MODULE_H_ */

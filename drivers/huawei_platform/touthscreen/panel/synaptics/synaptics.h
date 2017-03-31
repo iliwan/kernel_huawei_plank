@@ -26,6 +26,7 @@
 
 #define GLOVE_SWITCH_ON 1
 #define GLOVE_SWITCH_OFF 0
+#define WAKEUP_GESTURE_ENABLE 1
 #define HOLSTER_SWITCH_ON 1
 #define FHD_LCD_WIDTH  1080
 #define FHD_LCD_HIGHT  1920
@@ -569,6 +570,7 @@ extern int synaptics_get_fw_data_s3718_boot(char *file_name,struct touch_setting
 extern int synaptics_get_fw_data_s3718_sd(void);
 extern void synaptics_fw_data_s3718_release(void);
 extern int synaptics_fw_s3718_update(void);
+extern int synaptics_read_project_id(char *project_id);
 extern int synaptics_fw_s3718_configid(struct synaptics_rmi4_data *rmi4_data);
 extern int synaptics_get_s3718_configid(u8 *buf, size_t buf_size);
 extern int synaptics_rmi4_f54_s3207_init(struct synaptics_rmi4_data *rmi4_data,const char *module_name);

@@ -43,6 +43,7 @@
 #include <uapi/asm-generic/errno-base.h>
 #include <asm/atomic.h>
 #include <linux/board_sensors.h>
+#include	<linux/sensors.h>
 
 #define HALL_SUPPORT_NUM_MAX                (4)
 #define MAX_IRQ_NAME_LEN            (50)
@@ -96,7 +97,9 @@ struct hall_dev {
     int hall1_y_coordinate;
     void *hall_device;
     struct platform_device *hall_dev;
+    struct sensors_classdev cdev;
     struct work_struct hall_work;
+    struct delayed_work hall_delay_work;
     struct hall_ops *ops;
     struct irq_info irq_info[HALL_SUPPORT_NUM_MAX];
     struct input_dev *hw_input_hall;
@@ -125,6 +128,7 @@ static int hall_ak8789_irq_top_handler(int irq, struct hall_dev *phall_dev);
 static packet_data hall_ak8789_packet_event_data(struct hall_dev *phall_dev);
 static int hall_ak8789_release(struct hall_dev *phall_dev);
 static int hall_ak8789_device_init(struct platform_device *pdev,struct hall_dev *phall_dev);
+static void hall_ak8789_delay_report(struct work_struct *work);
 static int hall_ak8789_event_report(packet_data packet_data,struct hall_dev *phall_dev);
 static struct hall_ops hall_device_ops = {
     .packet_event_data = hall_ak8789_packet_event_data,

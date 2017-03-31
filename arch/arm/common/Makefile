@@ -1,6 +1,9 @@
 #
 # Makefile for the linux kernel.
 #
+subdir-ccflags-y		+= -I$(BALONG_TOPDIR)/config/product/$(OBB_PRODUCT_NAME)/config
+subdir-ccflags-y		+= -I$(BALONG_TOPDIR)/ap/platform/$(CFG_PLATFORM)/
+subdir-ccflags-y		+= -I$(BALONG_TOPDIR)/ap/platform/$(CFG_PLATFORM)/soc/
 
 obj-y				+= firmware.o
 

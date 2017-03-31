@@ -951,6 +951,7 @@ static void dwc_otg_hcd_reinit(dwc_otg_hcd_t * hcd)
 	hcd->non_periodic_qh_ptr = &hcd->non_periodic_sched_active;
 	hcd->non_periodic_channels = 0;
 	hcd->periodic_channels = 0;
+	hcd->frame_number = 0;
 
 	/*
 	 * Put all channels in the free channel list and clean up channel

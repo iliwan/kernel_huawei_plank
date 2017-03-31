@@ -518,7 +518,6 @@ VOS_UINT32 USIMM_SetVsimFile(USIMM_SETFILE_REQ_STRU *pstMsg)
                                 USIMM_UNLIMIT_APP,
                                 USIMM_EFSTRUCTURE_TRANSPARENT);
         /* coverity[overrun-buffer-val] */
-        USIMM_VsimWriteableFileUpdate(pstMsg->usFileID, pstMsg->aucContent);
     }
 
     USIMM_SetFileCnf(pstMsg->ulSenderPid,
@@ -1719,125 +1718,10 @@ VOS_UINT32 USIMM_InitVsimCard(USIMM_MsgBlock *pMsg)
         return VOS_ERR;
     }
 
-    USIMM_VsimWriteableFileInit();
-
     USIMM_InitVsimGlobal();
 
     return VOS_OK;
 }
-VOS_VOID USIMM_VsimWriteableFileInit(VOS_VOID)
-{
-    VSIM_CARD_LOCI_FILE_NV_STRU         stLociFile;
-    VSIM_CARD_PSLOCI_FILE_NV_STRU       stPsLociFile;
-    VSIM_CARD_FPLMN_FILE_NV_STRU        stFplmnFile;
-    VOS_UINT16                          usPsLociFileId;
-    VOS_UINT8                           aucFplmn[VSIM_EF_FPLMN_LEN];
-    VOS_UINT8                           aucLoci[VSIM_EF_LOCI_LEN];
-    VOS_UINT8                           aucPsLoci[VSIM_EF_PS_LOCI_LEN];
-
-    if (USIMM_CARD_USIM == gastUSIMMCardAppInfo[USIMM_UICC_USIM].enCardType)
-    {
-        usPsLociFileId = EFPSLOCI;
-    }
-    else
-    {
-        usPsLociFileId = EFLOCIGPRS;
-    }
-
-    if (NV_OK == NV_Read(en_NV_Item_VSIM_Fplmn_Info, &stFplmnFile, sizeof(VSIM_CARD_FPLMN_FILE_NV_STRU)))
-    {
-        /* NV项fplmn无效时，使用XML文件中的fplmn，否则使用NV项中的fplmn，因为此时NV中的fplmn已经涵盖了
-           XML文件中的fplmn */
-        VOS_MemSet(aucFplmn, (VOS_CHAR)0xFF, VSIM_EF_FPLMN_LEN);
-
-        if(VOS_NULL != VOS_MemCmp(aucFplmn, stFplmnFile.aucFplmn, VSIM_EF_FPLMN_LEN))
-        {
-            if (VOS_OK == USIMM_PoolDelOneFile(EFFPLMN, USIMM_UNLIMIT_APP))
-            {
-                USIMM_PoolInsertOneFile(EFFPLMN,
-                                        sizeof(stFplmnFile.aucFplmn),
-                                        stFplmnFile.aucFplmn,
-                                        USIMM_UNLIMIT_APP,
-                                        USIMM_EFSTRUCTURE_TRANSPARENT);
-
-            }
-        }
-    }
-
-    if (NV_OK == NV_Read(en_NV_Item_VSIM_Loci_Info, &stLociFile, sizeof(VSIM_CARD_LOCI_FILE_NV_STRU)))
-    {
-        /* NV项Loci无效时，使用XML文件中的EfLoci，否则使用NV项中的Loci。因为首次从硬卡切软卡，NV项里的值是无效的，
-            需要使用XML中的值，以加快搜网速度 */
-        VOS_MemSet(aucLoci, (VOS_CHAR)0xFF, VSIM_EF_LOCI_LEN);
-
-        if(VOS_NULL != VOS_MemCmp(aucLoci, stLociFile.aucEfloci, VSIM_EF_LOCI_LEN))
-        {
-            if (VOS_OK == USIMM_PoolDelOneFile(EFLOCI, USIMM_UNLIMIT_APP))
-            {
-                USIMM_PoolInsertOneFile(EFLOCI,
-                                        sizeof(stLociFile.aucEfloci),
-                                        stLociFile.aucEfloci,
-                                        USIMM_UNLIMIT_APP,
-                                        USIMM_EFSTRUCTURE_TRANSPARENT);
-            }
-        }
-    }
-
-    if (NV_OK == NV_Read(en_NV_Item_VSIM_PsLoci_Info, &stPsLociFile, sizeof(VSIM_CARD_PSLOCI_FILE_NV_STRU)))
-    {
-        /* NV项PsLoci无效时，使用XML文件中的EfPsLoci/EfLociGprs，否则使用NV项中的PsLoci。因为首次从硬卡切软卡，
-            NV项里的值是无效的，需要使用XML中的值，以加快搜网速度 */
-        VOS_MemSet(aucPsLoci, (VOS_CHAR)0xFF, VSIM_EF_PS_LOCI_LEN);
-
-        if(VOS_NULL != VOS_MemCmp(aucPsLoci, stPsLociFile.aucPsEfloci, VSIM_EF_PS_LOCI_LEN))
-        {
-            if (VOS_OK == USIMM_PoolDelOneFile(usPsLociFileId, USIMM_UNLIMIT_APP))
-            {
-                USIMM_PoolInsertOneFile(usPsLociFileId,
-                                        sizeof(stPsLociFile.aucPsEfloci),
-                                        stPsLociFile.aucPsEfloci,
-                                        USIMM_UNLIMIT_APP,
-                                        USIMM_EFSTRUCTURE_TRANSPARENT);
-            }
-        }
-    }
-
-    return;
-}
-
-
-VOS_VOID USIMM_VsimWriteableFileUpdate(VOS_UINT16 usFileId, VOS_UINT8 *pucFileContent)
-{
-
-    if (EFFPLMN == usFileId)
-    {
-        if (VOS_OK != NV_Write(en_NV_Item_VSIM_Fplmn_Info, pucFileContent, sizeof(VSIM_CARD_FPLMN_FILE_NV_STRU)))
-        {
-            USIMM_WARNING_LOG("USIMM_VsimWriteableFileUpdate: write Fplmn Info failed.");
-        }
-    }
-    else if (EFLOCI == usFileId)
-    {
-        if (VOS_OK != NV_Write(en_NV_Item_VSIM_Loci_Info, pucFileContent, sizeof(VSIM_CARD_LOCI_FILE_NV_STRU)))
-        {
-            USIMM_WARNING_LOG("USIMM_VsimWriteableFileUpdate: write Loic Info failed.");
-        }
-    }
-    else if ((EFPSLOCI == usFileId) || (EFLOCIGPRS == usFileId))
-    {
-        if (VOS_OK != NV_Write(en_NV_Item_VSIM_PsLoci_Info, pucFileContent, sizeof(VSIM_CARD_PSLOCI_FILE_NV_STRU)))
-        {
-            USIMM_WARNING_LOG("USIMM_VsimWriteableFileUpdate: write PsLoic Info failed.");
-        }
-    }
-    else
-    {
-        USIMM_WARNING_LOG("USIMM_VsimWriteableFileUpdate: Wrong file ID.");
-    }
-
-    return;
-}
-
 
 #endif  /* (FEATURE_VSIM == FEATURE_ON)*/
 

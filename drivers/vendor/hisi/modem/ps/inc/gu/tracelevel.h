@@ -27,6 +27,7 @@ extern "C" {
 
 /*extern VOS_VOID WUEPS_MSG_TRACE( VOS_UINT32 ,VOS_UCHAR *,VOS_UINT32 ,VOS_CHAR * );*/
 
+/*Added by Jim J00190 begin*/
 #if (VOS_WIN32 == VOS_OS_VER)
 extern VOS_CHAR *gcFName;
 extern VOS_UINT32 ulLine;
@@ -44,6 +45,7 @@ LEVEL6: 输出各TASK内部运行的一些信息；
 LEVEL7: RESERVED
 LEVEL8: 输出频繁的层间原语；
 */
+/*Added by Jim J00190 end*/
 
 #if 0
 extern VOS_VOID SYSTEM_TRACE_FUNC(VOS_UINT32 ulTraceLevel,const VOS_CHAR *pcTraceString,...);

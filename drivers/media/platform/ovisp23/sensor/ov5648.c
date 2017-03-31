@@ -29,6 +29,10 @@
 #define OV5648_EXPOSURE_REG_2			0x3502
 #define OV5648_GAIN_REG_H				0x350a
 #define OV5648_GAIN_REG_L				0x350b
+#define OV5648_HTS_REG_H				0x380c
+#define OV5648_HTS_REG_L				0x380d
+#define OV5648_VTS_REG_H				0x380e
+#define OV5648_VTS_REG_L				0x380f
 
 struct sensor_power_setting ov5648_power_setting[] = {
 	{
@@ -90,7 +94,7 @@ struct sensor_power_setting ov5648_power_setting[] = {
 int ov5648_write_reg(struct hisi_sensor_ctrl_t *s_ctrl, u16 reg, u8 val, u8 mask)
 {
 	i2c_t *i2c_info = &s_ctrl->sensor->sensor_info->i2c_config;
-	return isp_write_sensor_byte(i2c_info, reg, val, mask);
+	return isp_write_sensor_byte(i2c_info, reg, val, mask, SCCB_BUS_MUTEX_WAIT);
 }
 
 int ov5648_read_reg(struct hisi_sensor_ctrl_t *s_ctrl, u16 reg, u8 *val)
@@ -359,7 +363,8 @@ int ov5648_ioctl(struct hisi_sensor_ctrl_t *s_ctrl, void *data)
 		cam_info("%s set vts.\n", __func__);
 		break;
 	case CFG_SENSOR_GET_OTP_AWB:
-		//TODO...
+		memcpy(&cdata->cfg.awb_otp, &s_ctrl->sensor->sensor_otp.awb_otp,
+			sizeof(struct hisi_sensor_awb_otp));
 		break;
 	case CFG_SENSOR_UPDATE_OTP_AWB:
 		#ifdef OV5648_OTP_FEATURE
@@ -381,31 +386,67 @@ int ov5648_ioctl(struct hisi_sensor_ctrl_t *s_ctrl, void *data)
 	return rc;
 }
 
-int ov5648_set_expo(struct hisi_sensor_t *cur_sensor, u32 expo)
+int ov5648_set_expo(struct hisi_sensor_t *sensor, u32 expo)
 {
 	int rc = 0;
+	int wait = SCCB_BUS_MUTEX_NOWAIT;
 
-	isp_write_sensor_byte(&cur_sensor->sensor_info->i2c_config,
-		OV5648_EXPOSURE_REG_0, (expo >> 16) & 0x0f, 0x00);
-	isp_write_sensor_byte(&cur_sensor->sensor_info->i2c_config,
-		OV5648_EXPOSURE_REG_1, (expo >> 8) & 0xff, 0x00);
-	isp_write_sensor_byte(&cur_sensor->sensor_info->i2c_config,
-		OV5648_EXPOSURE_REG_2, expo & 0xf0, 0x00);
+	rc = isp_write_sensor_byte(&sensor->sensor_info->i2c_config,
+		OV5648_EXPOSURE_REG_0, (expo >> 16) & 0x0f, 0x00, wait);
+	if (rc < 0) {
+		return rc;
+	}
+	isp_write_sensor_byte(&sensor->sensor_info->i2c_config,
+		OV5648_EXPOSURE_REG_1, (expo >> 8) & 0xff, 0x00, wait);
+	isp_write_sensor_byte(&sensor->sensor_info->i2c_config,
+		OV5648_EXPOSURE_REG_2, expo & 0xf0, 0x00, wait);
 	return rc;
 }
 
-int ov5648_set_gain(struct hisi_sensor_t *cur_sensor, u16 gain)
+int ov5648_set_gain(struct hisi_sensor_t *sensor, u16 gain)
 {
 	int rc = 0;
+	int wait = SCCB_BUS_MUTEX_NOWAIT;
 
 	if (gain == 0) {
 		return rc;
 	}
-	isp_write_sensor_byte(&cur_sensor->sensor_info->i2c_config,
-		OV5648_GAIN_REG_H, (gain >> 8) & 0xff, 0x00);
-	isp_write_sensor_byte(&cur_sensor->sensor_info->i2c_config,
-		OV5648_GAIN_REG_L, gain & 0xff, 0x00);
+	rc = isp_write_sensor_byte(&sensor->sensor_info->i2c_config,
+		OV5648_GAIN_REG_H, (gain >> 8) & 0xff, 0x00, wait);
+	if (rc < 0) {
+		return rc;
+	}
+	isp_write_sensor_byte(&sensor->sensor_info->i2c_config,
+		OV5648_GAIN_REG_L, gain & 0xff, 0x00, wait);
 	return rc;
+}
+
+int ov5648_set_expo_gain(struct hisi_sensor_t *sensor,
+	u32 expo, u16 gain, bool stream_off_mode)
+{
+	ov5648_set_expo(sensor, expo);
+	ov5648_set_gain(sensor, gain);
+	return 0;
+}
+
+int ov5648_set_hts(struct hisi_sensor_t *sensor, u16 hts)
+{
+	isp_write_sensor_byte(&sensor->sensor_info->i2c_config,
+		OV5648_HTS_REG_H, (hts >> 8) & 0xff, 0x00, SCCB_BUS_MUTEX_WAIT);
+	isp_write_sensor_byte(&sensor->sensor_info->i2c_config,
+		OV5648_HTS_REG_L, hts & 0xff, 0x00, SCCB_BUS_MUTEX_WAIT);
+
+	return 0;
+}
+
+int ov5648_set_vts(struct hisi_sensor_t *sensor, u16 vts)
+{
+	isp_write_sensor_byte(&sensor->sensor_info->i2c_config,
+		OV5648_VTS_REG_H, (vts >> 8) & 0xff, 0x00, SCCB_BUS_MUTEX_WAIT);
+	isp_write_sensor_byte(&sensor->sensor_info->i2c_config,
+		OV5648_VTS_REG_L, vts & 0xff, 0x00, SCCB_BUS_MUTEX_WAIT);
+
+	return 0;
 }
 
 struct hisi_sensor_fn_t ov5648_func_tbl = {
@@ -420,6 +461,11 @@ struct hisi_sensor_fn_t ov5648_func_tbl = {
 	.sensor_match_id = ov5648_match_id,
 	.sensor_set_expo = ov5648_set_expo,
 	.sensor_set_gain = ov5648_set_gain,
+	.sensor_set_expo_gain = ov5648_set_expo_gain,
+	.sensor_suspend_eg_task = hisi_sensor_suspend_eg_task,
+	.sensor_apply_expo_gain = hisi_sensor_apply_expo_gain,
+	.sensor_set_hts = ov5648_set_hts,
+	.sensor_set_vts = ov5648_set_vts,	
 };
 
 static int32_t ov5648_sensor_probe(struct platform_device *pdev)
@@ -444,25 +490,26 @@ static int32_t ov5648_sensor_probe(struct platform_device *pdev)
 		rc = hisi_sensor_get_dt_data(pdev, sensor);
 		if (rc < 0) {
 			cam_err("%s failed line %d\n", __func__, __LINE__);
-			return rc;
+			goto ov5648_sensor_probe_fail;
 		}
 	} else {
 		cam_err("%s ov5648 of_node is NULL.\n", __func__);
-		kfree(sensor);
-		sensor = NULL;
-		return rc;
+		goto ov5648_sensor_probe_fail;
 	}
 
 	rc = hisi_sensor_add(sensor);
 	if (rc < 0) {
 		cam_err("%s fail to add sensor into sensor array.\n", __func__);
-		kfree(sensor);
-		sensor = NULL;
-		return rc;
+		goto ov5648_sensor_probe_fail;
 	}
 	if (!dev_get_drvdata(&pdev->dev)) {
 		dev_set_drvdata(&pdev->dev, (void *)sensor);
 	}
+	return rc;
+ov5648_sensor_probe_fail:
+	cam_err("%s error exit.\n", __func__);
+	kfree(sensor);
+	sensor = NULL;
 	return rc;
 }
 
@@ -498,7 +545,7 @@ static int __init ov5648_module_init(void)
 	rc = platform_driver_probe(&ov5648_platform_driver,
 		ov5648_platform_probe);
 	if (rc < 0) {
-		cam_err("%s platform_driver_probe error.\n", __func__);
+		cam_notice("%s platform_driver_probe error.\n", __func__);
 	}
 	return rc;
 }

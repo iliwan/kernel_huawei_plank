@@ -18,6 +18,7 @@
 /********************** v4l2 subdev ioctl case id define **********************/
 #define V4L2_CID_MEM_INFO (V4L2_CID_PRIVACY + 80)
 #define V4L2_CID_MMU_INFO (V4L2_CID_PRIVACY + 81)
+#define V4L2_CID_FIX_DDR_FREQ (V4L2_CID_PRIVACY + 82)
 
 int camera_init_v4l2(struct platform_device *dev);
 

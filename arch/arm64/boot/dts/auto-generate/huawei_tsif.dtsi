@@ -1,0 +1,21 @@
+/*
+ *  Copyright (C) 2012-2013 Linaro Ltd.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License version 2 as
+ *  publishhed by the Free Software Foundation.
+ */
+
+/ {
+        hisi_tsi0: hisi_tsi0@0 {
+                    compatible = "hisilicon,hisi_tsi0";
+                    reg = <0x0 0xFDF21000 0x0 0x1000>; 
+                    interrupt-parent = <&gic>;
+                    interrupts = <0 98 4>;
+                    interrupt-names = "hisi_tsi0";
+		            dmas = <&dma0 23>;
+		            dma-names = "rx";
+		            status = "ok";
+
+	};
+};

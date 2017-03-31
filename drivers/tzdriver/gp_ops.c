@@ -5,6 +5,8 @@
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
+#include <asm/memory.h>
 
 #include "smc.h"
 #include "tee_client_constants.h"
@@ -45,20 +47,20 @@ int tc_user_param_valid(TC_NS_ClientContext *client_context, int n)
 	(param_type == TEEC_MEMREF_PARTIAL_INOUT)) {
 	uint32_t size;
 	/* Check the size and buffer addresses have valid userspace addresses */
-	if (!access_ok(VERIFY_READ, client_param->memref.size_addr, sizeof(uint32_t)))
+	if (!access_ok(VERIFY_READ, (uint32_t *)(client_param->memref.size_addr | (unsigned long)(client_param->memref.size_h_addr) << 32), sizeof(uint32_t)))
 	    return -EFAULT;
-	get_user(size, client_param->memref.size_addr);
+	get_user(size, (uint32_t *)(client_param->memref.size_addr | (unsigned long)(client_param->memref.size_h_addr) << 32));
 	/* Check if the buffer address is valid user space address */
-	if (!access_ok(VERIFY_READ, client_param->memref.buffer, size))
+	if (!access_ok(VERIFY_READ, (uint32_t *)(client_param->memref.buffer | client_param->memref.buffer_h_addr <<32), size))
 	    return -EFAULT;
     }
     /* value */
     else if((param_type == TEEC_VALUE_INPUT)||
 	    (param_type == TEEC_VALUE_OUTPUT)||
 	    (param_type == TEEC_VALUE_INOUT)){
-	if (!access_ok(VERIFY_READ, client_param->value.a_addr, sizeof(uint32_t)))
+	if (!access_ok(VERIFY_READ, (uint32_t *)(client_param->value.a_addr | client_param->value.a_h_addr << 32), sizeof(uint32_t)))
 	    return -EFAULT;
-	if (!access_ok(VERIFY_READ, client_param->value.b_addr, sizeof(uint32_t)))
+	if (!access_ok(VERIFY_READ, (uint32_t *)(client_param->value.b_addr | client_param->value.b_h_addr << 32), sizeof(uint32_t)))
 	    return -EFAULT;
     }
     return 0;
@@ -143,9 +145,10 @@ static TC_NS_Operation *alloc_operation(TC_NS_DEV_File *dev_file,
 			/* For interface compatibility sake we assume buffer
 			 * size to be 32bits */
 			if (copy_from_client(&buffer_size,
-				     (uint32_t __user *)client_param->memref.size_addr,
+				     (uint32_t __user *)(client_param->memref.size_addr | (unsigned long)(client_param->memref.size_h_addr) << 32),
 				     sizeof(uint32_t), kernel_params)) {
-				TCERR("temp buffer client_param->memref.size_addr copy from user failed\n");
+				TCERR("temp buffer client_param->memref.size_addr copy from user failed, buffer:%p\n",
+					(uint32_t *)(client_param->memref.size_addr | (unsigned long)(client_param->memref.size_h_addr) << 32));
 				ret = -EFAULT;
 				break;
 			}
@@ -170,7 +173,7 @@ static TC_NS_Operation *alloc_operation(TC_NS_DEV_File *dev_file,
 				TCVERBOSE("client_param->memref.buffer=0x%x\n", client_param->memref.buffer);
 				/* Kernel side buffer */
 				if(copy_from_client(temp_buf,
-					  (void *)client_param->memref.buffer,
+					  (void *)(client_param->memref.buffer | (unsigned long)(client_param->memref.buffer_h_addr) << 32),
 					  buffer_size, kernel_params)) {
 					TCERR("copy from user failed \n");
 					ret = -EFAULT;
@@ -190,9 +193,10 @@ static TC_NS_Operation *alloc_operation(TC_NS_DEV_File *dev_file,
 			/* For interface compatibility sake we assume buffer
 			 * size to be 32bits */
 			if (copy_from_client(&buffer_size,
-				     (uint32_t __user *)client_param->memref.size_addr,
+				     (uint32_t __user *)(client_param->memref.size_addr | (unsigned long)(client_param->memref.size_h_addr) << 32),
 				     sizeof(buffer_size), kernel_params)) {
-				TCERR("temp buffer client_param->memref.size_addr copy from user failed\n");
+				TCERR("temp buffer client_param->memref.size_addr copy from user failed, buffer:%p\n",
+					(uint32_t *)(client_param->memref.size_addr | (unsigned long)(client_param->memref.size_h_addr) << 32));
 				ret = -EFAULT;
 				break;
 			}
@@ -204,7 +208,7 @@ static TC_NS_Operation *alloc_operation(TC_NS_DEV_File *dev_file,
 			operation->params[i].memref.buffer = 0;
 			/* find kernel addr refered to user addr */
 			list_for_each_entry(shared_mem, &dev_file->shared_mem_list, head){
-				if(shared_mem->user_addr == (void *)client_param->memref.buffer){
+				if(shared_mem->user_addr == (void *)(client_param->memref.buffer | (unsigned long)(client_param->memref.size_h_addr) << 32)){
 					if(shared_mem->len >= buffer_size){
 						operation->params[i].memref.buffer =
 							virt_to_phys((void *)shared_mem->kernel_addr + client_param->memref.offset);
@@ -231,7 +235,7 @@ static TC_NS_Operation *alloc_operation(TC_NS_DEV_File *dev_file,
 			(param_type == TEEC_VALUE_OUTPUT)||
 			(param_type == TEEC_VALUE_INOUT)){
 			if (copy_from_client(&operation->params[i].value.a,
-					client_param->value.a_addr,
+					(void *)(client_param->value.a_addr | (unsigned long)(client_param->value.a_h_addr) << 32),
 					sizeof(operation->params[i].value.a),
 					kernel_params)) {
 				TCERR("client_param->value.a_addr copy from user failed\n");
@@ -239,7 +243,7 @@ static TC_NS_Operation *alloc_operation(TC_NS_DEV_File *dev_file,
 				break;
 			}
 			if (copy_from_client(&operation->params[i].value.b,
-					     client_param->value.b_addr,
+					(void *)(client_param->value.b_addr | (unsigned long)(client_param->value.b_h_addr) << 32),
 					     sizeof(operation->params[i].value.b),
 					     kernel_params)) {
 				TCERR("client_param->value.b_addr copy from user failed\n");
@@ -288,7 +292,7 @@ static int update_client_operation(TC_NS_DEV_File *dev_file,
 			/* temp buffer */
 			buffer_size = operation->params[i].memref.size;
 			/* Size is updated all the time */
-			if (copy_to_client(client_param->memref.size_addr,
+			if (copy_to_client((void *)(client_param->memref.size_addr | (unsigned long)(client_param->memref.size_h_addr) << 32),
 					   &buffer_size,
 					   sizeof(buffer_size),
 					   dev_file->kernel_api)) {
@@ -303,7 +307,7 @@ static int update_client_operation(TC_NS_DEV_File *dev_file,
 			   operation->params[i].memref.size)
 				continue;
 
-			if (copy_to_client(client_param->memref.buffer,
+			if (copy_to_client((void *)(client_param->memref.buffer | (unsigned long)(client_param->memref.buffer_h_addr) << 32),
 					   local_temp_buffer[i],
 					   operation->params[i].memref.size,
 					   dev_file->kernel_api)) {
@@ -316,7 +320,7 @@ static int update_client_operation(TC_NS_DEV_File *dev_file,
 			  (param_type  == TEEC_MEMREF_PARTIAL_INOUT)){
 			/* update size */
 			buffer_size = operation->params[i].memref.size;
-			if (copy_to_client(client_param->memref.size_addr,
+			if (copy_to_client((void *)(client_param->memref.size_addr | (unsigned long)(client_param->memref.size_h_addr) << 32),
 					   &buffer_size,
 					   sizeof(buffer_size),
 					   dev_file->kernel_api)) {
@@ -327,7 +331,7 @@ static int update_client_operation(TC_NS_DEV_File *dev_file,
 		} else if(incomplete && ((param_type == TEEC_VALUE_OUTPUT)||
 					 (param_type == TEEC_VALUE_INOUT))){
 			/* value */
-			if (copy_to_client(client_param->value.a_addr,
+			if (copy_to_client((void *)(client_param->value.a_addr | (unsigned long)(client_param->value.a_h_addr) << 32),
 					   &operation->params[i].value.a,
 					   sizeof(operation->params[i].value.a),
 					   dev_file->kernel_api)) {
@@ -335,7 +339,7 @@ static int update_client_operation(TC_NS_DEV_File *dev_file,
 				ret = -EFAULT;
 				break;
 			}
-			if (copy_to_client(client_param->value.b_addr,
+			if (copy_to_client((void *)(client_param->value.b_addr | (unsigned long)(client_param->value.b_h_addr) << 32),
 					   &operation->params[i].value.b,
 					   sizeof(operation->params[i].value.b),
 					   dev_file->kernel_api)) {
@@ -429,6 +433,8 @@ int tc_client_call(TC_NS_ClientContext *client_context, TC_NS_DEV_File *dev_file
 	smc_cmd->context_id = client_context->session_id;
 	smc_cmd->err_origin = 0;
 	smc_cmd->started = client_context->started;
+	smc_cmd->uid = current_uid();//TC_NS_get_uid();
+	TCVERBOSE("current uid is %d\n", smc_cmd->uid);
 	TCVERBOSE("operation start is :%d\n",smc_cmd->started);
 	if(operation) {
 		smc_cmd->operation_phys = virt_to_phys(operation);

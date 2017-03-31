@@ -62,6 +62,14 @@
 #define LOG_TAG "K3_ISPV1_IO"
 #include "cam_log.h"
 
+#if defined (CONFIG_HUAWEI_DSM)
+#include <dsm/dsm_pub.h>
+#endif
+
+#if defined (CONFIG_HUAWEI_DSM)
+extern struct dsm_client *client_ovisp22;
+#endif
+
 #define CSI_INT_EN 0x00000000
 
 /*#define SETREG8(mem, value) iowrite8_mutex((value), (mem))*/
@@ -181,6 +189,16 @@ static irqreturn_t k3_csi0_isr(int irq, void *dev_id)
 
 	if ((irq_status1 | irq_status2) != 0)
 	{
+
+#if defined (CONFIG_HUAWEI_DSM)
+	if (100 == csi0_err_cnt ){
+		if (!dsm_client_ocuppy(client_ovisp22)){
+			dsm_client_record(client_ovisp22,"[%s]K3 CSI0 mian camera Error \n",__func__);
+			dsm_client_notify(client_ovisp22, DSM_ISP22_K3_MCAM_CSI_ERROR_NO);
+		}
+	}
+#endif
+
         if (0 == (csi0_err_cnt % 100))
         {
             print_error("k3_csi_isr1 ERR1[%#x], ERR2[%#x]\n", irq_status1, irq_status2);
@@ -203,7 +221,7 @@ static irqreturn_t k3_csi0_isr(int irq, void *dev_id)
             csi0_err_cnt++;
 	     if(4000 == csi0_err_cnt)
 	     {
-                  systemError(0x25, EXCH_S_CSI, 0,0,0);
+                  systemError(0x25, EXCH_S_CSI0, 0,0,0);
 		    csi0_err_cnt = 0;
 	     }
 
@@ -236,6 +254,15 @@ static irqreturn_t k3_csi1_isr(int irq, void *dev_id)
 	if ((irq_status1 | irq_status2) != 0)
 	{
 
+#if defined (CONFIG_HUAWEI_DSM)
+	if (100 == csi1_err_cnt ){
+		if (!dsm_client_ocuppy(client_ovisp22)){
+			dsm_client_record(client_ovisp22,"[%s]K3 CSI1 sub camera  Error \n",__func__);
+			dsm_client_notify(client_ovisp22, DSM_ISP22_K3_SCAM_CSI_ERROR_NO);
+		}
+	}
+#endif
+
         if (0 == (csi1_err_cnt % 100))
         {
             print_error("k3_csi_isr2 ERR1[%#x], ERR2[%#x]\n", irq_status1, irq_status2);
@@ -258,7 +285,7 @@ static irqreturn_t k3_csi1_isr(int irq, void *dev_id)
             csi1_err_cnt++;
             if(4000 == csi1_err_cnt)
             {
-                 systemError(0x25, EXCH_S_CSI, 0,0,0);
+                 systemError(0x25, EXCH_S_CSI1, 0,0,0);
 		   csi1_err_cnt = 0;
 	     }
 
@@ -499,7 +526,7 @@ void ispv1_csi_phy_set(camera_power_state type, csi_index_t index)
 
 
 
-
+#ifdef DPHY_DEBUG
 int ispv1_load_phy_setting(char *filename, u8 *settle_time, u8 *camera_source)
 {
 	struct kstat stat;
@@ -569,7 +596,7 @@ error_out:
 		filp_close(fp, 0);
 	return ret;
 }
-
+#endif
 /*
  **************************************************************************
  * FunctionName: ispv1_init_csi;

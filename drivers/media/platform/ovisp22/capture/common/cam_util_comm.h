@@ -31,7 +31,7 @@
 #define CAMERA_FLAG_WORKQ       2
 #define CAMERA_FLAG_DONEQ       4
 
-#define MAX_FRAME_NR            8
+#define MAX_FRAME_NR            12//8  change 8 to 12, which is for B_SHUTTER Alog mode preformance for some case, this is just a poniter, so no more extra memory wasted
 #define CAMERA_BUF_RSV_BUF_IDX  0   //reserved buffer index
 
 //#define OVISP_DEBUG_MODE

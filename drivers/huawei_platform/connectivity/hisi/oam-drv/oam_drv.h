@@ -106,6 +106,7 @@ typedef struct sk_buff                      oal_netbuf_stru;
 #define HCC_OAM_TEST                        0x06
 #define DATA_BUF_LEN                        2048
 #define SDTCMD_MAX_LEN                      100
+#define SDT_UNCONNECTED_MAXCNT              (500)
 
 /*head and end */
 #define PACKET_START_SIGNAL         		(0x7e)
@@ -218,6 +219,7 @@ typedef struct oam_kernel_globals
     uint8                                   *puc_data;
     uint32                                  ul_usepid;
 	uint16						            sn_num;
+    atomic_t                                ul_unconnect_cnt;
 }OAM_KERNEL_GLOBALS_STUR;
 
 /*

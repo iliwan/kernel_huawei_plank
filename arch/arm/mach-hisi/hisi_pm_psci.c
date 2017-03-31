@@ -38,6 +38,7 @@ static arch_spinlock_t hisi_pm_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 /* sysctrl and pctrl base  */
 static void __iomem *sysctrl_base;
 static void __iomem *pctrl_base;
+static void __iomem *crg_base;
 
 
 #define RES0_LOCK_OFF	0x400
@@ -57,7 +58,14 @@ static void __iomem *pctrl_base;
 #define LOCK_ID(core)	((0x6 - core)  << 29)
 #define	LOCK_VAL(core)		(LOCK_ID(core) | LOCK_BIT)
 
-
+/*
+ *SCBAKDATA[8-9] each bit has different means.
+ * [0:3] core_idle_NS, if 0 bit set means that core0 is idle in non-secure environment.
+ * [4:7] core_idle_S,
+ * [8:8] cluset_idle,
+ * [24:24] if set, bus mode is ACE;
+ * [25:25] if set, bus mode is AXI.
+ */
 #define SCBAKDATA8_OFFSET	0x334
 #define SCBAKDATA9_OFFSET	0x338
 /* scbakdata8 and scbakdata9  are used for cluster 0 and 1 */
@@ -66,14 +74,25 @@ static void __iomem *pctrl_base;
 /* core idle bit */
 #define	CORE_IDLE_BIT(core)		(0x1 << core)
 /* cluster idle bit */
-#define CLUSTER_IDLE_BIT		 (0x1 << 8)
-#define CLUSTER_IDLE_MASK	((0xf) | CLUSTER_IDLE_BIT)
+#define CLUSTER_IDLE_BIT		(0x1 << 8)
+#define ALL_CORES_IDLE			(0xf)
+#define CLUSTER_IDLE_MASK		(ALL_CORES_IDLE | CLUSTER_IDLE_BIT)
+
+#ifdef CONFIG_HISI_BUS_SWITCH
+#define BUS_SWITCH_ACE_MODE		BIT(24)
+#define BUS_SWITCH_AXI_MODE		BIT(25)
+#define A7_STAT_OFFSET			0x180
+#define A7_WFI_MASK				0xf
+#define A7_CORES_READY			0xe
+#endif
 
 void get_resource_lock(unsigned int cluster, unsigned int core)
 {
+	unsigned long val;
 	do {
 		writel(LOCK_VAL(core), pctrl_base + RES_LOCK_OFF(cluster));
-	} while((readl(pctrl_base + RES_LOCK_STAT_OFF(cluster)) & LOCK_ID_MASK) != LOCK_ID(core));
+		val = readl(pctrl_base + RES_LOCK_STAT_OFF(cluster));
+	} while((val & LOCK_ID_MASK) != LOCK_ID(core));
 }
 EXPORT_SYMBOL(get_resource_lock);
 
@@ -93,6 +112,55 @@ void set_cluster_idle_bit(unsigned int cluster)
 }
 EXPORT_SYMBOL(set_cluster_idle_bit);
 
+#ifdef CONFIG_HISI_BUS_SWITCH
+void bus_switch2ace(void)
+{
+	unsigned long cluster_state;
+	unsigned int mpidr, cluster, cpu;
+
+	mpidr = read_cpuid_mpidr();
+	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+	cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
+
+	get_resource_lock(cluster, cpu);
+	cluster_state = readl(sysctrl_base + CLUSTER_IDLE_STAT(1));
+	cluster_state |= BUS_SWITCH_ACE_MODE;
+	cluster_state &= (~(BUS_SWITCH_AXI_MODE));
+
+	writel(cluster_state, sysctrl_base + CLUSTER_IDLE_STAT(1));
+	put_resource_lock(cluster, cpu);
+}
+EXPORT_SYMBOL(bus_switch2ace);
+
+void bus_switch2axi(void)
+{
+	unsigned long cluster_state;
+	unsigned int mpidr, cluster, cpu;
+
+	mpidr = read_cpuid_mpidr();
+	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+	cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
+
+	get_resource_lock(cluster, cpu);
+	cluster_state = readl(sysctrl_base + CLUSTER_IDLE_STAT(1));
+	cluster_state &= (~(BUS_SWITCH_ACE_MODE));
+	cluster_state |= BUS_SWITCH_AXI_MODE;
+
+	writel(cluster_state, sysctrl_base + CLUSTER_IDLE_STAT(1));
+	put_resource_lock(cluster, cpu);
+}
+EXPORT_SYMBOL(bus_switch2axi);
+
+
+void wait_for_slave_cores(void)
+{
+	unsigned long cluster_state;
+	do {
+		cluster_state = readl(crg_base + A7_STAT_OFFSET);
+	} while ((cluster_state & A7_WFI_MASK) != A7_CORES_READY);
+}
+EXPORT_SYMBOL(wait_for_slave_cores);
+#endif
 
 static void hisi_core_exit_coherence(void)
 {
@@ -229,9 +297,18 @@ static void hisi_pm_psci_suspend(u64 unused)
 
 	gic_cpu_if_down();
 
-	pr_debug("[%s] mpidr = 0x%x, affinity_level = %d\n", __func__, mpidr, (u32)unused);
+	if (unused == HISI_BS_POWER_STATE_AFFINITY_LEVEL) {
+#ifdef CONFIG_HISI_BUS_SWITCH
+		get_resource_lock(cluster, core);
 
-	if (unused != PSCI_POWER_STATE_AFFINITY_LEVEL3) {
+		if (core != 0)
+			hisi_core_exit_coherence();
+		else
+			hisi_cluster_exit_coherence(cluster);
+
+		put_resource_lock(cluster, core);
+#endif
+	} else if (unused < PSCI_POWER_STATE_AFFINITY_LEVEL3) {
 		/* sync with lpm3 */
 		get_resource_lock(cluster, core);
 
@@ -248,12 +325,16 @@ static void hisi_pm_psci_suspend(u64 unused)
 		}
 
 		put_resource_lock(cluster, core);
-	} else {
+	}  else if (unused ==PSCI_POWER_STATE_AFFINITY_LEVEL3 ) {
 		hisi_cluster_exit_coherence(cluster);
 	}
 
 	if (unused == PSCI_POWER_STATE_AFFINITY_LEVEL0)
 		hisi_core_exit_coherence();
+
+	if (((cluster_state & CLUSTER_IDLE_MASK) == ALL_CORES_IDLE)
+		&& (unused != PSCI_POWER_STATE_AFFINITY_LEVEL3))
+		flush_cache_all();
 
 	/* construct idle power state */
 	power_state.id = PSCI_POWER_STATE_ID;
@@ -320,6 +401,17 @@ static int __init hisi_pm_psci_init(void)
 		}
 		pctrl_base = of_iomap(np, 0);
 		BUG_ON(!pctrl_base);
+	}
+
+	if (crg_base == NULL) {
+		np = of_find_compatible_node(NULL, NULL, "hisilicon,crgctrl");
+		if (!np) {
+			pr_err("get crgctrl node error !\n");
+			BUG_ON(1);
+			return -ENODEV;
+		}
+		crg_base = of_iomap(np, 0);
+		BUG_ON(!crg_base);
 	}
 
 	ret = mcpm_platform_register(&hisi_pm_power_ops);

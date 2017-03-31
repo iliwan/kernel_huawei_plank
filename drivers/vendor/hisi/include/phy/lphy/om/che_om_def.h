@@ -871,6 +871,7 @@ typedef struct
 
 } LPHY_CHE_OM_ERROR_STRU;
 
+/* BEGIN: Added by xueqiuyan, 2013/8/29   PN:DRS_SNR*/
 typedef  struct
 {
     INT16  sDRS_SnrP5P7Rx0;
@@ -879,6 +880,7 @@ typedef  struct
     INT16  sDRS_SnrP8Rx1;
 }CHE_DRS_SNR_STRU;
 
+/* END:   Added by xueqiuyan, 2013/8/29 */
 #ifdef __cplusplus
 #if __cplusplus
 }

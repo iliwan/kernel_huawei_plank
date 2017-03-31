@@ -290,6 +290,9 @@ OBC_LOCAL_SRC_FILE := \
     ${BALONG_TOPDIR}/modem/taf/gu/src/ccore/src/Mn/Phone/Src/TafMmaTimerMgmt.c\
 	${BALONG_TOPDIR}/modem/taf/gu/src/ccore/src/Mn/Phone/Src/TafMmaSndTaf.c\
     ${BALONG_TOPDIR}/modem/taf/gu/src/ccore/src/Mn/Phone/Src/TafMmaSndApp.c\
+    ${BALONG_TOPDIR}/modem/taf/gu/src/ccore/src/Mn/Phone/Src/TafMmaFsmImsSwitch.c\
+    ${BALONG_TOPDIR}/modem/taf/gu/src/ccore/src/Mn/Phone/Src/TafMmaFsmImsSwitchTbl.c\
+    ${BALONG_TOPDIR}/modem/taf/gu/src/ccore/src/Mn/Phone/Src/TafMmaComFunc.c\
     $(BALONG_TOPDIR)/modem/taf/gu/src/ccore/src/Mn/Sups/Src/Ssa_App.c\
     $(BALONG_TOPDIR)/modem/taf/gu/src/ccore/src/Mn/Sups/Src/Ssa_Common.c\
     $(BALONG_TOPDIR)/modem/taf/gu/src/ccore/src/Mn/Sups/Src/Ssa_Decode.c\

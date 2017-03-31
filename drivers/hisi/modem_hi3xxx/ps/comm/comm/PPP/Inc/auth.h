@@ -62,6 +62,7 @@ struct authinfo {
 
 /* BEGIN: changed by fanzhibin 49086, 2006/5/12   PN:A32D03785*/
   VOS_CHAR id;
+/* END: changed by fanzhibin 49086, 2006/5/12   PN:A32D03785*/
 
 /*  struct physical *physical;*/
 

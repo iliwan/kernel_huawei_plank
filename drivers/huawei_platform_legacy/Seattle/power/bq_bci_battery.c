@@ -67,14 +67,14 @@ static struct dsm_dev dsm_battery = {
     .fops = NULL,
     .buff_size = 1024,
 };
-static struct dsm_client *battery_dclient = NULL;
-
 static struct dsm_dev dsm_charge_monitor = {
     .name = "dsm_charge_monitor",
     .fops = NULL,
     .buff_size = 1024,
-    };
+};
+static struct dsm_client *battery_dclient = NULL;
 static struct dsm_client *charge_monitor_dclient = NULL;
+
 struct dsm_client *get_battery_dclient(void)
 {
     return battery_dclient;
@@ -363,7 +363,12 @@ static int capacity_changed(struct bq_bci_device_info *di)
     di->prev_capacity = curr_capacity;
     return 1;
 }
-
+static void notify_charge_event_to_sysfs(struct kobject *pCharge_event_sysfs)
+{
+    if(pCharge_event_sysfs) {
+        sysfs_notify(pCharge_event_sysfs, NULL, "poll_charge_start_event");
+    }
+}
 static int bq_charger_event(struct notifier_block *nb, unsigned long event,
             void *_data)
 {
@@ -371,6 +376,7 @@ static int bq_charger_event(struct notifier_block *nb, unsigned long event,
     int ret = 0;
     di = container_of(nb, struct bq_bci_device_info, nb);
     di->event = event;
+
     switch (event) {
     case VCHRG_START_USB_CHARGING_EVENT:
         //pr_jank(JL_USBCHARGING_START, "JL_USBCHARGING_START");
@@ -379,9 +385,7 @@ static int bq_charger_event(struct notifier_block *nb, unsigned long event,
         di->charge_status = POWER_SUPPLY_STATUS_CHARGING;
         di->power_supply_status = POWER_SUPPLY_HEALTH_GOOD;
         di->charge_full_count = 0;
-        if(g_sysfs_bq_bci){
-            sysfs_notify(g_sysfs_bq_bci, NULL, "poll_charge_start_event");
-        }
+        notify_charge_event_to_sysfs(g_sysfs_bq_bci);
         break;
 
     case VCHRG_START_AC_CHARGING_EVENT:
@@ -390,9 +394,7 @@ static int bq_charger_event(struct notifier_block *nb, unsigned long event,
         di->charge_status = POWER_SUPPLY_STATUS_CHARGING;
         di->power_supply_status = POWER_SUPPLY_HEALTH_GOOD;
         di->charge_full_count = 0;
-        if(g_sysfs_bq_bci){
-            sysfs_notify(g_sysfs_bq_bci, NULL, "poll_charge_start_event");
-        }
+        notify_charge_event_to_sysfs(g_sysfs_bq_bci);
         break;
 
     case VCHRG_STOP_CHARGING_EVENT:
@@ -402,6 +404,7 @@ static int bq_charger_event(struct notifier_block *nb, unsigned long event,
         di->charge_status = POWER_SUPPLY_STATUS_DISCHARGING;
         di->power_supply_status = POWER_SUPPLY_HEALTH_UNKNOWN;
         di->charge_full_count = 0;
+        notify_charge_event_to_sysfs(g_sysfs_bq_bci);
         break;
 
     case VCHRG_START_CHARGING_EVENT:
@@ -439,6 +442,9 @@ static int bq_charger_event(struct notifier_block *nb, unsigned long event,
 
     case VCHRG_STATE_WDT_TIMEOUT:
         di->watchdog_timer_status = POWER_SUPPLY_HEALTH_WATCHDOG_TIMER_EXPIRE;
+        break;
+    case VCHRG_START_OTG_EVENT:
+        notify_charge_event_to_sysfs(g_sysfs_bq_bci);
         break;
 
     default:
@@ -882,7 +888,11 @@ static int bq_bci_battery_get_property(struct power_supply *psy,
         val->intval = di->bat_current;
         break;
     case POWER_SUPPLY_PROP_TEMP:
+#ifdef CONFIG_HLTHERM_RUNTEST
+        val->intval = 25 * 10;
+#else
         val->intval = di->bat_temperature * 10;
+#endif
         break;
     case POWER_SUPPLY_PROP_PRESENT:
     case POWER_SUPPLY_PROP_ONLINE:
@@ -924,7 +934,7 @@ static int bq_bci_battery_get_property(struct power_supply *psy,
         val->intval = hisi_battery_cycle_count();
         break;
     case POWER_SUPPLY_PROP_FCP_STATUS:
-        if(FCP_STAGE_SUCESS <= fcp_get_stage_status())
+        if(FCP_STAGE_SUCESS <= fcp_get_stage_status() && di->ac_online)
         {
             val->intval = 1;
         }
@@ -1147,9 +1157,8 @@ static int bq_bci_battery_probe(struct platform_device *pdev)
     if (!battery_dclient) {
         battery_dclient = dsm_register_client(&dsm_battery);
     }
-
     if (!charge_monitor_dclient) {
-    charge_monitor_dclient = dsm_register_client(&dsm_charge_monitor);
+        charge_monitor_dclient = dsm_register_client(&dsm_charge_monitor);
     }
 
     return 0;

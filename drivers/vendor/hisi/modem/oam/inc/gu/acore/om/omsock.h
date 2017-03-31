@@ -32,6 +32,7 @@ extern "C" {
 #endif
 
 #pragma pack(4)
+/* Modify by H59254 */
 #if (FEATURE_OFF == FEATURE_MERGE_OM_CHAN)
 /*****************************************************************************
   2 ∫Í∂®“Â

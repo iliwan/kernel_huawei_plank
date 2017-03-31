@@ -329,7 +329,8 @@ struct balong_fb_panel_data {
     int (*lcd_gram_check_show) (struct platform_device *pdev);
     int (*lcd_inversion_mode_store) (struct platform_device *pdev, unsigned int inversion_mode);
     int (*lcd_inversion_mode_show) (struct platform_device *pdev);
-
+    int (*lcd_scan_mode_store) (struct platform_device *pdev, unsigned int scanmode);
+    int (*lcd_scan_mode_show) (struct platform_device *pdev);
 	struct platform_device *next;
 };
 

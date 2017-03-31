@@ -27,6 +27,9 @@
 #include <linux/ion.h>
 #include <linux/hisi/hisi_ion.h>
 
+#define BSHUTTER_LOG_TAG "B_SHUTTER_ALGO_MODE"
+#define PRO_MODE "PROCAM_MODE"
+
 typedef struct _camera_frame_buf {
 	int index;
 	u32 phyaddr;

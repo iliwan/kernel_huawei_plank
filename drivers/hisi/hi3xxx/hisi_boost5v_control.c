@@ -49,6 +49,7 @@ struct hisi_boost5v_control_info {
 	bool classd_flag;
 	bool hdmi_flag;
 	bool denoise_headphone_flag;
+	bool extern_speaker_pa_flag;
 };
 
 static struct hisi_boost5v_control_info *g_boost5v_info = NULL;
@@ -179,6 +180,21 @@ void boost5v_denoise_headphone_enable(bool enable)
 	return ;
 }
 
+void boost5v_extern_audio_speaker_pa_enable(bool enable)
+{
+	if (NULL == g_boost5v_info)
+	{
+		return;
+	}
+	if (true == enable)
+		g_boost5v_info->extern_speaker_pa_flag = true;
+	else
+		g_boost5v_info->extern_speaker_pa_flag = false;
+
+	regulator_changed();
+	return ;
+}
+
 static int regulator_changed(void)
 {
 	mutex_lock(&g_boost5v_info->boost5v_control_lock);
@@ -186,7 +202,7 @@ static int regulator_changed(void)
 		set_boost5v_voltage_5_v();
 		set_boost5v_enable();
 		mdelay(3);
-	} else if (g_boost5v_info->denoise_headphone_flag || g_boost5v_info->headphone_flag) {
+	} else if (g_boost5v_info->denoise_headphone_flag || g_boost5v_info->headphone_flag || g_boost5v_info->extern_speaker_pa_flag) {
 		mdelay(1);
 		set_boost5v_voltage_5_3_v();
 		set_boost5v_enable();
@@ -238,6 +254,7 @@ static int hisi_boost5v_control_probe(struct platform_device *pdev)
 	info->classd_flag = false;
 	info->hdmi_flag = false;
 	info->denoise_headphone_flag = false;
+	info->extern_speaker_pa_flag = false;
 	mutex_init(&(info->boost5v_control_lock));
 
 	g_boost5v_info = info;

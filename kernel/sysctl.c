@@ -278,6 +278,10 @@ static int max_sched_tunable_scaling = SCHED_TUNABLESCALING_END-1;
 static int min_extfrag_threshold;
 static int max_extfrag_threshold = 1000;
 #endif
+#ifdef CONFIG_SHRINK_MEMORY
+static int min_shrink_memory = 1;
+static int max_shrink_memory = 1;
+#endif
 
 static struct ctl_table kern_table[] = {
 	{
@@ -1349,6 +1353,17 @@ static struct ctl_table vm_table[] = {
 	},
 
 #endif /* CONFIG_COMPACTION */
+#ifdef CONFIG_SHRINK_MEMORY
+	{
+		.procname	= "shrink_memory",
+		.data 		= &sysctl_shrink_memory,
+		.maxlen		= sizeof(int),
+		.mode		= 0200,
+		.proc_handler = sysctl_shrinkmem_handler,
+		.extra1 	= &min_shrink_memory,
+		.extra2	    = &max_shrink_memory,
+	},
+#endif
 	{
 		.procname	= "min_free_kbytes",
 		.data		= &min_free_kbytes,

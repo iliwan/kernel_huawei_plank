@@ -39,7 +39,7 @@ enum {
 	REBOOT_SDUPDATE_CMDNUM,         /*5*/
 	REBOOT_PANIC_CMDNUM,            /*6*/
 	REBOOT_RESIZE_CMDNUM,           /*7*/
-	REBOOT_RES_1,                   /*8*/
+	REBOOT_ERECOVERY_CMDNUM,        /*8*/
 	REBOOT_USBUPDATE_CMDNUM,        /*9*/
 	REBOOT_CUST_CMDNUM,                     /*10*/
 	REBOOT_USERSDUPDATE_CMDNUM,                     /*11*/
@@ -65,6 +65,7 @@ enum {
 #define REBOOT_USERSDUPDATE_STR                "usersdupdate"
 #define REBOOT_OEM_RTC_STR             "oem_rtc"
 #define REBOOT_MOUNTFAIL_STR   "mountfail"
+#define REBOOT_ERECOVERY_STR           "erecovery"
 
 struct reboot_cmdword {
 	char *name;
@@ -86,6 +87,7 @@ static struct reboot_cmdword reboot_cmd_map[] = {
 	{ REBOOT_USERSDUPDATE_STR, REBOOT_USERSDUPDATE_CMDNUM },
 	{ REBOOT_OEM_RTC_STR, REBOOT_OEM_RTC_CMDNUM },
 	{ REBOOT_MOUNTFAIL_STR, REBOOT_MOUNTFAIL_CMDNUM },
+	{ REBOOT_ERECOVERY_STR, REBOOT_ERECOVERY_CMDNUM },
 };
 
 static unsigned int find_cmd_num(const char *cmd)

@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <huawei_platform/log/hw_log.h>
 #include <linux/slab.h>
+#include <linux/kdev_t.h>
 
 #define IRDA_COMPATIBLE_ID		"huawei,irda_maxim"
 #define IRDA_POWER_CONTROL_GPIO		"gpio_power_control"
@@ -20,20 +21,28 @@ struct irda_private_data {
 	struct gpio gpio_reset;
 };
 
+struct irda_device {
+	struct platform_device *pdev;
+	struct device *dev;
+	struct class *irda_class;
+	struct irda_private_data pdata;
+};
+
 static ssize_t power_config_get(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct irda_private_data *pdata = dev_get_drvdata(dev);
-	return snprintf(buf, IRDA_BUFF_SIZE, "%d\n", gpio_get_value(pdata->gpio_reset.gpio));
+	struct irda_device *irda_dev = dev_get_drvdata(dev);
+
+	return snprintf(buf, IRDA_BUFF_SIZE, "%d\n", gpio_get_value(irda_dev->pdata.gpio_reset.gpio));
 }
 
 static ssize_t power_config_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	int ret = -1;
 	unsigned long state = 0;
+	struct irda_device *irda_dev = dev_get_drvdata(dev);
 
-	struct irda_private_data *pdata = dev_get_drvdata(dev);
 	if (!strict_strtol(buf, 10, &state)){
-		gpio_direction_output(pdata->gpio_reset.gpio, !!state);
+		gpio_direction_output(irda_dev->pdata.gpio_reset.gpio, !!state);
 		ret = count;
 	}
 	return ret;
@@ -44,8 +53,9 @@ static DEVICE_ATTR(power_cfg, 0660, power_config_get, power_config_set);
 static int irda_probe(struct platform_device *pdev)
 {
 	int ret;
+	int gpio;
 	struct device_node *np;
-	struct irda_private_data *pdata;
+	struct irda_device *irda_dev;
 
 	np= pdev->dev.of_node;
 	if (np ==NULL) {
@@ -54,58 +64,75 @@ static int irda_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	pdata = kzalloc(sizeof(struct irda_private_data), GFP_KERNEL);
-	if (NULL == pdata) {
-		hwlog_err("failed to allocate irda_private_data\n");
+	irda_dev = (struct irda_device *)kzalloc(sizeof(struct irda_device), GFP_KERNEL);
+	if (NULL == irda_dev) {
+		hwlog_err("Failed to allocate irda_dev\n");
 		ret = -ENOMEM;
 		goto error;
 	}
 
-	ret = device_rename(&pdev->dev, "irda_maxim");
-	if (ret) {
-		hwlog_err("dev rename err\n");
-		goto free_data;
-	}
-
-	pdata->gpio_reset.gpio= of_get_named_gpio(np, IRDA_POWER_CONTROL_GPIO, 0);
-	if (!gpio_is_valid(pdata->gpio_reset.gpio)) {
+	gpio = of_get_named_gpio(np, IRDA_POWER_CONTROL_GPIO, 0);
+	if (!gpio_is_valid(gpio)) {
 		hwlog_err("gpio is not valid\n");
 		ret =  -EINVAL;
-		goto free_data;
+		goto free_irda_dev;
 	}
 
-	ret = gpio_request(pdata->gpio_reset.gpio, "irda_gpio");
+	irda_dev->pdata.gpio_reset.gpio = (unsigned int)gpio;
+	ret = gpio_request(irda_dev->pdata.gpio_reset.gpio, "irda_gpio");
 	if (ret) {
-		hwlog_err("gpio[%ud] request faile", pdata->gpio_reset.gpio);
-		goto free_data;
+		hwlog_err("Failed to request gpio[%ud]; ret:%d", irda_dev->pdata.gpio_reset.gpio, ret);
+		goto free_irda_dev;
 	}
 
-	ret = device_create_file(&pdev->dev, &dev_attr_power_cfg);
-	if (ret) {
-		hwlog_err("create file err !\n");
+	irda_dev->irda_class = class_create(THIS_MODULE, "irda");
+	if (IS_ERR(irda_dev->irda_class)) {
+		ret = PTR_ERR(irda_dev->irda_class);
+		hwlog_err("Failed to create irda class; ret:%d\n", ret);
 		goto free_gpio;
 	}
 
-	gpio_direction_output(pdata->gpio_reset.gpio, 0);
-	platform_set_drvdata(pdev, pdata);
+	irda_dev->dev = device_create(irda_dev->irda_class, NULL, MKDEV(0, 0), NULL, "%s", "irda_maxim");
+	if (IS_ERR(irda_dev->dev)) {
+		ret = PTR_ERR(irda_dev->dev);
+		hwlog_err("Failed to create dev; ret:%d\n", ret);
+		goto free_class;
+	}
+
+	ret = device_create_file(irda_dev->dev, &dev_attr_power_cfg);
+	if (ret) {
+		hwlog_err("Failed to create file; ret:%d\n", ret);
+		goto free_dev;
+	}
+
+	gpio_direction_output(irda_dev->pdata.gpio_reset.gpio, 0);
+	dev_set_drvdata(irda_dev->dev, irda_dev);
+	platform_set_drvdata(pdev, irda_dev);
 
 	hwlog_info("platform device probe success\n");
 	return 0;
 
+free_dev:
+	device_destroy(irda_dev->irda_class, irda_dev->dev->devt);
+free_class:
+	class_destroy(irda_dev->irda_class);
 free_gpio:
-	gpio_free(pdata->gpio_reset.gpio);
-free_data:
-	kfree(pdata);
+	gpio_free(irda_dev->pdata.gpio_reset.gpio);
+free_irda_dev:
+	kfree(irda_dev);
 error:
 	return ret;
 }
 
 static int irda_remove(struct platform_device *pdev)
 {
-	struct irda_private_data *pdata = platform_get_drvdata(pdev);
-	device_remove_file(&pdev->dev, &dev_attr_power_cfg);
-	gpio_free(pdata->gpio_reset.gpio);
-	kfree(pdata);
+	struct irda_device *irda_dev = platform_get_drvdata(pdev);
+
+	device_remove_file(irda_dev->dev, &dev_attr_power_cfg);
+	device_destroy(irda_dev->irda_class, irda_dev->dev->devt);
+	class_destroy(irda_dev->irda_class);
+	gpio_free(irda_dev->pdata.gpio_reset.gpio);
+	kfree(irda_dev);
 
 	return 0;
 }

@@ -32,12 +32,18 @@ enum MTC_RCM_MSG_ID_ENUM
     /* 消息方向: MTC->RCM */
     ID_MTC_RCM_MODEM_STATUS_NOTIFY      = 0x1818,                              /* MTC通知RCM modem连接状态 *//* _H2ASN_MsgChoice MTC_RCM_MODEM_STATE_NOTIFY_STRU */
 
+    /* Added by wx270776 for tas loop test, 2015-5-4, begin */
+    ID_MTC_RCM_TC_STATUS_NOTIFY         = 0x181f,                               /* _H2ASN_MsgChoice MTC_RCM_TC_STATUS_NOTIFY_STRU */
+    /* Added by wx270776 for tas loop test, 2015-5-4, end */
+
     /* 消息方向: RCM->MTC */
 
     ID_MTC_RCM_MSG_ID_ENUM_BUTT
 
 };
 typedef VOS_UINT32  MTC_RCM_MSG_ID_ENUM_UINT32;
+
+
 enum MTC_RCM_MODEM_TYPE_ENUM
 {
     MTC_RCM_MODEM_0                     = MODEM_ID_0,
@@ -84,6 +90,30 @@ enum MTC_RCM_USIMM_CARD_SERVIC_ENUM
 };
 typedef VOS_UINT16      MTC_RCM_USIMM_CARD_SERVIC_ENUM_UINT16;
 
+/* Added by wx270776 for tas loop test, 2015-5-4, begin */
+
+enum MTC_RCM_TC_STATUS_ENUM
+{
+    MTC_RCM_TC_STOP                     = 0,                                    /* 环回停止 */
+    MTC_RCM_TC_START,                                                           /* 环回启动 */
+    MTC_RCM_TC_BUTT
+};
+typedef VOS_UINT16 MTC_RCM_TC_STATUS_ENUM_UINT16;
+
+
+
+enum MTC_RCM_RAT_MODE_ENUM
+{
+    MTC_RCM_RAT_MODE_GSM                     = 0,                               /* GSM */
+    MTC_RCM_RAT_MODE_WCDMA,                                                     /* WCDMA */
+    MTC_RCM_RAT_MODE_TDSCDMA,                                                   /* TDSCDMA */
+    MTC_RCM_RAT_MODE_LTE,                                                       /* LTE */
+    MTC_RCM_RAT_MODE_CDMA,                                                      /* CDMA */
+    MTC_RCM_RAT_MODE_BUTT
+};
+typedef VOS_UINT16 MTC_RCM_RAT_MODE_ENUM_UINT16;
+/* Added by wx270776 for tas loop test, 2015-5-4, end */
+
 /*****************************************************************************
   4 全局变量声明
 *****************************************************************************/
@@ -127,6 +157,20 @@ typedef struct
     MTC_RCM_MSG_HEADER_STRU             stMsgHeader;                            /*_H2ASN_Skip*/
     MTC_RCM_MODEM_STATE_INFO_STRU       astModemState[MTC_RCM_MAX_MODEM_NUM];
 } MTC_RCM_MODEM_STATE_NOTIFY_STRU;
+
+
+/* Added by wx270776 for tas loop test, 2015-5-4, begin */
+
+typedef struct
+{
+    MTC_RCM_MSG_HEADER_STRU             stMsgHeader;                            /*_H2ASN_Skip*/
+    MTC_RCM_MODEM_TYPE_ENUM_UINT16      enModemId;                              /* modem id */
+    MTC_RCM_RAT_MODE_ENUM_UINT16        enRatMode;                              /* 接入模式 */
+    MTC_RCM_TC_STATUS_ENUM_UINT16       enTcStatus;                             /* 环回状态 */
+    VOS_UINT16                          usRsv;                                  /* 保留位 */
+}MTC_RCM_TC_STATUS_NOTIFY_STRU;
+/* Added by wx270776 for tas loop test, 2015-5-4, end */
+
 
 /*****************************************************************************
   8 UNION定义

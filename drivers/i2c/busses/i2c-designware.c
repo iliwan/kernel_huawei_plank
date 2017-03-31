@@ -783,8 +783,8 @@ static void i2c_dw_init(struct dw_i2c_dev *dev)
 	writel(I2C_CONFIGED_SLAVE, dev->base + DW_IC_SAR);
 
 	/* Configure Tx/Rx FIFO threshold levels */
-	writel(dev->tx_fifo_depth - 1, dev->base + DW_IC_TX_TL);
-	writel(16, dev->base + DW_IC_RX_TL);
+	writel(15, dev->base + DW_IC_TX_TL);
+	writel(15, dev->base + DW_IC_RX_TL);
 
 	writel(dev->tx_fifo_depth - 16, dev->base + DW_IC_DMA_TDLR);
 	writel(15, dev->base + DW_IC_DMA_RDLR);
@@ -1231,7 +1231,7 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	mutex_lock(&dev->lock);
 	//i2c_clk_domain_enable(dev, 0);
 
-	ret = clk_prepare_enable(dev->clk);
+	ret = clk_enable(dev->clk);
 	if(ret < 0) {
 		dev_err(dev->dev, "clk_enable failed!\n");
 		goto clk_set_failed;
@@ -1373,7 +1373,7 @@ done:
 
 	if(false == Chip_Verification_Check_Debug(CHIP_VERIFICATION_I2C_DEBUG) )
 	{
-	clk_disable_unprepare(dev->clk);
+	clk_disable(dev->clk);
 	}
 clk_set_failed:
 	//i2c_clk_domain_enable(dev, 1);
@@ -1656,7 +1656,7 @@ static int dw_i2c_probe(struct platform_device *pdev)
 	i2c_dw_dma_probe(dev);
 	if(false == Chip_Verification_Check_Debug(CHIP_VERIFICATION_I2C_DEBUG) )
 	{
-	clk_disable_unprepare(dev->clk);
+	clk_disable(dev->clk);
 	}
 	//i2c_clk_domain_enable(dev, 1);
 #ifdef CONFIG_AUDIENCE
@@ -1699,6 +1699,10 @@ static int dw_i2c_remove(struct platform_device *pdev)
 	struct dw_i2c_dev *dev = platform_get_drvdata(pdev);
 	struct resource *mem;
 
+	if (NULL == dev) {
+		dev_err(&pdev->dev, "platform_get_drvdata(pdev) return  NULL!\n");
+		return -ENODEV;
+	}
 	platform_set_drvdata(pdev, NULL);
 	i2c_del_adapter(&dev->adapter);
 	put_device(&pdev->dev);
@@ -1721,6 +1725,10 @@ static int dw_i2c_remove(struct platform_device *pdev)
 	kfree(dev);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!mem) {
+		printk(KERN_ERR "no mem resource?\n");
+		return -EINVAL;
+	}
 	release_mem_region(mem->start, resource_size(mem));
 	return 0;
 }
@@ -1769,7 +1777,7 @@ static int i2c_dw_resume(struct platform_device *pdev)
 		return -1;
 	}
 
-	ret = clk_prepare_enable(dev->clk);
+	ret = clk_enable(dev->clk);
 	if(ret <0) {
 		dev_err(dev->dev, "clk_enable failed!\n");
 		return -EAGAIN;
@@ -1780,7 +1788,7 @@ static int i2c_dw_resume(struct platform_device *pdev)
 	//i2c_dw_init(dev);
 	if(false == Chip_Verification_Check_Debug(CHIP_VERIFICATION_I2C_DEBUG) )
 	{
-	clk_disable_unprepare(dev->clk);
+	clk_disable(dev->clk);
 	}
 	mutex_unlock(&dev->lock);
 

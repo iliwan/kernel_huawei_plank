@@ -3019,6 +3019,10 @@ VOS_VOID AT_RcvTiS0Expired(
 
     pstCcCtx = AT_GetModemCcCtxAddrFromClientId(ucClientIndex);
 
+    PS_MEM_SET(&stCallMgmtParam, 0, sizeof(MN_CALL_SUPS_PARAM_STRU));
+
+    /* 目前只有voice支持自动接听功能，calltype 固定填为voice */
+    stCallMgmtParam.enCallType    = MN_CALL_TYPE_VOICE;
     stCallMgmtParam.enCallSupsCmd = MN_CALL_SUPS_CMD_HOLD_ACT_ACPT_OTH;
 
     stCallMgmtParam.callId = (MN_CALL_ID_T)pstMsg->ulPara;

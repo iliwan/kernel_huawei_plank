@@ -2022,6 +2022,8 @@ VOS_VOID SLEEP_Init(VOS_VOID)
     if (g_stChannelModeProfileId.ulProfileId >= COMM_NV_TRI_MODE_CHAN_PARA_PROFILE_NUM)
     {
         VOS_ProtectionReboot(DRX_FULLNET_SET_ERROR, VOS_FILE_ID, __LINE__, VOS_NULL_PTR, VOS_NULL);
+
+        return;
     }
 
     /* 读取全网通场景模式通道配置项 */

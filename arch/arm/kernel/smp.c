@@ -46,8 +46,20 @@
 #include <asm/virt.h>
 #include <asm/mach/arch.h>
 
+/*HI3630: flush all cpu all cache++*/
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/of_platform.h>
+/*HI3630: flush all cpu all cache--*/
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/arm-ipi.h>
+
+/*HI3630: flush all cpu all cache++*/
+/*#define HI3630_FC_DEBUG					(1)*/
+#define HI3630_FC_SKIPOFFCORE				(1)
+#define HI3630_FC_LOUIS						(1)
+/*HI3630: flush all cpu all cache--*/
 
 /*
  * as from 2.5, kernels no longer have an init_tasks structure
@@ -592,7 +604,7 @@ static void ipi_cpu_stop(unsigned int cpu)
 	    system_state == SYSTEM_RUNNING) {
 		raw_spin_lock(&stop_lock);
 		printk(KERN_CRIT "CPU%u: stopping\n", cpu);
-		/*dump_stack();*/
+		dump_stack();
 		raw_spin_unlock(&stop_lock);
 	}
 
@@ -823,8 +835,19 @@ static struct notifier_block cpufreq_notifier = {
 	.notifier_call  = cpufreq_callback,
 };
 
+/*HI3630: flush all cpu all cache++*/
+#ifdef HI3630_FC_SKIPOFFCORE
+static int hi3630_fc_init(void);
+#endif
+/*HI3630: flush all cpu all cache--*/
+
 static int __init register_cpufreq_notifier(void)
 {
+/*HI3630: flush all cpu all cache++*/
+#ifdef HI3630_FC_SKIPOFFCORE
+	hi3630_fc_init();
+#endif
+/*HI3630: flush all cpu all cache--*/
 	return cpufreq_register_notifier(&cpufreq_notifier,
 						CPUFREQ_TRANSITION_NOTIFIER);
 }
@@ -848,4 +871,165 @@ int unregister_secure_notify_handler(void)
 EXPORT_SYMBOL(register_secure_notify_handler);
 EXPORT_SYMBOL(unregister_secure_notify_handler);
 
+#endif
+
+
+#if defined(CONFIG_ARCH_HI3630)
+/*HI3630: flush all cpu all cache++*/
+#ifdef HI3630_FC_DEBUG
+#define HI3630_FC_PRINTK(format, args...)		do { printk(KERN_ERR format, args); } while (0)
+/*#define HI3630_FC_PRINTK(x...)				printk(x)*/
+#else
+#define HI3630_FC_PRINTK(format, args...)		do { ; } while (0)
+#endif
+
+#ifdef HI3630_FC_SKIPOFFCORE
+#define HI3630_FC_REG_SCBD4_OFFSET		(0x324)
+#define HI3630_FC_GET_OFFSTATUS(x)		(((x) >> 16) & 0xFF)
+static void __iomem *Hi3630_FC_SC_BaseAddr = NULL;
+
+static int hi3630_fc_init(void)
+{
+	struct device_node *np = NULL;
+
+	HI3630_FC_PRINTK("function=%s, line=%d, hi3630_fc_init++\n", __FUNCTION__, __LINE__);
+	np = of_find_compatible_node(NULL, NULL, "hisilicon,sysctrl");
+	if (np == NULL) {
+		pr_err("%s: ERROR - hisilicon,sysctrl No compatible node found!\n", __FUNCTION__);
+		return -ENODEV;
+	}
+	Hi3630_FC_SC_BaseAddr = of_iomap(np, 0);
+	if (Hi3630_FC_SC_BaseAddr == NULL) {
+		pr_err("%s: ERROR - Failed to get sysctrl base address!\n", __FUNCTION__);
+		return -ENXIO;
+	}
+	HI3630_FC_PRINTK("function=%s, line=%d, hi3630_fc_init-- Hi3630_FC_SC_BaseAddr = 0x%x\n", __FUNCTION__, __LINE__, (unsigned int)Hi3630_FC_SC_BaseAddr);
+	return 0;
+}
+
+static void hi3630_fc_get_cpumask_running(struct cpumask *dstp)
+{
+	unsigned int cpuoff_value;
+	unsigned int cpuoff_status;
+	unsigned int core_idx;
+
+	cpumask_copy(dstp, cpu_online_mask);
+	if (Hi3630_FC_SC_BaseAddr == NULL) {
+		pr_err("%s: ERROR -Hi3630_FC_SC_BaseAddr is NULL!\n", __FUNCTION__);
+		return;
+	}
+	/*cpuoff_value: bit0~3 A15, bit4~7 A7*/
+	cpuoff_value = HI3630_FC_GET_OFFSTATUS(readl(Hi3630_FC_SC_BaseAddr + HI3630_FC_REG_SCBD4_OFFSET));
+	/*cpuoff_status: bit0~7, cpu0~7*/
+	cpuoff_status = ((cpuoff_value & 0x0F) << 4) + ((cpuoff_value & 0xF0) >> 4);
+	HI3630_FC_PRINTK("function=%s, line=%d, cpuoff_value = 0x%x, cpuoff_status = 0x%x\n", __FUNCTION__, __LINE__, cpuoff_value, cpuoff_status);
+
+	for(core_idx = 0; core_idx < 8; core_idx++) {
+		/*0: cpu off, 1:cpu non-off*/
+		if((cpuoff_status & 0x01) == 0) {
+			HI3630_FC_PRINTK("function=%s, line=%d, cpumask_clear_cpu core_idx = 0x%x\n", __FUNCTION__, __LINE__, core_idx);
+			cpumask_clear_cpu(core_idx, dstp);
+		}
+		cpuoff_status = cpuoff_status >> 1;
+	};
+	return;
+}
+#endif
+
+#ifdef HI3630_FC_LOUIS
+#define HI3630_FC_CLUSTER_CORENUM		(4)
+
+ static void hi3630_fc_onecpu_cache_louis(void *info)
+{
+#ifdef HI3630_FC_DEBUG
+	preempt_disable();
+	HI3630_FC_PRINTK("function=%s, line=%d, onecpu = 0x%x\n", __FUNCTION__, __LINE__, smp_processor_id());
+#endif
+
+	flush_cache_louis();
+
+#ifdef HI3630_FC_DEBUG
+	preempt_enable();
+#endif
+}
+#endif
+
+static void hi3630_fc_onecpu_cache_all(void *info)
+{
+#ifdef HI3630_FC_DEBUG
+	preempt_disable();
+	HI3630_FC_PRINTK("function=%s, line=%d, onecpu = 0x%x\n", __FUNCTION__, __LINE__, smp_processor_id());
+#endif
+
+        flush_cache_all();
+
+#ifdef HI3630_FC_DEBUG
+	preempt_enable();
+#endif
+}
+
+void hi3630_fc_allcpu_allcache(void)
+{
+	struct cpumask cm_fc_general;
+#ifdef HI3630_FC_LOUIS
+	unsigned int this_cpu;
+	struct cpumask cm_fc_special;
+	unsigned int core_min_idx, core_max_idx;
+#endif
+
+	preempt_disable();
+	//cpu_hotplug_driver_lock();
+	/*1. get and check running cpumask*/
+	HI3630_FC_PRINTK("function=%s, line=%d, smp_processor_id() = 0x%x, num_online_cpus() = 0x%x, nr_cpu_ids = 0x%x\n", __FUNCTION__, __LINE__, smp_processor_id(), num_online_cpus(), nr_cpu_ids);
+
+#ifdef HI3630_FC_SKIPOFFCORE
+	hi3630_fc_get_cpumask_running(&cm_fc_general);
+#else
+	cpumask_copy(&cm_fc_general, cpu_online_mask);
+#endif
+
+#ifdef HI3630_FC_DEBUG
+	if (cpumask_test_cpu(smp_processor_id(), &cm_fc_general) == 0) {
+		pr_err("function=%s, ERROR - this_cpu = 0x%x is not running cpu!\n", __FUNCTION__, smp_processor_id());
+		cpumask_copy(&cm_fc_general, cpu_online_mask);
+		WARN_ON(1);
+	}
+#endif
+
+#ifdef HI3630_FC_LOUIS
+	this_cpu = smp_processor_id();
+	/*2. get general cpumask and special cpumask*/
+	cpumask_clear(&cm_fc_special);
+	if (this_cpu < HI3630_FC_CLUSTER_CORENUM) {
+		core_min_idx = HI3630_FC_CLUSTER_CORENUM;
+		core_max_idx = nr_cpu_ids;
+	} else {
+		core_min_idx = 0;
+		core_max_idx = HI3630_FC_CLUSTER_CORENUM;
+	}
+	for (; core_min_idx < core_max_idx; core_min_idx++) {
+		HI3630_FC_PRINTK("function=%s, line=%d,  core_min_idx = 0x%x\n", __FUNCTION__, __LINE__, core_min_idx);
+		if (cpumask_test_cpu(core_min_idx, &cm_fc_general)) {
+			cpumask_set_cpu(core_min_idx, &cm_fc_special);
+			cpumask_clear_cpu(core_min_idx, &cm_fc_general);
+			HI3630_FC_PRINTK("function=%s, line=%d,  set special cpumask and clear general cpumask: core_min_idx = 0x%x\n", __FUNCTION__, __LINE__, core_min_idx);
+			break;
+		}
+	}
+	cpumask_set_cpu(this_cpu, &cm_fc_special);
+	cpumask_clear_cpu(this_cpu, &cm_fc_general);
+	HI3630_FC_PRINTK("function=%s, line=%d,  set special cpumask and clear general cpumask: this_cpu = 0x%x\n", __FUNCTION__, __LINE__, this_cpu);
+
+	/*flush cache*/
+	on_each_cpu_mask(&cm_fc_general, hi3630_fc_onecpu_cache_louis, NULL, 1);
+	on_each_cpu_mask(&cm_fc_special, hi3630_fc_onecpu_cache_all, NULL, 1);
+#else
+	/*flush cache*/
+	on_each_cpu_mask(&cm_fc_general, hi3630_fc_onecpu_cache_all, NULL, 1);
+#endif
+	HI3630_FC_PRINTK("function=%s, line=%d, on_each_cpu_mask is finished\n", __FUNCTION__, __LINE__);
+	//cpu_hotplug_driver_unlock();
+	preempt_enable();
+}
+/*HI3630: flush all cpu all cache--*/
 #endif

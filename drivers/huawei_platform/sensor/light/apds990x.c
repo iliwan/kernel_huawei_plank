@@ -43,6 +43,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>	
 #include <huawei_platform/sensor/sensor_info.h>
+#include <huawei_platform/log/log_jank.h>
 
 
 #if defined(CONFIG_FB)
@@ -91,12 +92,18 @@ static int rdtp_fail_times = 0;
 #define 	NEAR_THRESHOLD(x)		((FAR_THRESHOLD(x) + apds_990x_pwindows_value - 1)>1022?1022:(FAR_THRESHOLD(x) + apds_990x_pwindows_value - 1))
 #define  	MAX_FAR_THRESHOLD  (MAX_ADC_PROX_VALUE - apds_990x_pwindows_value-1)//723
 
-#define  DELAY_FOR_DATA_RADY            300
+#define  DELAY_FOR_DATA_RADY            200
 
 extern int als_data_count;
 extern int ps_data_count;
 extern bool DT_tset;
 static struct wake_lock wlock;
+static struct wake_lock  ps_lock;	//ps wakelock on phone talking
+static int ps_phone=0;
+static int als_timer_work=0;
+static int ps_timer_work=0;
+static int ps_poll_timer=300;
+static int als_poll_timer=300;
 extern bool power_key_ps ;
 static int lux_old = 300;
 static int IC_old = 0;
@@ -110,13 +117,74 @@ static unsigned int apds_type = 0;
 static unsigned int threshold_value = 0;
 static unsigned int luxsection = MAX_SECTION;	//make luxsection= 7 to print the luxvalue on first enable ALS
 static unsigned int lastluxvalue = 0;
-
 //static int tp_color_for_edge = 0;
 //extern unsigned int lcd_product_id;
 static int get_reg = 0;
 static int apds990x_i2c_write(struct i2c_client*client, u8 reg, u16 value,bool flag);
 static int apds990x_i2c_read(struct i2c_client*client, u8 reg,bool flag);
-
+static struct sensors_classdev apds_als_cdev = {
+       .path_name="als_sensor",
+	.name = "Light sensor",
+	.vendor = "TAOS_TMD27723",
+	.version = 1,
+	.handle = SENSORS_LIGHT_HANDLE,
+	.type = SENSOR_TYPE_LIGHT,
+	.max_range = "10000",
+	.resolution = "0.0125",
+	.sensor_power = "0.75",
+	.min_delay = 0,
+	.delay_msec = 200,
+	.fifo_reserved_event_count = 0,
+	.fifo_max_event_count = 0,
+	.enabled = 0,
+	.sensors_enable = NULL,
+	.sensors_poll_delay = NULL,
+};
+static struct sensors_classdev apds_ps_cdev = {
+       .path_name="ps_sensor",
+	.name = "Proximity sensor",
+	.vendor = "TAOS_TMD27723",
+	.version = 1,
+	.handle = SENSORS_PROXIMITY_HANDLE,
+	.type = SENSOR_TYPE_PROXIMITY,
+	.max_range = "5",
+	.resolution = "5",
+	.sensor_power = "0.75",
+	.min_delay = 0,
+	.delay_msec = 200,
+	.fifo_reserved_event_count = 0,
+	.fifo_max_event_count = 0,
+	.enabled = 0,
+	.sensors_enable = NULL,
+	.sensors_poll_delay = NULL,
+};
+void operate_irq(struct apds990x_data *data, int enable, bool sync)    //open or close avoid plan
+{
+	//als_ps_INFO("als_ps operate_irq enable=%d,sync=%d\n",enable,sync);
+	if (data->irq)
+	{
+		if(enable)
+		{
+			data->irq_count=1;
+			enable_irq(data->irq);
+		}
+		else
+		{
+			if(1==data->irq_count)
+			{
+				if(sync)
+				{
+					disable_irq(data->irq);
+				}
+				else
+				{
+					disable_irq_nosync(data->irq);
+				}
+				data->irq_count=0;
+			}
+		}
+	}
+}
 static ssize_t store_get_reg_value(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -538,6 +606,13 @@ static int LuxCalculation(struct i2c_client *client, int cdata, int irdata)
 		COE_C=750;
 		COE_D=1290;
 	}
+	if (3 == apds_type)
+	{
+		COE_B=1860;
+		COE_C=750;
+		COE_D=1290;
+	}
+
 	IAC1 = (cdata - (COE_B*irdata)/1000);	// re-adjust COE_B to avoid 2 decimal point
 	IAC2 = ((COE_C*cdata)/1000 - (COE_D*irdata)/1000); // re-adjust COE_C and COE_D to void 2 decimal point
 
@@ -562,6 +637,11 @@ static int LuxCalculation(struct i2c_client *client, int cdata, int irdata)
 		else
 			GA = GA;
 		luxValue = ((IAC*GA*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+		//C light  and D light will mix below 30 lux, so we are in accordance with C light all below 30 lux 
+		if(luxValue < 30)
+		{
+			luxValue = ((IAC*6800*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+		}
 	}
 	else if(1 == apds_type)  //use AVAGO APDS environment sensor
 	{
@@ -604,6 +684,12 @@ static int LuxCalculation(struct i2c_client *client, int cdata, int irdata)
 			{
 				 GA = GA ;
 			}
+			luxValue = ((IAC*GA*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+			//C light  and D light will mix below 30 lux, so we are in accordance with C light all below 30 lux 
+			if(luxValue < 30)
+			{
+				luxValue = ((IAC*4800*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+			}
 		}
 		else if (!strcmp(tp_name,"oflim"))  //use oflim tp
 		{
@@ -619,6 +705,12 @@ static int LuxCalculation(struct i2c_client *client, int cdata, int irdata)
 			else
 			{
 				 GA = GA ;
+			}
+			luxValue = ((IAC*GA*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+			//C light  and D light will mix below 30 lux, so we are in accordance with C light all below 30 lux 
+			if(luxValue < 30)
+			{
+				luxValue = ((IAC*5350*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
 			}
 		}
 		else if (!strcmp(tp_name,"lensone"))  //use lensone tp
@@ -636,6 +728,12 @@ static int LuxCalculation(struct i2c_client *client, int cdata, int irdata)
 			{
 				 GA = GA ;
 			}
+			luxValue = ((IAC*GA*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+			//C light  and D light will mix below 30 lux, so we are in accordance with C light all below 30 lux 
+			if(luxValue < 30)
+			{
+				luxValue = ((IAC*5800*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+			}
 		}
 		else
 		{
@@ -652,8 +750,14 @@ static int LuxCalculation(struct i2c_client *client, int cdata, int irdata)
 			{
 				 GA = GA ;
 			}
+			luxValue = ((IAC*GA*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+			//C light  and D light will mix below 30 lux, so we are in accordance with C light all below 30 lux 
+			if(luxValue < 30)
+			{
+				luxValue = ((IAC*4800*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+			}
 		}
-		luxValue = ((IAC*GA*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+
 	}
 	else if(2 == apds_type)  //use AVAGO APDS environment sensor
 	{
@@ -696,6 +800,12 @@ static int LuxCalculation(struct i2c_client *client, int cdata, int irdata)
 			{
 				GA = GA;
 			}
+			luxValue = ((IAC*GA*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+			//C light  and D light will mix below 30 lux, so we are in accordance with C light all below 30 lux 
+			if(luxValue < 30)
+			{
+				luxValue = ((IAC*5170*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+			}
 		}
 		else if (!strcmp(tp_name, "truly"))  //use truly tp
 		{
@@ -711,6 +821,12 @@ static int LuxCalculation(struct i2c_client *client, int cdata, int irdata)
 			else							//C light
 			{
 				GA = GA;
+			}
+			luxValue = ((IAC*GA*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+			//C light  and D light will mix below 30 lux, so we are in accordance with C light all below 30 lux 
+			if(luxValue < 30)
+			{
+				luxValue = ((IAC*5000*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
 			}
 		}
 		else if (!strcmp(tp_name, "junda"))  //use junda tp
@@ -728,6 +844,12 @@ static int LuxCalculation(struct i2c_client *client, int cdata, int irdata)
 			{
 				GA = GA;
 			}
+			luxValue = ((IAC*GA*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+			//C light  and D light will mix below 30 lux, so we are in accordance with C light all below 30 lux 
+			if(luxValue < 30)
+			{
+				luxValue = ((IAC*4500*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+			}
 		}
 		else
 		{
@@ -744,8 +866,34 @@ static int LuxCalculation(struct i2c_client *client, int cdata, int irdata)
 			{
 				GA = GA ;
 			}
+			luxValue = ((IAC*GA*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+			//C light  and D light will mix below 30 lux, so we are in accordance with C light all below 30 lux 
+			if(luxValue < 30)
+			{
+				luxValue = ((IAC*4800*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+			}
 		}
+
+	}
+	else if(3 == apds_type)    //for CAMEL
+	{
+		GA=5900;
+		if(cdata < 218*irdata/100)  //A light
+		{
+			GA = GA*17/100;
+		}
+		else if(cdata >= 218*irdata/100  && cdata < 47*irdata/10)  //D light
+		{
+			GA = GA*29/100;
+		}
+		else
+			GA = GA;                //C light
 		luxValue = ((IAC*GA*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+		//C light  and D light will mix below 30 lux, so we are in accordance with C light all below 30 lux 
+		if(luxValue < 30)
+		{
+			luxValue = ((IAC*5900*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+		}
 	}
 	else
 	{
@@ -757,6 +905,11 @@ static int LuxCalculation(struct i2c_client *client, int cdata, int irdata)
 		else
 			GA = GA ;
 		luxValue = ((IAC*GA*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+		//C light  and D light will mix below 30 lux, so we are in accordance with C light all below 30 lux 
+		if(luxValue < 30)
+		{
+			luxValue = ((IAC*3600*DF)/1000)/(((272*(256-data->atime))/100) *data->als_gain);
+		}
 	}
 	return luxValue;
 }
@@ -768,7 +921,11 @@ static void apds990x_change_ps_threshold(struct i2c_client *client)
 
 	int pthreshold_h = 0, pthreshold_l = 0;
 	data->ps_data =	apds990x_i2c_read(client,APDS990x_PDATAL_REG,APDS990X_I2C_WORD);
-
+	if(data->ps_data<0)
+	{
+		als_ps_INFO("[ALS_PS] read APDS990x_PDATAL_REG error.\n ");
+		return;
+	}
         if ((data->ps_data + apds_990x_pwave_value) < min_proximity_value && (data->ps_data >= 0))
         {
             min_proximity_value = data->ps_data + apds_990x_pwave_value;
@@ -780,6 +937,11 @@ static void apds990x_change_ps_threshold(struct i2c_client *client)
 
 		 pthreshold_h=apds990x_i2c_read(client,APDS990x_PIHTL_REG,APDS990X_I2C_WORD);
 		 pthreshold_l=apds990x_i2c_read(client,APDS990x_PILTL_REG,APDS990X_I2C_WORD);
+		if(pthreshold_h<0 || pthreshold_l<0)
+		{
+			als_ps_INFO("[ALS_PS] read APDS990x_PIHTL_REG or APDS990x_PILTL_REG error.\n ");
+			return;
+		}
 		 
 		/* far-to-near detected */
 	     als_ps_INFO("[ALS_PS]ps_data = %d min_proximity_value = %d pthreshold_h = %d pthresold_l= %d\n",data->ps_data,min_proximity_value,pthreshold_h,pthreshold_l);
@@ -790,6 +952,7 @@ static void apds990x_change_ps_threshold(struct i2c_client *client)
 			apds990x_i2c_write(client,APDS990x_PILTL_REG,FAR_THRESHOLD(threshold_value),APDS990X_I2C_WORD);
 		    apds990x_i2c_write(client,APDS990x_PIHTL_REG,1023,APDS990X_I2C_WORD);
 			
+			LOG_JANK_D(JLID_PROXIMITY_SENSOR_NEAR, "%s", "JL_PROXIMITY_SENSOR_NEAR");
 		 als_ps_INFO("[ALS_PS]apds990x report 0\n");
             input_report_abs(data->input_dev_ps, ABS_DISTANCE, 0);/* FAR-to-NEAR detection */
             input_sync(data->input_dev_ps);
@@ -813,6 +976,7 @@ static void apds990x_change_ps_threshold(struct i2c_client *client)
 			loop--;
 	    }
 
+		LOG_JANK_D(JLID_PROXIMITY_SENSOR_FAR, "%s", "JL_PROXIMITY_SENSOR_FAR");
 		als_ps_INFO("[ALS_PS]apds990x report 1\n");
         input_report_abs(data->input_dev_ps, ABS_DISTANCE, 1);/* NEAR-to-FAR detection */
 	    input_sync(data->input_dev_ps);
@@ -912,6 +1076,19 @@ static void apds990x_als_polling_work_handler(struct work_struct *work)
 	static unsigned long lastprint_time = 0;
 	unsigned char i;
 
+	int enable_reg=0;
+	int enable_reg_clock=0;
+
+	als_timer_work=1;
+	enable_reg = apds990x_i2c_read(client, APDS990x_ENABLE_REG,APDS990X_I2C_BYTE);
+	enable_reg_clock=enable_reg &0x01;
+	if(0==enable_reg_clock)
+	{
+		als_ps_INFO("[ALS_PS]apds990x_als_polling_work_handler,data->enable=%d \n",data->enable);
+		apds990x_i2c_write(client, APDS990x_ENABLE_REG,data->enable,APDS990X_I2C_BYTE);
+		msleep(50);
+	}
+
 	cdata = apds990x_i2c_read(client, APDS990x_CDATAL_REG,APDS990X_I2C_WORD);
 	irdata = apds990x_i2c_read(client,APDS990x_IRDATAL_REG,APDS990X_I2C_WORD);
 	pdata = apds990x_i2c_read(client, APDS990x_PDATAL_REG,APDS990X_I2C_WORD);
@@ -983,11 +1160,30 @@ static void apds990x_als_polling_work_handler(struct work_struct *work)
 	input_report_abs(data->input_dev_als, ABS_MISC, luxValue); /* report the lux level */
 	input_sync(data->input_dev_als);
 	/* restart timer */
-	schedule_delayed_work(&data->als_dwork, msecs_to_jiffies(data->als_poll_delay));
-	 if(DT_tset)
-	 {
-	 	als_data_count++;
-	 }
+	if(1==ps_phone)
+	{
+		if(ps_timer_work==0)
+		{
+			enable_reg=data->enable&0xFE;
+			als_ps_INFO("[ALS_PS] als poll end data->enable:%d  close power\n",data->enable);
+			apds990x_i2c_write(client, APDS990x_ENABLE_REG,enable_reg,APDS990X_I2C_BYTE);
+		}
+		else
+		{
+			als_ps_INFO("[ALS_PS]because ps not close power");
+		}
+		als_timer_work=0;
+		schedule_delayed_work(&data->als_dwork, msecs_to_jiffies(als_poll_timer));
+	}
+
+	else
+	{
+		schedule_delayed_work(&data->als_dwork, msecs_to_jiffies(data->als_poll_delay));
+	}
+	if(DT_tset)
+	{
+		als_data_count++;
+	}
 }
 
 /* PS interrupt routine */
@@ -998,14 +1194,23 @@ static void apds990x_work_handler(struct work_struct *work)
 	struct i2c_client *client = data->client;
 	int	status;
 	int cdata,irdata;
-
+	int enable_reg,enable_reg_clock;
+	ps_timer_work=1;
+	enable_reg = apds990x_i2c_read(client, APDS990x_ENABLE_REG,APDS990X_I2C_BYTE);
+	enable_reg_clock=enable_reg &0x01;
+	if(0==enable_reg_clock)
+	{
+		als_ps_INFO("[ALS_PS]%s=%d \n",__func__,data->enable);
+		apds990x_i2c_write(client, APDS990x_ENABLE_REG,data->enable,APDS990X_I2C_BYTE);
+		msleep(50);
+	}
 	status = apds990x_i2c_read(client, APDS990x_STATUS_REG,APDS990X_I2C_BYTE);
 	irdata = apds990x_i2c_read(client, APDS990x_IRDATAL_REG,APDS990X_I2C_WORD);
 
 	/* disable 990x's ADC first */
 	apds990x_i2c_write(client, APDS990x_ENABLE_REG,1,APDS990X_I2C_BYTE);
 
-	als_ps_INFO("[ALS_PS]%s, status = %x ,irdata = %d,data->enable = %#x\n", __func__,status,irdata,data->enable);
+	als_ps_INFO("[ALS_PS]%s, status = %x,irdata = %d,data->irq_count=%d,data->enable = %#x\n", __func__,status,irdata,data->irq_count,data->enable);
 
 	if ((status & data->enable & 0x30) == 0x30) {/*not used*/
 		/* both PS and ALS are interrupted */
@@ -1025,7 +1230,7 @@ static void apds990x_work_handler(struct work_struct *work)
 		}
 
 		apds990x_set_command(client, 2);	/* 2 = CMD_CLR_PS_ALS_INT */
-	} else if ((status & data->enable & 0x20) == 0x20) {
+	} else if(((status & data->enable & 0x20) == 0x20) || ((status&0x03)==0x03)) {
 		/* only PS is interrupted */
 
 		/* check if this is triggered by background ambient noise */
@@ -1047,16 +1252,36 @@ static void apds990x_work_handler(struct work_struct *work)
 
 		apds990x_set_command(client, 1);	/* 1 = CMD_CLR_ALS_INT */
 	}
-	if (1 == data->enable_ps_sensor)
+	else
 	{
-		apds990x_i2c_write(client, APDS990x_ENABLE_REG, 0x27, APDS990X_I2C_BYTE);  //enable ps interrupt and enable PS ALS function
+		als_ps_INFO("[ALS_PS]%s error branch",__func__);
+		apds990x_set_command(client, 0);
+    }
+	apds990x_i2c_write(client,APDS990x_ENABLE_REG,data->enable,APDS990X_I2C_BYTE);
+	if(1==ps_phone)
+	{
+		if(als_timer_work==0)
+		{
+			enable_reg=data->enable&0xFE;
+			als_ps_INFO("[ALS_PS] ps poll end data->enable:%d  close power\n",data->enable);
+			apds990x_i2c_write(client, APDS990x_ENABLE_REG,enable_reg,APDS990X_I2C_BYTE);
+		}
+		else
+		{
+			als_ps_INFO("[ALS_PS]because als not close power");
+		}
+		hrtimer_cancel(&data->timer);
+		if (0 != hrtimer_start(&data->timer,ktime_set(0, ps_poll_timer* 1000000), HRTIMER_MODE_REL) )
+		{
+			als_ps_INFO("[ALS_PS]%s: hrtimer_start fail! nsec=%d\n", __func__, data->als_poll_delay);
+		}
+		ps_timer_work=0;
 	}
 	else
 	{
-		apds990x_i2c_write(client, APDS990x_ENABLE_REG, data->enable, APDS990X_I2C_BYTE);  //write data->enable to enable register
+		//enable_irq(data->irq);
+		operate_irq(data,1,true);
 	}
-
-	enable_irq(data->irq);
 }
 
 /* assume this is ISR */
@@ -1065,12 +1290,21 @@ static irqreturn_t apds990x_interrupt(int vec, void *info)
 	struct i2c_client *client = (struct i2c_client *)info;
 	struct apds990x_data *data = i2c_get_clientdata(client);
 	wake_lock_timeout(&wlock, 2*HZ);
-	disable_irq_nosync(data->irq);
+	//disable_irq_nosync(data->irq);
+	operate_irq(data,0,false);
 	apds990x_reschedule_work(data, 0);
 
 	return IRQ_HANDLED;
 }
 
+static enum hrtimer_restart apds993x_ps_timer_func(struct hrtimer *timer)
+{
+
+	struct apds990x_data *data = container_of(timer,struct apds990x_data, timer);
+	als_ps_INFO("[ALS_PS] ENTER apds993x_ps_timer_func\n");
+	apds990x_reschedule_work(data, 0);
+	return HRTIMER_NORESTART;
+}
 /*
  * SysFS support
  */
@@ -1090,8 +1324,9 @@ static ssize_t apds990x_store_enable_ps_sensor(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct apds990x_data *data = i2c_get_clientdata(client);
 	unsigned long val = simple_strtoul(buf, NULL, 10);
+	int ret=0;
 
-	als_ps_INFO("[ALS_PS][%s] val=%ld\n", __func__, val);
+	als_ps_INFO("[ALS_PS][%s] val=%ld,data->irq_count=%d\n", __func__, val,data->irq_count);
 	als_ps_FLOW("[ALS_PS]%s: enable ps senosr ( %ld)\n", __func__, val);
 	if(DT_tset)
 	{
@@ -1129,9 +1364,11 @@ static ssize_t apds990x_store_enable_ps_sensor(struct device *dev,
 		loop = 10;
 
 		if (data->enable_ps_sensor == 0) {
+			operate_irq(data,0,true);
 
 			data->enable_ps_sensor = 1;
 			cancel_delayed_work(&data->als_dwork);
+			hrtimer_cancel(&data->timer);
 			apds990x_set_enable(client,0); /* Power Off */
 			apds990x_set_atime(client, 0xfa); /* 27.2ms */
 			apds990x_set_ptime(client, 0xff); /* 2.72ms */
@@ -1152,7 +1389,19 @@ static ssize_t apds990x_store_enable_ps_sensor(struct device *dev,
 			schedule_delayed_work(&data->als_dwork, msecs_to_jiffies(DELAY_FOR_DATA_RADY));
 			power_key_ps=false;
 			schedule_delayed_work(&data->power_work, msecs_to_jiffies(100));
-			enable_irq(data->irq);
+			if(1!=ps_phone)
+			{
+				//enable_irq(data->irq);
+			    operate_irq(data,1,true);
+			}
+			else
+			{
+				ret = hrtimer_start(&data->timer, ktime_set(0, ps_poll_timer* 1000000), HRTIMER_MODE_REL);
+				if (ret != 0)
+				{
+					als_ps_INFO("[ALS_PS]%s: hrtimer_start fail!\n", __func__);
+				}
+			}
 		}
 	}
 	 else
@@ -1190,7 +1439,15 @@ static ssize_t apds990x_store_enable_ps_sensor(struct device *dev,
 			 */
 			cancel_delayed_work(&data->als_dwork);
 		}
-		disable_irq(data->irq);
+		if(1!=ps_phone)
+		{
+			operate_irq(data,0,true);
+		}
+		else
+		{
+			hrtimer_cancel(&data->timer);
+
+		}
 	}
 
 
@@ -1243,7 +1500,7 @@ static ssize_t apds990x_store_enable_als_sensor(struct device *dev,
 	if (val == 1) {
 		/* turn on light sensor */
 		if (data->enable_als_sensor == 0) {
-			als_polling_count = 0;
+			als_polling_count = 1;
 			luxsection = MAX_SECTION;			//make luxsection= 7 to print the luxvalue on first enable ALS
 			lastluxvalue = g_luxsection[6]+lux_stepbuff;	//make sure after resume, print the luxval
 
@@ -1455,6 +1712,72 @@ static ssize_t apds990x_show_rdata_value(struct device *dev,
 static DEVICE_ATTR(rdata_value, 0664,
 				   apds990x_show_rdata_value, NULL);
 
+static ssize_t apds990x_store_ps_poll_timer(struct device *dev,
+				struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned long val = simple_strtoul(buf, NULL, 10);
+	als_ps_INFO("[ALS_PS][%s] val=%lu\n", __func__, val);
+	ps_poll_timer=val;
+
+	return count;
+}
+static DEVICE_ATTR(pspoll_timer, 0664,NULL,apds990x_store_ps_poll_timer);
+
+static ssize_t apds990x_store_als_poll_timer(struct device *dev,
+				struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned long val = simple_strtoul(buf, NULL, 10);
+
+	als_ps_INFO("[ALS_PS][%s] val=%lu\n", __func__, val);
+	als_poll_timer=val;
+
+	return count;
+}
+static DEVICE_ATTR(alspoll_timer, 0664,NULL,apds990x_store_als_poll_timer);
+
+static ssize_t apds990x_store_ps_phone_status(struct device *dev,
+				struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret=0;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct apds990x_data *data = i2c_get_clientdata(client);
+	unsigned long val = simple_strtoul(buf, NULL, 10);
+
+	als_ps_INFO("[ALS_PS][%s] val=%lu\n", __func__, val);
+	if(ps_phone==val)
+	{
+		return count;
+	}
+	else
+	{
+		ps_phone=val;
+		if(1==ps_phone)
+		{
+			wake_lock(&ps_lock);
+			if(1==data->enable_ps_sensor)
+			{
+				hrtimer_cancel(&data->timer);
+				ret = hrtimer_start(&data->timer, ktime_set(0, ps_poll_timer* 1000000), HRTIMER_MODE_REL);
+				if (ret != 0)
+				{
+					als_ps_INFO("[ALS_PS]%s: hrtimer_start fail!\n", __func__);
+				}
+			}
+		}
+		else
+		{
+			wake_unlock(&ps_lock);
+		}
+		return count;
+	}
+}
+static ssize_t apds990x_show_ps_phone_status(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", ps_phone);
+}
+static DEVICE_ATTR(ps_phone_status, 0664,apds990x_show_ps_phone_status,apds990x_store_ps_phone_status);
+
 static struct attribute *apds990x_attributes[] = {
 	&dev_attr_enable_ps_sensor.attr,
 	&dev_attr_enable_als_sensor.attr,
@@ -1464,6 +1787,9 @@ static struct attribute *apds990x_attributes[] = {
 	&dev_attr_cdata_value.attr,
 	&dev_attr_rdata_value.attr,
 	&dev_attr_get_reg_value.attr,
+	&dev_attr_pspoll_timer.attr,
+	&dev_attr_alspoll_timer.attr,
+	&dev_attr_ps_phone_status.attr,
 	NULL
 };
 
@@ -1653,6 +1979,240 @@ static void apds990x_power_screen_handler(struct work_struct *work)
 	}
 	schedule_delayed_work(&data->power_work, msecs_to_jiffies(500));
 }
+static int apds_als_poll_delay_set(struct sensors_classdev *sensors_cdev,unsigned int delay_msec)
+{
+    struct apds990x_data *data = container_of(sensors_cdev,struct apds990x_data, als_cdev);
+    unsigned int val = delay_msec;
+    int poll_delay = 0;
+	/*unsigned long flags;*/
+     if(data==NULL)
+    {
+        als_ps_INFO("[ALS_PS]%s: SET DELAY ERRR\n", __func__);
+        return -1;
+    }
+
+    als_ps_INFO("[ALS_PS][%s] val=%d\n", __func__, val);
+    if (val < 5)
+        val = 5;	/* minimum 5ms*/
+
+    data->als_poll_delay = val;	/* convert us => ms */
+
+    /* the minimum is 2.72ms = 2720 us, maximum is 696.32ms */
+    poll_delay = 256 - (val*1000 / 2720);
+    if (poll_delay < 0)
+        data->als_atime = 0;
+    else
+        data->als_atime = poll_delay;
+    return 0;
+}
+
+static int apds_als_enable_set(struct sensors_classdev *sensors_cdev,unsigned int enable)
+{
+    struct apds990x_data *data = container_of(sensors_cdev,struct apds990x_data, als_cdev);
+    struct i2c_client *client = data->client;
+    unsigned int val=enable;
+    int err;
+    als_ps_INFO("[ALS_PS]%s: enable=%d,val=%d\n", __func__,enable,val);
+    if ((val != 0) && (val != 1)) 
+    {
+        als_ps_INFO("[ALS_PS]%s: enable als sensor=%d\n",__func__, val);
+        return -1;
+    }
+
+    if (val == 1) 
+    {
+    /* turn on light sensor */
+        als_ps_INFO("[ALS_PS]%s: data->enable_als_sensor=%d\n", __func__,data->enable_als_sensor);
+        if (data->enable_als_sensor == 0) 
+        {
+            als_ps_INFO("[ALS_PS]%s: enable_als_sensor=%d\n", __func__, data->enable_als_sensor);
+            als_polling_count = 0;
+            luxsection = MAX_SECTION;			//make luxsection= 7 to print the luxvalue on first enable ALS
+            lastluxvalue = g_luxsection[6]+lux_stepbuff;	//make sure after resume, print the luxval
+
+            data->enable_als_sensor = 1;
+            apds990x_set_enable(client, 0); /* Power Off */
+
+            apds990x_set_ailt(client, 0);
+            apds990x_set_aiht(client, 0xffff);
+            /* modify 1020 */
+            /* apds990x_set_control(client, 0x20); */ /* 100mA, IR-diode, 1X PGAIN, 1X AGAIN */
+            apds990x_set_control(client, 0x20); /* 100mA, IR-diode, 1X PGAIN, 16X AGAIN */
+            apds990x_set_pers(client, 0x33); /* 3 persistence */
+
+            if (data->enable_ps_sensor) 
+            {
+                apds990x_set_atime(client, 0xfa);
+                apds990x_set_ptime(client, 0xff); /* 2.72ms */
+
+                /*	apds990x_set_ppcount(client, 8);*/ /* 8-pulse */
+                apds990x_set_ppcount(client, ps_pulse_count);
+                /* if prox sensor was activated previously */
+                apds990x_set_enable(client, 0x27);
+            }
+            else 
+            {
+                apds990x_set_atime(client, 0xdb);
+                apds990x_set_enable(client, 0x3);	 /* only enable light sensor */
+            }
+            cancel_delayed_work(&data->als_dwork);
+            als_ps_INFO("[ALS_PS]%s: start delay work.\n", __func__);
+            schedule_delayed_work(&data->als_dwork, msecs_to_jiffies(DELAY_FOR_DATA_RADY));
+        }
+    }
+    else 
+    {
+        /*turn off light sensor
+        what if the p sensor is active?*/
+        data->enable_als_sensor = 0;
+        if (data->enable_ps_sensor) 
+        {
+            apds990x_set_enable(client, 0); /* Power Off */
+            apds990x_set_atime(client, 0xfa);  /* 27.2ms */
+            apds990x_set_ptime(client, 0xff); /* 2.72ms */
+            /*apds990x_set_ppcount(client, 8);*/ /* 8-pulse */
+            apds990x_set_ppcount(client, ps_pulse_count);
+            /* modify */
+            /* apds990x_set_control(client, 0x20); */ /* 100mA, IR-diode, 1X PGAIN, 1X AGAIN */
+
+            /* 50mA, IR-diode, 1X PGAIN, 16X AGAIN */
+            apds990x_set_control(client, 0x20); /* 100mA, IR-diode, 1X PGAIN, 16X AGAIN */
+
+            //apds990x_set_pilt(client, ps_l);
+            //apds990x_set_piht(client, ps_h);
+
+            apds990x_set_ailt(client, 0);
+            apds990x_set_aiht(client, 0xffff);
+
+            /* 3 persistence */
+            apds990x_set_pers(client, 0x33);
+
+            /* only enable prox sensor with interrupt */
+            apds990x_set_enable(client, 0x27);
+        }
+        else 
+        {
+            apds990x_set_enable(client, 0);
+        }
+
+        /*
+        * If work is already scheduled then subsequent schedules will not
+        * change the scheduled time that's why we have to cancel it first.
+        */
+        cancel_delayed_work(&data->als_dwork);
+    }
+    return 0;
+}
+static int apds_ps_enable_set(struct sensors_classdev *sensors_cdev,unsigned int enable)
+{
+    struct apds990x_data *data = container_of(sensors_cdev,struct apds990x_data, ps_cdev);
+    struct i2c_client *client = data->client;
+    unsigned int val=enable;
+    int err;
+    als_ps_INFO("[ALS_PS]%s: enable=%d,val=%d\n", __func__,enable,val);
+    if ((val != 0) && (val != 1)) 
+    {
+        als_ps_INFO("[ALS_PS]%s: enable als sensor=%d\n",__func__, val);
+        return -1;
+    }
+
+    if (val == 1) 
+    {
+        /*turn on p sensor
+        first status is FAR */
+        input_report_abs(data->input_dev_ps, ABS_DISTANCE, 1);
+        input_sync(data->input_dev_ps);
+
+        /*ps calibrate*/
+        loop = 10;
+
+        if (data->enable_ps_sensor == 0) 
+        {
+	     operate_irq(data,0,true);
+	     data->enable_ps_sensor = 1;
+            cancel_delayed_work(&data->als_dwork);
+            apds990x_set_enable(client,0); /* Power Off */
+            apds990x_set_atime(client, 0xfa); /* 27.2ms */
+            apds990x_set_ptime(client, 0xff); /* 2.72ms */
+
+            apds990x_set_ppcount(client, ps_pulse_count);
+            //apds990x_set_control(client, 0x20); /* 100mA, IR-diode, 1X PGAIN, 1X AGAIN */
+            apds990x_set_control(client, 0x20); /* 100mA, IR-diode, 1X PGAIN, 1X AGAIN */
+
+            apds990x_set_pilt(client, PS_FIRST_LOW_VALUE);
+            apds990x_set_piht(client, PS_FIRST_VALUE);
+
+            apds990x_set_ailt( client, 0);
+            apds990x_set_aiht( client, 0xffff);
+
+            apds990x_set_pers(client, 0x33); /* 3 persistence */
+            apds990x_set_enable(client, 0x27);	 /* only enable PS interrupt */
+
+            schedule_delayed_work(&data->als_dwork, msecs_to_jiffies(DELAY_FOR_DATA_RADY));
+            power_key_ps=false;
+            schedule_delayed_work(&data->power_work, msecs_to_jiffies(100));
+            if(1!=ps_phone)
+            {
+            	//enable_irq(data->irq);
+               operate_irq(data,1,true);
+            }
+	     else
+	     {
+   		    err = hrtimer_start(&data->timer, ktime_set(0, ps_poll_timer* 1000000), HRTIMER_MODE_REL);
+   		    if (err != 0)
+   		   {
+   		       als_ps_INFO("[ALS_PS]%s: hrtimer_start fail!\n", __func__);
+   		   }
+	     }
+        }
+    }
+    else
+    {
+        /*turn off p sensor - kk 25 Apr 2011 we can't turn off the entire sensor, the light sensor may be needed by HAL*/
+        data->enable_ps_sensor = 0;
+        cancel_delayed_work(&data->power_work);
+        if (data->enable_als_sensor) 
+        {
+            cancel_delayed_work(&data->als_dwork);
+            // reconfigute light sensor setting
+            apds990x_set_enable(client,0); /* Power Off */
+            apds990x_set_atime(client, 0xdb);
+            apds990x_set_ailt( client, 0);
+            apds990x_set_aiht( client, 0xffff);
+
+            /* modify FAE */
+            /* apds990x_set_control(client, 0x20);*/ /* 100mA, IR-diode, 1X PGAIN, 1X AGAIN */
+
+            /* 50mA, IR-diode, 1X PGAIN, 16X AGAIN */
+            apds990x_set_control(client, 0x20); /* 100mA, IR-diode, 1X PGAIN, 16X AGAIN */
+            apds990x_set_pers(client, 0x33); /* 3 persistence */
+
+            apds990x_set_enable(client, 0x3);	 /* only enable light sensor */
+
+            schedule_delayed_work(&data->als_dwork, msecs_to_jiffies(DELAY_FOR_DATA_RADY));
+        }
+        else
+        {
+            apds990x_set_enable(client, 0);
+
+
+            /*
+            * If work is already scheduled then subsequent schedules will not
+            * change the scheduled time that's why we have to cancel it first.
+            */
+            cancel_delayed_work(&data->als_dwork);
+        }
+        if(1!=ps_phone)
+       {
+           operate_irq(data,0,true);
+       }
+       else
+       {
+            hrtimer_cancel(&data->timer);
+       }
+    }
+    return 0;
+}
 static struct i2c_driver apds990x_driver;
 static int apds990x_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
@@ -1708,6 +2268,13 @@ static int apds990x_probe(struct i2c_client *client,
 		apds_990x_pwindows_value = 170;
 		ps_pulse_count=8;
 	}
+	else if(3 == apds_type)
+	{
+		apds_990x_pwave_value = 115;
+		threshold_value = 120;
+		apds_990x_pwindows_value = 170;
+		ps_pulse_count=8;
+	}
 	else
 	{
 		apds_990x_pwave_value = 250;
@@ -1723,7 +2290,6 @@ static int apds990x_probe(struct i2c_client *client,
 		err = -ENODEV;
 		goto exit;
 	}
-
 	data->client = client;
 	i2c_set_clientdata(client, data);
 
@@ -1738,6 +2304,7 @@ static int apds990x_probe(struct i2c_client *client,
 	data->als_poll_delay = 500;	/* default to 500ms*/
 	data->als_atime	= 0xdb;			/* work in conjuction with als_poll_delay*/
 	data->irq = gpio_to_irq(data->apds_gpio);
+	data->irq_count=1;
 
 	als_ps_FLOW("[ALS_PS]enable = %x\n", data->enable);
 
@@ -1751,6 +2318,8 @@ static int apds990x_probe(struct i2c_client *client,
 	INIT_DELAYED_WORK(&data->dwork, apds990x_work_handler);
 	INIT_DELAYED_WORK(&data->als_dwork, apds990x_als_polling_work_handler);
 	INIT_DELAYED_WORK(&data->power_work,apds990x_power_screen_handler);
+	hrtimer_init(&data->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	data->timer.function = apds993x_ps_timer_func;
 	/* Initialize the APDS990x chip */
 	err = apds990x_init_client(client);
 	if (err)
@@ -1770,6 +2339,7 @@ static int apds990x_probe(struct i2c_client *client,
 
 	/* Initialize wakelock*/
 	wake_lock_init(&wlock, WAKE_LOCK_SUSPEND, "apds990x");
+	wake_lock_init(&ps_lock, WAKE_LOCK_SUSPEND, "apds990x_ps");
 
 	err = request_irq(data->irq, apds990x_interrupt,
 			IRQF_DISABLED | IRQ_TYPE_LEVEL_LOW | IRQF_NO_SUSPEND,
@@ -1778,7 +2348,8 @@ static int apds990x_probe(struct i2c_client *client,
 		als_ps_ERR("[ALS_PS]%s  allocate APDS990x_IRQ failed.\n",__func__);	
 		goto exit_gpio_request;
 	}
-	disable_irq(data->irq);
+	//disable_irq(data->irq);
+	operate_irq(data,0,true);
     als_ps_FLOW("[ALS_PS]%s interrupt is hooked\n", __func__);
 
 	/* Register to Input Device */
@@ -1821,7 +2392,24 @@ static int apds990x_probe(struct i2c_client *client,
 		als_ps_ERR("[ALS_PS]%s,Unable to register input device ps: %s\n",__func__, data->input_dev_ps->name);
 		goto exit_unregister_dev_als;
 	}
-
+       /*register sensor class*/
+       data->als_cdev=apds_als_cdev;
+       data->als_cdev.sensors_enable=apds_als_enable_set;
+       data->als_cdev.sensors_poll_delay=apds_als_poll_delay_set;
+       err = sensors_classdev_register(&client->dev, &data->als_cdev);
+       if (err) 
+       {
+            als_ps_ERR("[ALS_PS]unable to register sensors_classdev: %d\n",err);
+       }
+       data->ps_cdev=apds_ps_cdev;
+       data->ps_cdev.sensors_enable=apds_ps_enable_set;
+       data->ps_cdev.sensors_poll_delay=NULL;
+       err = sensors_classdev_register(&client->dev, &data->ps_cdev);
+       if (err) 
+       {
+            als_ps_ERR("[ALS_PS]unable to register sensors_classdev: %d\n",err);
+       }
+         
 #if defined(CONFIG_FB)
 		fb_light.fb_notify.notifier_call = fb_notifier_callback;
 		err = fb_register_client(&fb_light.fb_notify);

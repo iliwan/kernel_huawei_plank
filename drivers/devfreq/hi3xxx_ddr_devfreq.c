@@ -140,8 +140,10 @@ static int ddr_devfreq_probe(struct platform_device *pdev)
 
 	if (!strcmp("memory_tput", type)) {
 		ddata = &ddr_devfreq_pm_qos_data;
+		dev_set_name(&pdev->dev, "ddrfreq");
 	} else if (!strcmp("memory_tput_up_threshold", type)) {
 		ddata = &ddr_devfreq_up_th_pm_qos_data;
+		dev_set_name(&pdev->dev, "ddrfreq_up_threshold");
 	} else {
 		pr_err("%s: %s %d, err type\n",
 			MODULE_NAME, __func__, __LINE__);

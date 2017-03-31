@@ -2,6 +2,7 @@
 obj-$(CONFIG_HISILICON_PLATFORM) += adc/
 obj-$(CONFIG_HISILICON_PLATFORM) += misc/
 obj-$(CONFIG_HISILICON_PLATFORM_HIFI_DSP)	+= hifidsp/
+obj-$(CONFIG_SND_HIFI_LPP) += hi3630dsp/
 obj-$(CONFIG_HISILICON_PLATFORM_HI6XXX)	+= hi6xxx/
 obj-$(CONFIG_HISILICON_PLATFORM_DDRC)	+= ddrc/
 obj-y += efuse/
@@ -16,11 +17,10 @@ obj-y += efuse/
 obj-$(CONFIG_HI6XXX_IPC_MULTICORE)	+= ipc_hi6xxx/
 obj-$(CONFIG_HIFI_MAILBOX)					+= hifi_mailbox/
 ifneq ($(strip $(HISI_PILOT_LIBS)), true)
-obj-$(CONFIG_HISILICON_PLATFORM)	+= modem_hi6xxx/
 endif
 
 obj-$(CONFIG_HISILICON_PLATFORM)	+= mailbox/
-obj-$(CONFIG_HISILICON_PLATFORM_MAINTAIN) += mntn/
+obj-y += mntn/
 obj-$(CONFIG_HISILICON_PLATFORM_KERNELDUMP) += memory_dump/
 obj-$(CONFIG_HISILICON_PLATFORM_MUTEX_SERVICE)	+= mutex_service/
 obj-$(CONFIG_HISILICON_PLATFORM_NOC)	+= noc/
@@ -55,3 +55,9 @@ ifneq ($(strip $(CFG_HISI_OPENSOURCE)), true)
 obj-$(CONFIG_HISI_BALONG_MODEM_HI3XXX)        += modem_hi3xxx/
 endif
 
+ifneq ($(strip $(CFG_HISI_OPENSOURCE)), true)
+obj-$(CONFIG_HISI_BALONG_MODEM_HI3630)        += modem_hi3630/
+endif
+
+
+obj-$(CONFIG_HISI_PERFHUB) += perfhub/

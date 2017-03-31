@@ -2414,6 +2414,14 @@ VOS_VOID  AT_NdisAddrProc(
         g_stAtNdisDhcpPara.stIpv4Dhcp.bitOpIpv4Secpcscf = VOS_TRUE;
     }
 
+    /* 获取第三PCSCF地址 */
+    if (VOS_TRUE == pstEvent->stPcscf.bitOpThiPcscfAddr)
+    {
+        /* IP地址的有效性由APS保证 */
+        g_stAtNdisDhcpPara.stIpv4Dhcp.ulIpv4ThiPCSCF    = AT_GetLanAddr32(pstEvent->stPcscf.aucThiPcscfAddr);
+        g_stAtNdisDhcpPara.stIpv4Dhcp.bitOpIpv4Thipcscf = VOS_TRUE;
+    }
+
     return;
 }
 
@@ -3788,6 +3796,14 @@ VOS_VOID AT_AppPdpAddrProc(
         pstAppPdpEntity->stIpv4Dhcp.ulIpv4SecPCSCF    = AT_GetLanAddr32(pstEvent->stPcscf.aucSecPcscfAddr);
     }
 
+    /* 获取第三PCSCF地址 */
+    if (VOS_TRUE == pstEvent->stPcscf.bitOpThiPcscfAddr)
+    {
+        /* IP地址的有效性由APS保证 */
+        pstAppPdpEntity->stIpv4Dhcp.bitOpIpv4Thipcscf = VOS_TRUE;
+        pstAppPdpEntity->stIpv4Dhcp.ulIpv4ThiPCSCF    = AT_GetLanAddr32(pstEvent->stPcscf.aucThiPcscfAddr);
+    }
+
     return;
 }
 
@@ -4412,6 +4428,7 @@ VOS_VOID  AT_SaveIPv6Pcscf(
 {
     pstPdpEntity->stIpv6Dhcp.bitOpIpv6PriPCSCF = VOS_FALSE;
     pstPdpEntity->stIpv6Dhcp.bitOpIpv6SecPCSCF = VOS_FALSE;
+    pstPdpEntity->stIpv6Dhcp.bitOpIpv6ThiPCSCF = VOS_FALSE;
 
     /* 处理IPV6的主PCSCF地址 */
     if (VOS_TRUE == pstEvent->stIpv6Pcscf.bitOpPrimPcscfAddr)
@@ -4430,8 +4447,17 @@ VOS_VOID  AT_SaveIPv6Pcscf(
                    pstEvent->stIpv6Pcscf.aucSecPcscfAddr,
                    TAF_IPV6_ADDR_LEN);
     }
-}
 
+    /* 处理IPV6的副PCSCF地址 */
+    if (VOS_TRUE == pstEvent->stIpv6Pcscf.bitOpThiPcscfAddr)
+    {
+        pstPdpEntity->stIpv6Dhcp.bitOpIpv6ThiPCSCF = VOS_TRUE;
+        PS_MEM_CPY(pstPdpEntity->stIpv6Dhcp.aucThiPcscfAddr,
+                   pstEvent->stIpv6Pcscf.aucThiPcscfAddr,
+                   TAF_IPV6_ADDR_LEN);
+    }
+
+}
 VOS_VOID  AT_SaveIPv6Dns(
     TAF_PS_CALL_PDP_ACTIVATE_CNF_STRU  *pstEvent,
     AT_PDP_ENTITY_STRU                 *pstPdpEntity
@@ -7779,6 +7805,13 @@ VOS_VOID AT_PS_PdpAddrProc(
         pstCallEntity->stIpv4DhcpInfo.ulIpv4SecPCSCF      = AT_GetLanAddr32(pstEvent->stPcscf.aucSecPcscfAddr);
     }
 
+    if (VOS_TRUE == pstEvent->stPcscf.bitOpThiPcscfAddr)
+    {
+        /* IP地址的有效性由APS保证 */
+        pstCallEntity->stIpv4DhcpInfo.bitOpIpv4Thipcscf   = VOS_TRUE;
+        pstCallEntity->stIpv4DhcpInfo.ulIpv4ThiPCSCF      = AT_GetLanAddr32(pstEvent->stPcscf.aucThiPcscfAddr);
+    }
+
     return;
 }
 
@@ -8468,6 +8501,7 @@ VOS_VOID  AT_PS_SaveIPv6Pcscf(
 
     pstCallEntity->stIpv6DhcpInfo.bitOpIpv6PriPCSCF = VOS_FALSE;
     pstCallEntity->stIpv6DhcpInfo.bitOpIpv6SecPCSCF = VOS_FALSE;
+    pstCallEntity->stIpv6DhcpInfo.bitOpIpv6ThiPCSCF = VOS_FALSE;
 
     /* 处理IPV6的主PCSCF地址 */
     if (VOS_TRUE == pstEvent->stIpv6Pcscf.bitOpPrimPcscfAddr)
@@ -8486,6 +8520,16 @@ VOS_VOID  AT_PS_SaveIPv6Pcscf(
                    pstEvent->stIpv6Pcscf.aucSecPcscfAddr,
                    TAF_IPV6_ADDR_LEN);
     }
+
+    /* 处理IPV6的第三PCSCF地址 */
+    if (VOS_TRUE == pstEvent->stIpv6Pcscf.bitOpThiPcscfAddr)
+    {
+        pstCallEntity->stIpv6DhcpInfo.bitOpIpv6ThiPCSCF = VOS_TRUE;
+        PS_MEM_CPY(pstCallEntity->stIpv6DhcpInfo.aucThiPcscfAddr,
+                   pstEvent->stIpv6Pcscf.aucThiPcscfAddr,
+                   TAF_IPV6_ADDR_LEN);
+    }
+
 }
 
 
@@ -8802,7 +8846,12 @@ VOS_VOID AT_PS_ProcDualStackCallConn(
 
             /* 其他原因值, 不处理 */
             default:
-                AT_NORM_LOG1("AT_PS_ProcDualStackCallConn: Other <Cause>", pstEvent->enCause);
+                /* Modified by w00316404 for enCause is error, 2015-8-18, begin */
+                AT_PS_SndCallEndedResult(pstEvent->stCtrl.usClientId,
+                                         ucCallId,
+                                         (TAF_PDP_IPV4 == pstEvent->stPdpAddr.enPdpType) ? TAF_PDP_IPV6 : TAF_PDP_IPV4,
+                                         pstEvent->enCause);
+                /* Modified by w00316404 for enCause is error, 2015-8-18, end */
                 break;
         }
     }
@@ -11263,6 +11312,9 @@ VOS_UINT32 AT_PS_SendRnicPdnInfoCfgInd(
         pstRnicPdnCfgInd->stIpv4PdnInfo.ulWinnsSecAddr  = pstAppPdpEntity->stIpv4Dhcp.bitOpIpv4SecWINNS;
         pstRnicPdnCfgInd->stIpv4PdnInfo.ulPcscfPrimAddr = pstAppPdpEntity->stIpv4Dhcp.ulIpv4PrimPCSCF;
         pstRnicPdnCfgInd->stIpv4PdnInfo.ulPcscfSecAddr  = pstAppPdpEntity->stIpv4Dhcp.bitOpIpv4Secpcscf;
+
+        pstRnicPdnCfgInd->stIpv4PdnInfo.ulPcscfThiAddr  = pstAppPdpEntity->stIpv4Dhcp.ulIpv4ThiPCSCF;
+
     }
     else if(TAF_PDP_IPV6 == ucPdpType)
     {
@@ -11288,6 +11340,11 @@ VOS_UINT32 AT_PS_SendRnicPdnInfoCfgInd(
         PS_MEM_CPY(pstRnicPdnCfgInd->stIpv6PdnInfo.aucPcscfSecAddr,
                    pstAppPdpEntity->stIpv6Dhcp.aucSecPcscfAddr,
                    TAF_IPV6_ADDR_LEN);
+
+        PS_MEM_CPY(pstRnicPdnCfgInd->stIpv6PdnInfo.aucPcscfThiAddr,
+                   pstAppPdpEntity->stIpv6Dhcp.aucThiPcscfAddr,
+                   TAF_IPV6_ADDR_LEN);
+
     }
     else
     {

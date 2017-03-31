@@ -466,14 +466,14 @@ static int hw_pmu_led_get_dt_data(struct hw_flash_ctrl_t *flash_ctrl)
 
 	pdata->irq[FLASH_LED_SHORT] = platform_get_irq_byname(flash_ctrl->pdev, "led_short");
 	if (pdata->irq[FLASH_LED_SHORT] < 0) {
-		cam_err("%s: failed to get led_short irq id, err = %d.\n", __func__, pdata->irq);
+		cam_err("%s: failed to get led_short irq id, err = %d.\n", __func__, pdata->irq[FLASH_LED_SHORT]);
 	} else {
 		cam_debug("%s: pmu led short irq = %d.", __func__, pdata->irq[FLASH_LED_SHORT]);
 	}
 
 	pdata->irq[FLASH_LED_OPEN] = platform_get_irq_byname(flash_ctrl->pdev, "led_open");
 	if (pdata->irq[FLASH_LED_OPEN] < 0) {
-		cam_err("%s: failed to get led_open irq id, err = %d.\n", __func__, pdata->irq);
+		cam_err("%s: failed to get led_open irq id, err = %d.\n", __func__, pdata->irq[FLASH_LED_OPEN]);
 	} else {
 		cam_debug("%s: pmu led open irq = %d.", __func__, pdata->irq[FLASH_LED_OPEN]);
 	}

@@ -47,6 +47,8 @@
 #define DRIVER_NAME "cbp"
 unsigned char cbp_power_state = 0;
 static atomic_t cbp_rst_ind_finished = ATOMIC_INIT(0);
+char g_modem_gpio_level_buffer[CBP_EXCEPT_STACK_LEN] = {0};
+
 extern void modem_reset_handler(void);
 extern int respond_cflag80_packet_to_via_request_to_send(void);
 extern void spi_tx_current_packet_print(void);
@@ -135,13 +137,16 @@ static int data_ack_wait_event(struct cbp_wait_event *pdata_ack)
             hwlog_err("%s: VIA CBP reset happened!.\n", __func__);
             return -2;
         } else if(0 == remain_time) {
-            hwlog_err("%s: wait CBP response data ack timeout 2s. data ack:%d->%d, AP2CP:%d->%d, CP_ready:%d->%d, CP2AP:%d->%d, AP_ready:%d->%d, Rts:%d->%d", __func__, \
+            memset(g_modem_gpio_level_buffer, 0, CBP_EXCEPT_STACK_LEN);
+            snprintf(g_modem_gpio_level_buffer, CBP_EXCEPT_STACK_LEN, "wait CBP response data ack timeout 2s. data ack:%d->%d, AP2CP:%d->%d, CP_ready:%d->%d, CP2AP:%d->%d, AP_ready:%d->%d, Rts:%d->%d\n",\
                                         cbp_data.saved_last_data_ack_gpio_level, oem_gpio_get_value(cbp_data_ack->wait_gpio), \
                                         tx_wake, oem_gpio_get_value(spi_tx_handle.gpio_wake), \
                                         tx_ready, oem_gpio_get_value(spi_tx_handle.gpio_ready), \
                                         rx_wake, oem_gpio_get_value(spi_rx_handle.gpio_wake),  \
                                         rx_ready, oem_gpio_get_value(spi_rx_handle.gpio_ready), \
                                         Rts, oem_gpio_get_value(cbp_data.gpio_via_requst_to_send));
+
+            hwlog_err("%s: %s", __func__, g_modem_gpio_level_buffer);
             failed_times++;
             if (failed_times >= MAX_WAIT_DATA_ACK_TIMES) {
                 return -1;

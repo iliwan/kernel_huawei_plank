@@ -39,7 +39,7 @@
 #include "../viatel.h"
 #include <linux/kthread.h>
 #include <linux/wakelock.h>
-#include<huawei_platform/dsm/dsm_pub.h>
+#include<dsm/dsm_pub.h>
 #include <huawei_platform/log/log_switch.h>
 
 static unsigned int spi_tx_cnt = 0;
@@ -79,6 +79,8 @@ static int print_next_packet_once_after_resume = 0;
 //#define FIFO_SIZE    (VIA_SPI_FIFO_SIZE - VIA_SPI_PACKET_HEADER_SIZE)
 #define FIFO_SIZE    8*PAGE_SIZE   //PAGE_SIZE is 4096
 #define WAIT_DATA_ACK_TIMEOUT_ONCE_IN_MS (1000)
+
+#define MASK_TELNUMBE_LENGTH   (16)   //for  mask the last 4 number of telephone number
 
 static char *via_spi_start_buf;
 static char *via_spi_follow_buf;
@@ -245,8 +247,8 @@ static void spi_tx_rx_printk(const void *buf, unsigned char type)
                     spi_write_timeout_cnt, spi_read_timeout_cnt, respond_cflag80_timeout_cnt);
     }
 
-    if(count > 20)
-        count = 20;
+    if(count > MASK_TELNUMBE_LENGTH)
+        count = MASK_TELNUMBE_LENGTH;
     for(i = 0; i < count + 4; i++)
     {
         if ((0 == get_logctl_flag()) \
@@ -476,6 +478,20 @@ static void respond_cflag80_packet_work(struct work_struct *work);
 static void spi_write_port_work(struct work_struct *work);
 static int check_regist_function(void);
 
+static void modem_spi_sdio_err_indication_usr(void *rst_buf, char *rst_mod_name, enum cbp_except_modid_e rst_modid)
+{
+    struct cbp_reset_info_s resetinfo;
+
+    memset(&resetinfo, 0, sizeof(resetinfo));
+    if(rst_mod_name) {
+        memcpy(resetinfo.task_name, rst_mod_name, strlen(rst_mod_name)+1);
+    }
+    if(rst_buf) {
+        memcpy(resetinfo.stack, rst_buf, strlen(rst_buf)+1);
+    }
+    resetinfo.modid = rst_modid;
+    modem_err_indication_usr(1, resetinfo);
+}
 
 int respond_cflag80_packet_to_via_request_to_send(void)
 {
@@ -489,7 +505,7 @@ int respond_cflag80_packet_to_via_request_to_send(void)
         queue_work(port->respond_cflag80_q, &port->respond_cflag80_work);
         return 0;
     } else {
-        hwlog_err("%s %d VIA modem is POWER OFF, ERROR exit, port->index is %d.\n", __func__,__LINE__, port->index);
+        hwlog_err("%s %d VIA modem is POWER OFF, ERROR exit.\n", __func__,__LINE__);
         return -1;
     }
 }
@@ -815,6 +831,7 @@ static int ctrl_msg_analyze(struct spi_modem *modem)
     const unsigned int msg_id             = (msg_id_high << 8) + msg_id_low;
     unsigned char option=*(modem->msg->buffer+3);
     struct spi_modem_port *port;
+    char rst_buf[CBP_EXCEPT_STACK_LEN]={0};
     unsigned char chan_num;
     unsigned char res;
 
@@ -894,8 +911,9 @@ static int ctrl_msg_analyze(struct spi_modem *modem)
                     atomic_set(&port->sflow_ctrl_state, SFLOW_CTRL_ENABLE);
                     if( SPI_ETS_LOG_CHANNEL_INDEX == chan_num )
                     {
-                        hwlog_err("%s:%d soft flow ctrl channel index:%d, use backup gpio reset via modem\n", __func__, __LINE__, chan_num);
-                        modem_err_indication_usr(1);
+                        snprintf(rst_buf, CBP_EXCEPT_STACK_LEN, "%s %d: soft flow ctrl channel index:%d, use backup gpio reset via modem\n", __func__, __LINE__, chan_num);
+                        hwlog_err("%s", rst_buf);
+                        modem_spi_sdio_err_indication_usr(rst_buf, CBP_EXCEPT_REASON_SPI, CBP_EXCE_MID_SPI_ETS_SFLOW_RESET);
                     }
                 }
                 else if(option == 0){
@@ -952,8 +970,8 @@ static void spi_buffer_in_print(struct spi_modem_port *port, struct spi_buf_in_p
     memset(spi_print_buff, 0, sizeof(spi_print_buff));
     count = packet->size;
 
-    if( count > 20){
-        count = 20;
+    if( count > MASK_TELNUMBE_LENGTH){
+        count = MASK_TELNUMBE_LENGTH;
     }
     for(i = 0; i < count; i++)
     {
@@ -1383,6 +1401,7 @@ static void respond_cflag80_packet_work(struct work_struct *work)
 {
     struct spi_modem_port *port;
     struct spi_modem *modem;
+    char rst_buf[CBP_EXCEPT_STACK_LEN]={0};
     int ret = 0;
     int status = 0;
     int err_flag = 0;
@@ -1423,21 +1442,28 @@ static void respond_cflag80_packet_work(struct work_struct *work)
             nDownRetryTimes++;
             if(( nDownRetryTimes % DOWN_MODEM_SEMAPHORE_PRINT_LOG) == 0)
             {
-                hwlog_err("%s %d  down_timeout(modem->spi_sem) return:%d, print log and continue\n", __func__,__LINE__, ret);
-            }
-            if (nDownRetryTimes == 1) {
-                //if the first time timeout, run notify.
-                hw_spi_dsm_client_notify("down_timeout error: status=", ret, DSM_SPI_DOWN_ERROR_NO);
+                hwlog_err("%s %d  port:%d down_timeout(modem->spi_sem) return:%d, print log and continue\n", __func__,__LINE__, port->index, ret);
             }
         }else{
             //get the semaphore
             break;
         }
     }while(nDownRetryTimes <= DOWN_MODEM_SEMAPHORE_RETRY_TIMES);
-    if(nDownRetryTimes > DOWN_MODEM_SEMAPHORE_RETRY_TIMES )
+
+    if((nDownRetryTimes > 0) && (nDownRetryTimes < DOWN_MODEM_SEMAPHORE_PRINT_LOG))
     {
-        hwlog_err("%s %d  down_timeout(modem->spi_sem) exceed %d return\n", __func__,__LINE__, DOWN_MODEM_SEMAPHORE_RETRY_TIMES);
-              hw_spi_dsm_client_notify("cflag80 down_timeout timeout exceed. ", 0, DSM_SPI_DOWN_RETRY_MAX_NO);
+        hwlog_err("%s %d  port:%d down_timeout(modem->spi_sem) timeout times=%d\n", __func__,__LINE__, port->index, nDownRetryTimes);
+    }
+    else if((nDownRetryTimes >= DOWN_MODEM_SEMAPHORE_PRINT_LOG) && (nDownRetryTimes <= DOWN_MODEM_SEMAPHORE_RETRY_TIMES))
+    {
+        hwlog_err("%s %d  port:%d down_timeout(modem->spi_sem) timeout times=%d\n", __func__,__LINE__, port->index, nDownRetryTimes);
+        //if timeout more then 15 times, run notify.
+        hw_spi_dsm_client_notify("down_timeout error: timeout times=", nDownRetryTimes, DSM_SPI_DOWN_ERROR_NO);
+    }
+    else if(nDownRetryTimes > DOWN_MODEM_SEMAPHORE_RETRY_TIMES )
+    {
+        hwlog_err("%s %d  port:%d down_timeout(modem->spi_sem) timeout exceed %d return\n", __func__,__LINE__, port->index, DOWN_MODEM_SEMAPHORE_RETRY_TIMES);
+              hw_spi_dsm_client_notify("down_timeout timeout exceed. port index =", port->index, DSM_SPI_DOWN_RETRY_MAX_NO);
         goto down_timeout;
     }
 
@@ -1531,8 +1557,10 @@ down_sem_fail:
 down_timeout:
     hwlog_debug("%s %d: respond_cflag80_packet_work release semaphore.\n", __func__, __LINE__);
     if (err_flag != 0) {
-        hwlog_err("%s %d: wait data ack for response cflag80 packet timeout, so notify CBP to produce ramdump.\n", __func__, __LINE__);
-        modem_err_indication_usr(1);
+        snprintf(rst_buf, CBP_EXCEPT_STACK_LEN, "%s %d: wait data ack for response cflag80 packet timeout, so notify CBP to produce ramdump.\n", __func__, __LINE__);
+        hwlog_err("%s", rst_buf);
+        snprintf(rst_buf+strlen(rst_buf), CBP_EXCEPT_STACK_LEN-strlen(rst_buf), "%s", g_modem_gpio_level_buffer);
+        modem_spi_sdio_err_indication_usr(rst_buf, CBP_EXCEPT_REASON_SPI, CBP_EXCE_MID_SPI_CFLAG80_PKT_TIMEOUT);
     }
 }
 
@@ -1554,6 +1582,7 @@ static void spi_write_port_work(struct work_struct *work)
     struct spi_modem_port *port;
     struct spi_modem *modem;
     struct tty_struct *tty;
+    char rst_buf[CBP_EXCEPT_STACK_LEN]={0};
     unsigned int count;
     unsigned int left, todo, frmlen = 0;
     unsigned int write_len;
@@ -1816,8 +1845,10 @@ static void spi_write_port_work(struct work_struct *work)
 
 down_out:
     if (err_flag != 0) {
-        hwlog_err("%s %d: channel=%d write error notify VIA CBP to produce ramdump.\n", __func__, __LINE__, spi_channel);
-        modem_err_indication_usr(1);
+        snprintf(rst_buf, CBP_EXCEPT_STACK_LEN, "%s %d: channel=%d write error notify VIA CBP to produce ramdump.\n", __func__, __LINE__, spi_channel);
+        hwlog_err("%s", rst_buf);
+        snprintf(rst_buf+strlen(rst_buf), CBP_EXCEPT_STACK_LEN-strlen(rst_buf), "%s", g_modem_gpio_level_buffer);
+        modem_spi_sdio_err_indication_usr(rst_buf, CBP_EXCEPT_REASON_SPI, CBP_EXCE_MID_SPI_WRITE_TIMEOUT);
     }
     return;
 }
@@ -2134,6 +2165,7 @@ EXPORT_SYMBOL(spi_sflow_ctrl_disable);
 static int rnic_send_packet(struct sk_buff *pstData, unsigned char ucPDNId)
 {
     struct spi_modem_port *port = spi_modem_table[SPI_TTY_NR - 1];
+    char rst_buf[CBP_EXCEPT_STACK_LEN]={0};
     unsigned char* pSource = NULL;
     unsigned int count = 0;
     unsigned char * buff = NULL;
@@ -2208,8 +2240,9 @@ static int rnic_send_packet(struct sk_buff *pstData, unsigned char ucPDNId)
             hwlog_err("%s %d: port %d wait CBP software flow control disable timeout in 2s.\n", __func__, __LINE__, port->index);
             nFlowCtrRetryTimes ++;
             if (DOWN_MODEM_SW_FLOW_COTR_RETRY_TIMES <= nFlowCtrRetryTimes) {
-                hwlog_err("%s %d: port %d wait CBP software flow control disable over 5m, then reset Modem.\n", __func__, __LINE__, port->index);
-                modem_err_indication_usr(1);
+                snprintf(rst_buf, CBP_EXCEPT_STACK_LEN, "%s %d: port %d wait CBP software flow control disable over 5m, then reset Modem.\n", __func__, __LINE__, port->index);
+                hwlog_err("%s", rst_buf);
+                modem_spi_sdio_err_indication_usr(rst_buf, CBP_EXCEPT_REASON_SPI, CBP_EXCE_MID_SPI_SFLOW_TIMEOUT);
                 goto down_err;
             }
         }
@@ -2240,11 +2273,7 @@ static int rnic_send_packet(struct sk_buff *pstData, unsigned char ucPDNId)
             nDownRetryTimes++;
             if(( nDownRetryTimes % DOWN_MODEM_SEMAPHORE_PRINT_LOG) == 0)
             {
-                hwlog_err("RNIC %s %d  down_timeout(modem->spi_sem) return:%d, print log and continue\n", __func__,__LINE__, ret);
-            }
-            if (nDownRetryTimes == 1) {
-                //if the first time timeout, run notify.
-                hw_spi_dsm_client_notify("down_timeout error: status=", ret, DSM_SPI_DOWN_ERROR_NO);
+                hwlog_err("%s %d  port:%d down_timeout(modem->spi_sem) return:%d, print log and continue\n", __func__,__LINE__, port->index, ret);
             }
         }
         else    {
@@ -2252,9 +2281,19 @@ static int rnic_send_packet(struct sk_buff *pstData, unsigned char ucPDNId)
             break;
         }
     }while(nDownRetryTimes <= DOWN_MODEM_SEMAPHORE_RETRY_TIMES);
-    if(nDownRetryTimes > DOWN_MODEM_SEMAPHORE_RETRY_TIMES)
+    if((nDownRetryTimes > 0) && (nDownRetryTimes < DOWN_MODEM_SEMAPHORE_PRINT_LOG))
     {
-        hwlog_err("RNIC %s %d  down_timeout(modem->spi_sem) exceed:%d return\n", __func__,__LINE__, DOWN_MODEM_SEMAPHORE_RETRY_TIMES);
+        hwlog_err("%s %d  port:%d down_timeout(modem->spi_sem) timeout times=%d\n", __func__,__LINE__, port->index, nDownRetryTimes);
+    }
+    else if((nDownRetryTimes >= DOWN_MODEM_SEMAPHORE_PRINT_LOG) && (nDownRetryTimes <= DOWN_MODEM_SEMAPHORE_RETRY_TIMES))
+    {
+        hwlog_err("%s %d  port:%d down_timeout(modem->spi_sem) timeout times=%d\n", __func__,__LINE__, port->index, nDownRetryTimes);
+        //if timeout more then 15 times, run notify.
+        hw_spi_dsm_client_notify("down_timeout error: timeout times=", nDownRetryTimes, DSM_SPI_DOWN_ERROR_NO);
+    }
+    else if(nDownRetryTimes > DOWN_MODEM_SEMAPHORE_RETRY_TIMES )
+    {
+        hwlog_err("%s %d  port:%d down_timeout(modem->spi_sem) timeout exceed %d return\n", __func__,__LINE__, port->index, DOWN_MODEM_SEMAPHORE_RETRY_TIMES);
               hw_spi_dsm_client_notify("down_timeout timeout exceed. port index =", port->index, DSM_SPI_DOWN_RETRY_MAX_NO);
         goto down_err;
     }
@@ -2306,6 +2345,7 @@ static void spi_read_port_work(struct work_struct *work)
 {
     struct spi_modem *modem;
     struct spi_modem_port *port;
+    char rst_buf[CBP_EXCEPT_STACK_LEN]={0};
     int ret = 0;
     struct tty_struct *tty;
     unsigned char index = 0;
@@ -2643,8 +2683,10 @@ static void spi_read_port_work(struct work_struct *work)
 
 out:
     if (err_flag != 0) {
-        hwlog_err("%s %d: channel=%d read error notify VIA CBP to produce ramdump.\n", __func__, __LINE__, modem->msg->head.chanInfo);
-        modem_err_indication_usr(1);
+        snprintf(rst_buf, CBP_EXCEPT_STACK_LEN, "%s %d: channel=%d read error notify VIA CBP to produce ramdump.\n", __func__, __LINE__, modem->msg->head.chanInfo);
+        hwlog_err("%s", rst_buf);
+        snprintf(rst_buf+strlen(rst_buf), CBP_EXCEPT_STACK_LEN-strlen(rst_buf), "%s", g_modem_gpio_level_buffer);
+        modem_spi_sdio_err_indication_usr(rst_buf, CBP_EXCEPT_REASON_SPI, CBP_EXCE_MID_SPI_READ_TIMEOUT);
     }
     return;
 }

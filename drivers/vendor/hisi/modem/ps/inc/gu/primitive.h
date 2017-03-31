@@ -239,8 +239,10 @@ The following msg's Destination is MAC
 /* HPA->MAC */
 #define    MAC_TIMER_MSG                         0x3007
 
+/*added by hujianbo for A32D08144 20070802 begin*/
 /* PBC->MAC */
 #define    PHY_TFC_STATUS_IND                    0x3008
+/*added by hujianbo for A32D08144 20070802 end*/
 
 
 /****************************************************************

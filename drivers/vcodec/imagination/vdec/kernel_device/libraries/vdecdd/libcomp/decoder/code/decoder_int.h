@@ -149,6 +149,7 @@ typedef struct
 
     BSPP_sBitStrSeg * psBitStrSeg;
 
+    IMG_BOOL          bInternalSeg;
 } DECODER_sDecPictSeg;
 
 /*!

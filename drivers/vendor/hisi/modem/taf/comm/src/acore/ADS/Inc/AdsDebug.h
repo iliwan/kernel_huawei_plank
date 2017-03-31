@@ -55,12 +55,12 @@ extern "C" {
 #define  ADS_DBG_UL_PROC_EVENT_NUM(n)               (g_stAdsStats.stUlComStatsInfo.ulUlProcEventNum += (n))
 
 #define  ADS_DBG_DL_RECV_IPF_BREAK_NUM(n)           (g_stAdsStats.stDlComStatsInfo.ulDlRecvIPFBreakNum += (n))
+#define  ADS_DBG_DL_RECV_ADQ_EMPTY_BREAK_NUM(n)     (g_stAdsStats.stDlComStatsInfo.ulDlRecvAdqEmptyBreakNum += (n))
 #define  ADS_DBG_DL_RECV_RD_ZERO_NUM(n)             (g_stAdsStats.stDlComStatsInfo.ulDlRecvRDZeroNum += (n))
 #define  ADS_DBG_DL_RECV_RD_NUM(n)                  (g_stAdsStats.stDlComStatsInfo.ulDlRecvRDNum += (n))
 #define  ADS_DBG_DL_PROC_EVENT_NUM(n)               (g_stAdsStats.stDlComStatsInfo.ulDlProcEventNum += (n))
 #define  ADS_DBG_DL_PROC_RD_EVENT_NUM(n)            (g_stAdsStats.stDlComStatsInfo.ulDlRdEventNum += (n))
 #define  ADS_DBG_DL_PROC_AD_EMPTY_EVENT_NUM(n)      (g_stAdsStats.stDlComStatsInfo.ulDlAdEmptyNum += (n))
-#define  ADS_DBG_DL_PROC_OTHER_EVENT_NUM(n)         (g_stAdsStats.stDlComStatsInfo.ulDlOtherEvent += (n))
 #define  ADS_DBG_DL_PROC_ALL_EVENT_NUM(n)           (g_stAdsStats.stDlComStatsInfo.ulDlAllEvent += (n))
 #define  ADS_DBG_DL_PROC_EMPTY_EVENT_NUM(n)         (g_stAdsStats.stDlComStatsInfo.ulDlEmptyEvent += (n))
 
@@ -85,8 +85,6 @@ extern "C" {
 #define ADS_DBG_DL_GET_AD_FAIL_NUM(n)               (g_stAdsStats.stDlComStatsInfo.ulDlGetAdFailNum         += (n))
 #define ADS_DBG_DL_CONFIG_AD_SUCC_NUM(i, n)         (g_stAdsStats.stDlComStatsInfo.aulDlConfigAdSuccNum[i]  += (n))
 #define ADS_DBG_DL_CONFIG_AD_FAIL_NUM(i, n)         (g_stAdsStats.stDlComStatsInfo.aulDlConfigAdFailNum[i]  += (n))
-#define ADS_DBG_DL_RECV_ADQ_EMPTY_BREAK_NUM(n)      (g_stAdsStats.stDlComStatsInfo.ulDlRecvAdqEmptyBreakNum += (n))
-#define ADS_DBG_DL_PROC_ADQ_EMPTY_EVENT_NUM(n)      (g_stAdsStats.stDlComStatsInfo.ulDlProcAdqEmptyEventNum += (n))
 #define ADS_DBG_DL_GET_ADQ_EMPTY_NUM(i, n)          (g_stAdsStats.stDlComStatsInfo.aulDlGetAdqEmptyNum[i]   += (n))
 #define ADS_DBG_DL_ALLOC_AD_FAIL_NUM(i, n)          (g_stAdsStats.stDlComStatsInfo.aulDlAllocAdFailNum[i]   += (n))
 #define ADS_DBG_DL_ALLOC_AD_SUCC_NUM(i, n)          (g_stAdsStats.stDlComStatsInfo.aulDlAllocAdSuccNum[i]   += (n))
@@ -97,6 +95,9 @@ extern "C" {
 #define  ADS_DBG_DL_RD_PROTECT_EVENT_NUM(n)         (g_stAdsStats.stDlComStatsInfo.ulDlRdProctectEventNum += (n))
 #define  ADS_DBG_DL_FC_ACTIVATE_NUM(n)              (g_stAdsStats.stDlComStatsInfo.ulDlFcTmrExpiredCnt += (n))
 #define  ADS_DBG_DL_FC_TMR_EXP_NUM(n)               (g_stAdsStats.stDlComStatsInfo.ulDlFcActivateCnt += (n))
+
+#define ADS_DBG_DL_ADQ_START_EMPTY_TMR_NUM(n)       (g_stAdsStats.stDlComStatsInfo.ulDlAdqStartEmptyTmrNum += (n))
+#define ADS_DBG_DL_ADQ_EMPTY_TMR_TIMEOUT_NUM(n)     (g_stAdsStats.stDlComStatsInfo.ulDlAdqEmptyTmrTimeoutNum += (n))
 
 #define ADS_DBG_SET_SEM_INIT_FLAG(flag)              (g_stAdsStats.stResetStatsinfo.ulSemInitFlg = (flag))
 #define ADS_UL_DBG_SAVE_BINARY_SEM_ID(sem_id)        (g_stAdsStats.stResetStatsinfo.hULBinarySemId = (sem_id))
@@ -230,6 +231,9 @@ typedef struct
     /* 流量统计信息 */
     VOS_UINT32              ulDLFlowDebugFlag;                                  /*下行流量Debug开关*/
     VOS_UINT32              ulDLFlowRptThreshold;                               /*下行流量上报门限*/
+
+    VOS_UINT32              ulDlAdqStartEmptyTmrNum;
+    VOS_UINT32              ulDlAdqEmptyTmrTimeoutNum;
 }ADS_DL_COM_STATS_INFO_STRU;
 typedef struct
 {

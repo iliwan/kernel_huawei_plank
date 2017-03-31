@@ -386,6 +386,7 @@ VOS_UINT32  FC_MNTN_TraceDrvAssemPara(FC_DRV_ASSEM_PARA_STRU *pstDrvAssenPara)
 }
 
 
+/* add by wangrong */
 VOS_UINT32 FC_IsPolicyEnable(VOS_UINT32 ulPointPolicyMask, MODEM_ID_ENUM_UINT16 enModemId)
 {
     VOS_UINT32                          ulPolicyMask;
@@ -402,6 +403,7 @@ VOS_UINT32 FC_IsPolicyEnable(VOS_UINT32 ulPointPolicyMask, MODEM_ID_ENUM_UINT16 
 
     return (ulPolicyMask & g_stFcCfg.ulFcEnbaleMask);
 }
+/* add by wangrong */
 
 /*****************************************************************************
  函 数 名  : FC_RegPoint
@@ -433,12 +435,14 @@ VOS_UINT32  FC_RegPoint
         return VOS_ERR;
     }
 
+    /* Add by wangrong */
     if ( MODEM_ID_BUTT <= pstFcRegPoint->enModemId )
     {
         FC_LOG1(PS_PRINT_ERROR, "FC_RegPoint, ERROR, enModemId err %d!\n",
             (VOS_INT32)pstFcRegPoint->enModemId);
         return VOS_ERR;
     }
+    /* Add by wangrong */
 
     if ( FC_POLICY_ID_BUTT <= pstFcRegPoint->enPolicyId )
     {
@@ -534,12 +538,14 @@ VOS_UINT32  FC_DeRegPoint
          return VOS_ERR;
     }
 
+    /* add by wangrong */
     if ( MODEM_ID_BUTT <= enModemId )
     {
         FC_LOG1(PS_PRINT_ERROR, "FC_DeRegPoint, ERROR, enModemId err %d!\n",
             (VOS_INT32)enModemId);
         return VOS_ERR;
     }
+    /* add by wangrong */
 
 
     /* 通过流控点ID找到流控点结构 */
@@ -556,12 +562,14 @@ VOS_UINT32  FC_DeRegPoint
     /* 流控点删除，需要对相应的流控策略进行处理 */
     ulPointPolicyMask   = pstFcPoint->ulPolicyMask;
 
+    /* add by wangrong */
     if (0 != FC_IsPolicyEnable(ulPointPolicyMask, enModemId))
     {
          ulResult = FC_SndDeRegPointMsg(enFcId,enModemId);
 
          return ulResult;
     }
+    /* add by wangrong */
 
     return VOS_OK;
 
@@ -600,12 +608,14 @@ VOS_UINT32  FC_ChangePoint
         return VOS_ERR;
     }
 
+     /* add by wangrong */
     if ( MODEM_ID_BUTT <= enModemId )
     {
         FC_LOG1(PS_PRINT_ERROR, "FC_ChangePoint, ERROR, enModemId err %d!\n",
             (VOS_INT32)enModemId);
         return VOS_ERR;
     }
+     /* add by wangrong */
 
     /* 使能检查 */
     if ( FC_POLICY_MASK(enPolicyId) != (FC_POLICY_MASK(enPolicyId) & g_stFcCfg.ulFcEnbaleMask) )
@@ -655,9 +665,11 @@ VOS_UINT32  FC_POINT_Add
 {
     FC_POINT_STRU                      *pPoint;
     VOS_UINT32                          ulFcPointLoop;
+    /* add by wangrong */
     FC_PRIVATE_POLICY_ID_ENUM_UINT8     enFcPrivatePolicyId;
 
     enFcPrivatePolicyId = g_aenPrivatePolicyTbl[pstFcRegPoint->enModemId][pstFcRegPoint->enPolicyId];
+    /* add by wangrong */
 
     if ( FC_MAX_POINT_NUM < g_stFcPointMgr.ulPointNum )
     {
@@ -875,9 +887,11 @@ VOS_UINT32  FC_POINT_Reg
 )
 {
     FC_PRI_ENUM_UINT8                  enPri;
+    /* add by wangrong */
     FC_PRIVATE_POLICY_ID_ENUM_UINT8     enFcPrivatePolicyId;
 
     enFcPrivatePolicyId = g_aenPrivatePolicyTbl[pstFcRegPoint->enModemId][pstFcRegPoint->enPolicyId];
+    /* add by wangrong */
 
 
     /* 添加流控点 */
@@ -888,7 +902,9 @@ VOS_UINT32  FC_POINT_Reg
     }
 
     /* 如果该流控策略里已经存在该流控ID，直接返回 */
+    /* add by wangrong */
     enPri   = FC_POLICY_GetPriWithFcId(enFcPrivatePolicyId, pstFcRegPoint->enFcId);
+    /* add by wangrong */
 
     if (FC_PRI_BUTT != enPri)
     {
@@ -896,9 +912,11 @@ VOS_UINT32  FC_POINT_Reg
         return VOS_ERR;
     }
 
+    /* add by wangrong */
     FC_POLICY_AddPoint(enFcPrivatePolicyId,
         pstFcRegPoint->enFcId,
         pstFcRegPoint->enFcPri);
+    /* add by wangrong */
 
     return VOS_OK;
 }
@@ -908,7 +926,9 @@ VOS_UINT32  FC_POINT_Reg
 VOS_UINT32  FC_POINT_DeReg(FC_ID_ENUM_UINT8 enFcId, MODEM_ID_ENUM_UINT16  enModemId)
 {
     FC_POINT_STRU                      *pFcPoint;
+    /* add by wangrong */
     FC_PRIVATE_POLICY_ID_ENUM_UINT8     enPolicyId;
+    /* add by wangrong */
     VOS_UINT32                          ulPointPolicyMask;
 
     /* 通过流控点ID找到流控点结构 */
@@ -926,6 +946,7 @@ VOS_UINT32  FC_POINT_DeReg(FC_ID_ENUM_UINT8 enFcId, MODEM_ID_ENUM_UINT16  enMode
     /* 流控点删除，需要对相应的流控策略进行处理 */
     ulPointPolicyMask   = pFcPoint->ulPolicyMask;
 
+    /* add by wangrong */
     for (enPolicyId = FC_PRIVATE_POLICY_ID_MEM_MODEM_0; enPolicyId < FC_PRIVATE_POLICY_ID_BUTT; enPolicyId++)
     {
         if ( 0 != (FC_POLICY_MASK(enPolicyId) & ulPointPolicyMask) )
@@ -937,6 +958,7 @@ VOS_UINT32  FC_POINT_DeReg(FC_ID_ENUM_UINT8 enFcId, MODEM_ID_ENUM_UINT16  enMode
             }
         }
     }
+    /* add by wangrong */
 
     /* 从流控点池里删除该流控点 */
     FC_POINT_Del(enFcId);

@@ -81,7 +81,7 @@
 #define DDR_CURR_BANDWIDTH_PATH "/sys/class/devfreq/ddrfreq/ddr_bandwidth"
 
 /* VARIABLES AND ARRARYS */
-static k3_isp_data isp_data;
+k3_isp_data isp_data;
 static isp_hw_controller *isp_hw_ctl;
 static isp_tune_ops *camera_tune_ops;
 static camera_flash_state flash_exif = FLASH_OFF;
@@ -168,6 +168,10 @@ void k3_isp_check_flash_level(camera_flash_state state)
 {
 	camera_flashlight *flashlight = get_camera_flash();
     flash_lum_level preflash_level;
+	if (NULL == isp_data.sensor)
+	{
+		return;
+	}
 	if(isp_data.sensor->effect != NULL){
 		preflash_level =
 			isp_data.sensor->effect->flash.flash_capture.preflash_level;
@@ -383,6 +387,10 @@ int k3_isp_enum_fmt(struct v4l2_fmtdesc *fmt, camera_state state)
 int k3_isp_enum_framesizes(struct v4l2_frmsizeenum *framesizes)
 {
 	print_debug("enter %s()", __func__);
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 
 	if (isp_data.sensor->enum_framesizes)
 		return isp_data.sensor->enum_framesizes(framesizes);
@@ -403,6 +411,10 @@ int k3_isp_enum_framesizes(struct v4l2_frmsizeenum *framesizes)
 int k3_isp_enum_frameintervals(struct v4l2_frmivalenum *fi)
 {
 	print_debug("enter %s()", __func__);
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 	if (isp_data.sensor->enum_frame_intervals)
 		return isp_data.sensor->enum_frame_intervals(fi);
 	return 0;
@@ -421,6 +433,10 @@ int k3_isp_enum_frameintervals(struct v4l2_frmivalenum *fi)
 int k3_isp_try_frameintervals(struct v4l2_frmivalenum *fi)
 {
 	print_debug("enter %s()", __func__);
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 
 	if (isp_data.sensor->try_frame_intervals)
 		return isp_data.sensor->try_frame_intervals(fi);
@@ -548,9 +564,9 @@ int k3_isp_try_fmt(struct v4l2_format *fmt, camera_state state, camera_setting_v
 	sensor_frmsize.width = fs.discrete.width;
 	sensor_frmsize.height = fs.discrete.height;
 	if (CAMERA_ZSL_ON == k3_isp_get_zsl_state()) {
-		ret = isp_data.sensor->set_framesizes(STATE_PREVIEW, &sensor_frmsize, 0, view_type, true);
+		ret = isp_data.sensor->set_framesizes(STATE_PREVIEW, &sensor_frmsize, 0, view_type, true, isp_data.b_shutter_state, isp_data.ecgc_support_type, isp_data.pro_mode, isp_data.pro_cap_expo);
 	} else {
-	    ret = isp_data.sensor->set_framesizes(state, &sensor_frmsize, 0, view_type, false);
+	    ret = isp_data.sensor->set_framesizes(state, &sensor_frmsize, 0, view_type, false, isp_data.b_shutter_state,isp_data.ecgc_support_type,isp_data.pro_mode, isp_data.pro_cap_expo);
 	}
 	if (ret != 0) {
 		print_error("%s:fail to set sensor framesize, width = %d, height= %d",
@@ -775,7 +791,7 @@ int k3_isp_stream_off(camera_state state)
 		if (true == isp_data.flash_on && flashlight)
 			flashlight->turn_off();
 	} else {
-		ret = isp_hw_ctl->stop_capture();	
+		ret = isp_hw_ctl->stop_capture();
 		if ((isp_data.sensor->sensor_index == CAMERA_SENSOR_PRIMARY) && (flashlight != NULL)) {
 			if (true == isp_data.flash_on && flashlight) {
 				flashlight->turn_off();
@@ -783,7 +799,7 @@ int k3_isp_stream_off(camera_state state)
 				    isp_data.flash_on = false;
 				}
 			}
-		}	
+		}
 	}
 
 	return ret;
@@ -854,6 +870,8 @@ int k3_isp_start_process(struct v4l2_pix_format *pixfmt, u8 mode,buffer_arr_t *i
 	int ret;
     memset(&attr_backup, 0, sizeof(pic_attr_t));
 	print_debug("enter %s", __func__);
+
+
 #if 0
 	if (k3_isp_check_config(pixfmt)) {
 		print_error("check_config fail");
@@ -1085,6 +1103,10 @@ void k3_isp_auto_focus(int flag)
 {
 	print_debug("enter %s", __func__);
 
+	if (NULL == isp_data.sensor)
+	{
+		return;
+	}
 	if (isp_data.sensor->af_enable) {
 		camera_tune_ops->isp_auto_focus(flag);
 	}
@@ -1093,6 +1115,10 @@ void k3_isp_auto_focus(int flag)
 int k3_isp_set_focus_mode(camera_focus mode)
 {
 	print_debug("enter %s", __func__);
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 
 	if (isp_data.sensor->af_enable) {
 		if (-1 == camera_tune_ops->isp_set_focus_mode(mode))
@@ -1111,6 +1137,10 @@ int k3_isp_get_focus_mode(void)
 int k3_isp_set_focus_area(focus_area_s *area)
 {
 	print_debug("enter %s", __func__);
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 	if (isp_data.sensor->af_enable) {
 		if (-1 == camera_tune_ops->isp_set_focus_area(area, isp_data.zoom))
 			return -EINVAL;
@@ -1120,6 +1150,10 @@ int k3_isp_set_focus_area(focus_area_s *area)
 
 void k3_isp_get_focus_result(focus_result_s *result)
 {
+	if (NULL == isp_data.sensor)
+	{
+		return;
+	}
 	if (isp_data.sensor->af_enable) {
 		camera_tune_ops->isp_get_focus_result(result);
 	} else {
@@ -1142,6 +1176,10 @@ int k3_isp_set_bracket_info(int *ev)
 int k3_isp_set_anti_shaking(camera_anti_shaking flag)
 {
 	int ret = 0;
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 
 	print_debug("enter %s", __func__);
 	if (isp_data.sensor->isp_location == CAMERA_USE_K3ISP) {
@@ -1299,6 +1337,10 @@ int k3_isp_set_gsensor_stat(axis_triple *xyz)
 {
 	print_debug("enter %s", __func__);
 
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 	if (isp_data.sensor->isp_location == CAMERA_USE_K3ISP) {
 		return camera_tune_ops->set_gsensor_stat(xyz);
 	} else {
@@ -1403,6 +1445,10 @@ int k3_isp_set_scene(camera_scene scene)
 {
 	int ret = 0;
 
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 	print_debug("enter %s", __func__);
 	if (isp_data.sensor->isp_location == CAMERA_USE_K3ISP) {
 		ret = camera_tune_ops->set_scene(scene);
@@ -1467,8 +1513,13 @@ int k3_isp_get_effect(void)
 int k3_isp_set_flash_mode(camera_flash flash_mode)
 {
 	camera_flashlight *flashlight = get_camera_flash();
-    flash_lum_level lum_level = isp_data.sensor->effect->flash.videoflash_level;
+	flash_lum_level lum_level = LUM_LEVEL_MAX;
 	print_debug("enter %s", __func__);
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
+	lum_level = isp_data.sensor->effect->flash.videoflash_level;
 	if (isp_data.sensor->sensor_index != CAMERA_SENSOR_PRIMARY) {
 		print_error("only primary camera support flash");
 		return 0;
@@ -1791,6 +1842,10 @@ int k3_isp_set_zoom_and_center(
 {
 	int ret = 0;
 
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 #ifdef ISP_ZSL_ZOOM_FIX
 	if (CAMERA_ZSL_ON == k3_isp_get_zsl_state())
 	{
@@ -1887,6 +1942,10 @@ int k3_isp_get_exposure_time(void)
 	int ret = 0;
 	print_debug("enter %s", __func__);
 
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 	if (CAMERA_USE_K3ISP == isp_data.sensor->isp_location) {
 		ret = camera_tune_ops->isp_get_exposure_time();
 	} else if (CAMERA_USE_SENSORISP == isp_data.sensor->isp_location) {
@@ -1923,6 +1982,10 @@ int k3_isp_get_actual_iso(void)
 	int ret = 0;
 	print_debug("enter %s", __func__);
 
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 	if (CAMERA_USE_K3ISP == isp_data.sensor->isp_location) {
 		ret = camera_tune_ops->isp_get_actual_iso();
 	} else if (CAMERA_USE_SENSORISP == isp_data.sensor->isp_location) {
@@ -1937,14 +2000,68 @@ int k3_isp_get_actual_iso(void)
 int k3_isp_get_focus_distance(void)
 {
 	print_debug("enter %s", __func__);
+    if(NULL == camera_tune_ops){
+        print_error("%s, camera_tune_ops is null",__func__);
+        return 0;
+    }
 	return camera_tune_ops->isp_get_focus_distance();
 }
+
+int k3_isp_get_current_y(void)
+{
+	if (camera_tune_ops->isp_get_current_y)
+		return camera_tune_ops->isp_get_current_y();
+	else
+		return 0;
+}
+
+/*
+ **************************************************************************
+ * FunctionName: k3_isp_get_ae_stats;
+ * Description : Get current expo time/ISO/Y target;
+ * Input       : NA;
+ * Output      : expo time, ISO, expo hint;
+ * ReturnValue : NA;
+ * Other       : NA;
+ **************************************************************************
+ */
+int k3_isp_get_ae_stats(ae_stats *stats)
+{
+	int currentY = 0;
+	int expoTime = 0;
+
+	const int overExposure = 100;
+	const int underExposure = 25;
+
+	expoTime =PROCAM_TIME_BASE / k3_isp_get_exposure_time();
+	stats->expo=expoTime;
+
+	stats->iso =k3_isp_get_actual_iso();
+
+	currentY = k3_isp_get_current_y();
+	if (currentY > overExposure)
+		stats->expo_hint = HW_OVER_EXPOSURE;
+	else if(currentY < underExposure)
+		stats->expo_hint = HW_UNDER_EXPOSURE;
+	else
+		stats->expo_hint = HW_NORMAL_EXPOSURE;
+
+	 print_debug("%s,%s, expo:%d,  iso:%d, currentY:%d,  isOverExposure %d ",PRO_MODE, __func__, stats->expo, stats->iso, currentY , stats->expo_hint);
+
+	return 0;
+}
+
+
 
 
 int k3_isp_get_awb_gain(int withShift)
 {
 	int ret = 0;
 
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 	if (CAMERA_USE_SENSORISP == isp_data.sensor->isp_location) {
 		ret = 0;
 	} else if (CAMERA_USE_K3ISP == isp_data.sensor->isp_location) {
@@ -1958,6 +2075,10 @@ int k3_isp_get_focus_code(void)
 {
 	int ret = 0;
 
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 	if (CAMERA_USE_SENSORISP == isp_data.sensor->isp_location) {
 		ret = 0;
 	} else if (CAMERA_USE_K3ISP == isp_data.sensor->isp_location) {
@@ -1969,6 +2090,10 @@ int k3_isp_get_focus_code(void)
 int k3_isp_get_focus_rect(camera_rect_s *rect)
 {
 	int ret = 0;
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 
 	if (CAMERA_USE_SENSORISP == isp_data.sensor->isp_location) {
 		ret = 0;
@@ -1982,6 +2107,10 @@ int k3_isp_get_expo_line(void)
 {
 	int ret = 0;
 
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 	if (CAMERA_USE_SENSORISP == isp_data.sensor->isp_location) {
 		ret = 0;
 	} else if (CAMERA_USE_K3ISP == isp_data.sensor->isp_location) {
@@ -1994,6 +2123,10 @@ int k3_isp_get_sensor_vts(void)
 {
 	int ret = 0;
 
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 	if (CAMERA_USE_SENSORISP == isp_data.sensor->isp_location) {
 		ret = 0;
 	} else if (CAMERA_USE_K3ISP == isp_data.sensor->isp_location) {
@@ -2004,6 +2137,10 @@ int k3_isp_get_sensor_vts(void)
 
 int k3_isp_get_sensor_aperture(void)
 {
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 	if (isp_data.sensor->get_sensor_aperture) {
 		return isp_data.sensor->get_sensor_aperture();
 	}
@@ -2013,6 +2150,10 @@ int k3_isp_get_sensor_aperture(void)
 
 int k3_isp_get_equivalent_focus(void)
 {
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 	if (isp_data.sensor->get_equivalent_focus) {
 		return isp_data.sensor->get_equivalent_focus();
 	}
@@ -2023,6 +2164,10 @@ int k3_isp_get_equivalent_focus(void)
 int k3_isp_get_current_ccm_rgain(void)
 {
 	int ret = 0;
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 
 	if (CAMERA_USE_SENSORISP == isp_data.sensor->isp_location) {
 		ret = 0;
@@ -2035,6 +2180,10 @@ int k3_isp_get_current_ccm_rgain(void)
 int k3_isp_get_current_ccm_bgain(void)
 {
 	int ret = 0;
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 
 	if (CAMERA_USE_SENSORISP == isp_data.sensor->isp_location) {
 		ret = 0;
@@ -2318,6 +2467,10 @@ int k3_isp_set_hflip(int flip)
 {
 	print_debug("enter %s", __func__);
 
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 	if (isp_data.sensor->set_hflip)
 		return isp_data.sensor->set_hflip(flip);
 
@@ -2327,6 +2480,10 @@ int k3_isp_get_hflip(void)
 {
 	print_debug("enter %s()", __func__);
 
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 	if (isp_data.sensor->get_hflip)
 		return isp_data.sensor->get_hflip();
 	return 0;
@@ -2335,6 +2492,10 @@ int k3_isp_set_vflip(int flip)
 {
 	print_debug("enter %s", __func__);
 
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 	if (isp_data.sensor->set_vflip)
 		return isp_data.sensor->set_vflip(flip);
 	return 0;
@@ -2342,6 +2503,10 @@ int k3_isp_set_vflip(int flip)
 int k3_isp_get_vflip(void)
 {
 	print_debug("enter %s()", __func__);
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 
 	if (isp_data.sensor->get_vflip)
 		return isp_data.sensor->get_vflip();
@@ -2365,23 +2530,39 @@ void k3_isp_set_pm_mode(u8 pm_mode)
 int k3_isp_get_current_vts(void)
 {
 	print_debug("enter %s()", __func__);
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 	return isp_hw_ctl->isp_get_current_vts(isp_data.sensor);
 }
 
 int k3_isp_get_current_fps(void)
 {
 	print_debug("enter %s()", __func__);
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 	return isp_hw_ctl->isp_get_current_fps(isp_data.sensor);
 }
 int k3_isp_get_band_threshold(void)
 {
 	print_debug("enter %s()", __func__);
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 	return isp_hw_ctl->isp_get_band_threshold(isp_data.sensor, isp_data.anti_banding);
 }
 
 void k3_isp_set_fps_lock(int lock)
 {
 	print_debug("enter %s()", __func__);
+
+    if (NULL == camera_tune_ops){
+        return;
+    }
 	camera_tune_ops->isp_set_fps_lock(lock);
 }
 
@@ -2461,6 +2642,10 @@ int k3_isp_set_zsl_cap_raw(u8 raw_buf_cnt,struct v4l2_pix_format *pixfmt,buffer_
 {
     u8                                  cnt = 0;
     int                                 ret = 0;
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 
     if (CAMERA_ZSL_ON != k3_isp_get_zsl_state()){
         print_error("%s:zsl_state is off.",__func__);
@@ -2669,6 +2854,155 @@ void k3_isp_set_hw_3a_mode(int mode)
 	}
 }
 
+void k3_isp_set_b_shutter_mode(int b_shutter_mode)
+{
+	print_info("enter %s()", __func__);
+	isp_hw_ctl->isp_set_b_shutter_mode(b_shutter_mode);
+}
+
+int k3_isp_set_b_shutter_long_ae(b_shutter_ae_iso_s* b_shutter_ae_iso)
+{
+	int retVal = -1;
+	print_info("%s enter %s()", BSHUTTER_LOG_TAG, __func__);
+
+	retVal = isp_hw_ctl->isp_set_b_shutter_long_ae(b_shutter_ae_iso);
+
+	return retVal;
+}
+
+int k3_isp_set_b_shutter_hdr_ae(b_shutter_hdr_aeciso_s* b_shutter_hdr_ae_iso)
+{
+	int retVal = -1;
+	print_info("%s enter %s()", BSHUTTER_LOG_TAG, __func__);
+
+	retVal = isp_hw_ctl->isp_set_b_shutter_hdr_ae(b_shutter_hdr_ae_iso);
+
+	return retVal;
+}
+
+int k3_isp_get_aec_state(void)
+{
+	bool retVal = false;
+	print_info("%s enter %s()", BSHUTTER_LOG_TAG, __func__);
+	retVal=isp_hw_ctl->isp_get_aec_state();
+	if(true == retVal)
+		return CAMERA_AEC_STABLE;
+	else
+		return CAMERA_AEC_NONE_STABLE;
+}
+
+int k3_isp_set_b_shutter_ecgc(b_shutter_ae_iso_s* b_shutter_tryae_ecgc)
+{
+	int retVal = -1;
+	print_info("%s enter %s()", BSHUTTER_LOG_TAG, __func__);
+
+	retVal = isp_hw_ctl->isp_set_b_shutter_ecgc(b_shutter_tryae_ecgc);
+
+	return retVal;
+}
+
+/*
+ **************************************************************************
+ * FunctionName: k3_isp_set_pro_mode;
+ * Description : Set pro cam mod to on or off;
+ * Input       : NA;
+ * Output      : NA;
+ * ReturnValue : NA;
+ * Other       : NA;
+ **************************************************************************
+ */
+int k3_isp_set_pro_mode(int  mode)
+{
+	int ret = 0;
+	print_info("%s,enter %s, set mode:%d", PRO_MODE, __func__, mode);
+
+	if (PRO_MODE_ON == mode){
+		isp_data.pro_mode = PRO_MODE_ON;
+	}
+	else{
+		isp_data.pro_mode = PRO_MODE_OFF;
+		isp_data.pro_cap_expo = 0;
+		isp_data.pro_pre_expo = 0;
+
+		if (NULL != camera_tune_ops){
+			ret = camera_tune_ops->set_pro_manual_iso(0);
+			isp_data.pro_iso = 0;
+			isp_data.iso = 0;
+		}
+	}
+	return ret;
+
+}
+
+/*
+ **************************************************************************
+ * FunctionName: k3_isp_set_pro_mamual_iso;
+ * Description : Set and save ISO value;
+ * Input       : NA;
+ * Output      : NA;
+ * ReturnValue : NA;
+ * Other       : NA;
+ **************************************************************************
+ */
+int k3_isp_set_pro_mamual_iso(int  iso)
+{
+
+	int ret = 0;
+
+	print_info("%s,enter %s, iso:%d", PRO_MODE, __func__ , iso);
+
+	if (!isp_data.pro_mode){
+		if (NULL != camera_tune_ops){
+			ret = camera_tune_ops->set_pro_manual_iso(0);
+			isp_data.pro_iso = 0;
+			isp_data.iso = 0;
+		}
+
+	}else{
+		if (NULL != camera_tune_ops){
+			if (camera_tune_ops->set_pro_manual_iso){
+				ret = camera_tune_ops->set_pro_manual_iso(iso);
+				isp_data.pro_iso = iso;
+				isp_data.iso = iso;
+			}
+		}
+	}
+	return ret;
+
+}
+
+/*
+ **************************************************************************
+ * FunctionName: k3_isp_set_pro_mamual_expo;
+ * Description : Set and save expo time value;
+ * Input       : NA;
+ * Output      : NA;
+ * ReturnValue : NA;
+ * Other       : NA;
+ **************************************************************************
+ */
+int k3_isp_set_pro_mamual_expo(int  expo)
+{
+	int ret = 0;
+	const int max_preview_expo = PROCAM_TIME_BASE /15;  //max preview exp: 1/15 s
+
+	if (!isp_data.pro_mode){
+		isp_data.pro_pre_expo = 0;
+		isp_data.pro_cap_expo = 0;
+	}else{
+	      if (expo > max_preview_expo){
+		    isp_data.pro_pre_expo = max_preview_expo;
+		    isp_data.pro_cap_expo = expo;
+		    print_info("%s, enter %s, expo:%d, actual expo:%d", PRO_MODE, __func__, max_preview_expo, expo);
+	}else{
+		    isp_data.pro_pre_expo = expo;
+		    isp_data.pro_cap_expo = expo;
+            print_info("%s, enter %s,  actual expo:%d",PRO_MODE, __func__, expo);
+	    	}
+	}
+	return ret;
+
+}
 
 
 /*
@@ -2740,6 +3074,19 @@ static void k3_isp_set_default(void)
 	isp_data.awb_lock                        = AUTO_AWB;
 
 	isp_data.ddr_lock_freq		= 0;
+
+	//initial b_shutter relative struct
+	memset(&isp_data.b_shutter_aecagc,0, sizeof(isp_data.b_shutter_aecagc));
+	memset(&isp_data.b_shutter_hdr_aecagc,0, sizeof(isp_data.b_shutter_hdr_aecagc));
+	memset(&isp_data.b_shutter_tryae_aecagc,0, sizeof(isp_data.b_shutter_tryae_aecagc));
+	isp_data.b_shutter_state = CAMERA_B_SHUTTER_MODE_OFF;
+	isp_data.ecgc_support_type = ECGC_TYPE_MAX ;
+
+	isp_data.pro_pre_expo = 0;
+	isp_data.pro_cap_expo = 0;
+	isp_data.pro_iso = 0;
+	isp_data.pro_mode = PRO_MODE_OFF;
+
 }
 
 /*

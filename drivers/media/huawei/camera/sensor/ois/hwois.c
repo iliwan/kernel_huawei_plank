@@ -102,12 +102,22 @@ int hw_ois_config(hw_ois_t *hw_ois, void *arg)
 		rc = hw_ois->intf->vtbl->ois_i2c_write(hw_ois->intf, arg);
 		break;
 	case CFG_OIS_GET_OIS_NAME:
-		strncpy(cdata->cfg.name, hw_ois->ois_info->ois_name,
-			sizeof(cdata->cfg.name) - 1);
-		break;
+        {
+            if (hw_ois->ois_info) {
+                if (hw_ois->ois_info->ois_name) {
+                    strncpy(cdata->cfg.name, hw_ois->ois_info->ois_name,
+                            sizeof(cdata->cfg.name) - 1);
+                }
+            }
+            break;
+        }
 	case CFG_OIS_GET_SUPPORT_FLAG:
-		cdata->cfg.ois_sup = hw_ois->ois_info->ois_support;
-		break;
+        {
+            if (hw_ois->ois_info) {
+                cdata->cfg.ois_sup = hw_ois->ois_info->ois_support;
+            }
+            break;
+        }
 	default:
 		rc = hw_ois->intf->vtbl->ois_ioctl(hw_ois->intf, arg);
 		break;

@@ -935,10 +935,12 @@ typedef struct
 {
     VOS_UINT32                          bitOpPrimPcscfAddr  : 1;
     VOS_UINT32                          bitOpSecPcscfAddr   : 1;
-    VOS_UINT32                          bitOpSpare          : 30;
+    VOS_UINT32                          bitOpThiPcscfAddr   : 1;
+    VOS_UINT32                          bitOpSpare          : 29;
 
     VOS_UINT8                           aucPrimPcscfAddr[TAF_IPV4_ADDR_LEN];
     VOS_UINT8                           aucSecPcscfAddr[TAF_IPV4_ADDR_LEN];
+    VOS_UINT8                           aucThiPcscfAddr[TAF_IPV4_ADDR_LEN];
 
 } TAF_PDP_PCSCF_STRU;
 
@@ -948,10 +950,12 @@ typedef struct
 {
     VOS_UINT32                          bitOpPrimPcscfAddr  : 1;
     VOS_UINT32                          bitOpSecPcscfAddr   : 1;
-    VOS_UINT32                          bitOpSpare          : 30;
+    VOS_UINT32                          bitOpThiPcscfAddr   : 1;
+    VOS_UINT32                          bitOpSpare          : 29;
 
     VOS_UINT8                           aucPrimPcscfAddr[TAF_IPV6_ADDR_LEN];
     VOS_UINT8                           aucSecPcscfAddr[TAF_IPV6_ADDR_LEN];
+    VOS_UINT8                           aucThiPcscfAddr[TAF_IPV6_ADDR_LEN];
 
 } TAF_PDP_IPV6_PCSCF_STRU;
 

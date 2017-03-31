@@ -37,7 +37,24 @@ static const struct of_device_id hall_match_table[] = {
 	{},
 };
 
-
+static struct sensors_classdev ak8789_hall_cdev = {
+       .path_name="hall_sensor",
+	.name = "Hall sensor",
+	.vendor = "akm_ak8789",
+	.version = 1,
+	.handle = SENSORS_HALL_HANDLE,
+	.type = SENSOR_TYPE_HALL,
+	.max_range = "3.0",
+	.resolution = "1.0",
+	.sensor_power = "0.75",
+	.min_delay = 0,
+	.delay_msec = 200,
+	.fifo_reserved_event_count = 0,
+	.fifo_max_event_count = 0,
+	.enabled = 0,
+	.sensors_enable = NULL,
+	.sensors_poll_delay = NULL,
+};
 
 MODULE_DEVICE_TABLE(of, hall_match_table);
 
@@ -125,7 +142,26 @@ static int hall_request_irq(struct hall_dev *phall_dev)
 
 	return ret;
 }
+static int hall_ak8789_enable_set(struct sensors_classdev *sensors_cdev,unsigned int enable)
+{
+	unsigned int enable_value = 0;
+	struct hall_dev *phall_dev = NULL;
+	phall_dev=hall_dev_client;
 
+	enable_value = enable;
+
+	hall_INFO("[hall][%s] enable_value:%u.\n", __func__, enable_value);
+
+	if(enable_value)
+	{
+		schedule_delayed_work(&(phall_dev->hall_delay_work), msecs_to_jiffies(50));
+	}
+	else
+	{
+		cancel_delayed_work(&phall_dev->hall_delay_work);
+	}
+	return 0;
+}
 static ssize_t store_enable_hall_sensor(struct device *dev,
 			struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -332,6 +368,7 @@ static int hall_probe(struct platform_device *pdev)
 
 	hall_dev->ops = &hall_device_ops;
 	INIT_WORK(&(hall_dev->hall_work), hall_work);
+	INIT_DELAYED_WORK(&(hall_dev->hall_delay_work), hall_ak8789_delay_report);
 	if (hall_dev->ops && hall_dev->ops->hall_device_init) {
 		hall_dev->ops->hall_device_init(pdev, hall_dev);
 		hall_INFO("[hall][%s]hall_device_init enter!\n", __func__);
@@ -392,14 +429,22 @@ static int hall_probe(struct platform_device *pdev)
 	}
 	else
 	{
-		hall_INFO("[hall] create sys/hall alraed ex\n");
+		hall_INFO("[hall] create sys/hall already ex\n");
 	}
 	ret = sysfs_create_group(hall_kobject, &hall_sensor_attr_group);
 	if (ret) {
 		hall_ERR("[hall][%s] hall sysfs_create_group failed", __func__);
 		goto sysfs_create_group_err;
 	}
-
+	hall_dev->cdev=ak8789_hall_cdev;
+	hall_dev->cdev.sensors_enable=hall_ak8789_enable_set;
+	hall_dev->cdev.sensors_poll_delay=NULL;
+	err = sensors_classdev_register(&pdev->dev, &hall_dev->cdev);
+	if (err) 
+      {
+	    gs_ERR("[GS]unable to register sensors_classdev: %d\n",err);
+	}
+	hall_INFO("[hall][%s] hall probe success!\n",__func__);
 	return ret;
 
 sysfs_create_group_err:
@@ -433,6 +478,7 @@ static int hall_remove(struct platform_device *pdev)
         if( hall_data->ops && hall_data->ops->hall_release) {
                 ret = hall_data->ops->hall_release(hall_data);
         }
+	cancel_delayed_work(&hall_data->hall_delay_work);
 
 	kfree(hall_data);
 	platform_set_drvdata(pdev, NULL);
@@ -724,6 +770,40 @@ static int hall_ak8789_device_init(struct platform_device *pdev,
 
 	phall_dev->hall_device = hall_ak8789;
 	return err;
+}
+
+static void hall_ak8789_delay_report(struct work_struct *work)
+{
+	struct hall_dev *phall_dev = container_of(work, struct hall_dev, hall_delay_work.work);
+	struct hall_ak8789_dev *hall_ak8789 = NULL;
+	int i = 0;
+	packet_data event_value = 0;
+
+	if(phall_dev->ops && phall_dev->ops->packet_event_data)
+	{
+		hall_ak8789 = phall_dev->hall_device;
+		hall_ak8789->hall_ak8789_type = phall_dev->hall_type;
+
+		for (i = 0; i < hall_ak8789->hall_ak8789_type; i++)
+		{
+			if (hall_ak8789->gpio_poles[i])
+			{
+				event_value |= !gpio_get_value(hall_ak8789->gpio_poles[i])\
+				<< (phall_dev->hall_id * 2 + i);
+			}
+		}
+	}
+	if(event_value < 0)
+	{
+		hall_ERR("[hall][%s] hall packet event failed.\n", __func__);
+	}
+
+	if(phall_dev->hw_input_hall !=NULL)
+	{
+		input_event(phall_dev->hw_input_hall, EV_MSC, MSC_SCAN, event_value);
+		input_sync(phall_dev->hw_input_hall);
+		hall_INFO("[hall][%s]hall enable delay report event_value=%d.\n", __func__,event_value);
+	}
 }
 
 static int hall_ak8789_event_report(packet_data packet_data,struct hall_dev *phall_dev)

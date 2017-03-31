@@ -209,7 +209,7 @@ static IMG_RESULT GetCpuKmAddr(
         /* If uncached...*/
         if ((psPages->eMemAttrib & SYS_MEMATTRIB_UNCACHED) != 0)
         {
-            pageProt = pgprot_noncached(pageProt);
+            pageProt = pgprot_dmacoherent(pageProt);
         }
 
         pages = IMG_BIGORSMALL_ALLOC(numPages*(sizeof *pages));

@@ -18,7 +18,7 @@
 #include <linux/hisi/hi6xxx_mntn.h> /*BSP_MODU_PMU*/
 
 #if defined (CONFIG_HUAWEI_DSM)
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 
 static struct dsm_dev dsm_pmu_ocp = {
 	.name = "dsm_pmu_ocp",
@@ -172,11 +172,20 @@ static int  of_get_exch_reg_attr(PMIC_MNTN_DESC* pmic_mntn,struct device *dev,
             continue;
         }
 
+#ifdef FINAL_RELEASE_MODE
         inacceptable_event = (unsigned int *)of_get_property(cur_exch_reg_desc->exch_reg_node,
-        "hisilicon,inacceptable-event",NULL);
+            "hisilicon,inacceptable-event-final-release",NULL);
+#else
+        inacceptable_event = (unsigned int *)of_get_property(cur_exch_reg_desc->exch_reg_node,
+            "hisilicon,inacceptable-event",NULL);
+#endif
         if(inacceptable_event)
         {
             cur_exch_reg_desc->inacceptable_event = be32_to_cpu(*inacceptable_event);
+        }
+        else
+        {
+            dev_err(dev, "inacceptable_event, sorry, inacceptable_event is NULL!\n");
         }
 
         dmd_not_report_event = (unsigned int *)of_get_property(cur_exch_reg_desc->exch_reg_node,
@@ -409,7 +418,7 @@ static void pmic_exch_scan(PMIC_MNTN_DESC* pmic_mntn,unsigned int reg_addr,unsig
                 pmic_mntn->health |= BIT(scene);
             }
 
-            if(care_bit & (!exch_reg_desc->dmd_not_report_event))
+            if(care_bit & (~exch_reg_desc->dmd_not_report_event))
             {
                 pmic_mntn->dmd_event = (unsigned char)BIT(0);
             }
@@ -524,6 +533,37 @@ static irqreturn_t pmic_ocp_scp_irq_hander(int irq, void *data)
     return IRQ_HANDLED;
 }
 
+/*
+* According to dsm_pub.h, PMU_OCP dsm num space is 100: 10100~10200 and the base num is 10100.
+* Here the offset num is made up of two decimal digits XY: X is the reg num and Y is the reg bit num, XY is X*10 + Y.
+* So, if reg num or reg bit num is more than 9, we cannot differentiate them, and this func will return 0. 
+* Notice:Even if there are more than one ocps, this func can noly report one.
+*/
+static unsigned int pmic_get_ocp_scp_dsm_offset_num(unsigned int reg_id, unsigned char reg_data, unsigned int data_width)
+{
+#define MAX_REG_NUM (9)
+#define MAX_BIT_NUM (9)
+    unsigned int offset_num = 0, bit_num = 0;
+
+    if(reg_id > MAX_REG_NUM)
+        return 0;
+
+    if(reg_data)
+    {
+        for(bit_num = 0; bit_num < data_width; bit_num++)
+        {
+            if(bit_num > MAX_BIT_NUM)
+                return 0;
+            if((1UL << bit_num) & reg_data)
+            {
+                offset_num = reg_id*10 + bit_num;
+                break;
+            }
+        }
+    }
+    return offset_num;
+}
+
 static void pmic_ocp_scp_wq_hander(struct work_struct *work)
 {
 #if defined (CONFIG_HUAWEI_DSM)
@@ -536,6 +576,7 @@ static void pmic_ocp_scp_wq_hander(struct work_struct *work)
     struct irq_desc *desc = NULL;
     PMIC_MNTN_DESC* pmic_mntn = NULL;
     unsigned int cur_reg_addr = 0;
+    unsigned int dsm_offset_num = 0;
 
  #if defined (CONFIG_HUAWEI_DSM)
 	if (!dsm_client_ocuppy(pmu_ocp_dclient)) {
@@ -560,11 +601,12 @@ static void pmic_ocp_scp_wq_hander(struct work_struct *work)
             pmic_socp_clr_record(cur_reg_addr,record_data);
 
 #if defined (CONFIG_HUAWEI_DSM)
-		 if (pmic_mntn->dmd_event && (dsm_error_found >= 0)) {
-			dsm_client_record(pmu_ocp_dclient, "PMU OCP DEB: 0x%x.\nPMU OCP SCP:addr\
-			0x%x.\tdata 0x%x.\n", socp_deb_data, cur_reg_addr, record_data);
-			dsm_error_found++;
-		}
+            if (pmic_mntn->dmd_event && (dsm_error_found >= 0)) {
+                dsm_client_record(pmu_ocp_dclient, "PMU OCP DEB: 0x%x.\nPMU OCP SCP:addr\
+                0x%x.\tdata 0x%x.\n", socp_deb_data, cur_reg_addr, record_data);
+                dsm_error_found++;
+                dsm_offset_num = pmic_get_ocp_scp_dsm_offset_num(reg_id, record_data, pmic_mntn->data_width);
+            }
 #endif
         }
     }
@@ -591,7 +633,7 @@ static void pmic_ocp_scp_wq_hander(struct work_struct *work)
 
 #if defined (CONFIG_HUAWEI_DSM)
 	if (dsm_error_found > 0) {
-		dsm_client_notify(pmu_ocp_dclient, DSM_PMU_OCP_ERROR_NO_BASE);
+		dsm_client_notify(pmu_ocp_dclient, DSM_PMU_OCP_ERROR_NO_BASE+dsm_offset_num);
 	} else if (!dsm_error_found) {
 		dsm_client_unocuppy(pmu_ocp_dclient);
 	} else {
@@ -755,15 +797,72 @@ static ssize_t pmic_device_check_show(struct kobject *kobj, struct kobj_attribut
     return sum;
 }
 
+static ssize_t pmic_peri_en_ctrl_show(struct kobject *kobj, struct kobj_attribute *attr,
+            char *buf)
+{
+    unsigned char data = 0;
+
+    data = hi6xxx_pmic_reg_read(SOC_SMART_PERI_EN_MARK_ADDR(0));
+    return snprintf(buf, 10, "0x%x\n", data);
+}
+
+static ssize_t pmic_peri_en_ctrl_store(struct kobject *kobj, struct kobj_attribute *attr,
+             const char *buf, size_t count)
+{
+#define BIT_7 (1<<7) //This mean bit4~bit0 configure individually! Or BUCK2/LDO8/LDO18/LDO12 will be configured together!
+#define BIT4_BIT1_MASK (0xf<<1)
+#define BIT7_BIT5_MASK (0x7<<5)
+
+    long in_val = 0;
+    unsigned char reg_val = 0;
+    unsigned char raw_reg_val = 0;
+
+    if (strict_strtol(buf, 0, &in_val) < 0)
+        return -EINVAL;
+    if (NULL == strstr(saved_command_line,"androidboot.swtype=factory"))
+    {
+        pr_info("%s it's not factory version!\n", __func__);
+        return -EINVAL;
+    }
+
+    reg_val = (unsigned char)in_val;
+    raw_reg_val = hi6xxx_pmic_reg_read(SOC_SMART_PERI_EN_MARK_ADDR(0));
+    pr_info("%s in_val:%ld, reg_val:0x%x, raw_reg_val:0x%x!\n", __func__, in_val, reg_val, raw_reg_val);
+    if (reg_val & BIT_7)
+    {
+        reg_val = reg_val & (~BIT7_BIT5_MASK);
+        raw_reg_val |= reg_val;
+        reg_val = reg_val | BIT7_BIT5_MASK;
+        hi6xxx_pmic_reg_write(SOC_SMART_PERI_EN_MARK_ADDR(0), raw_reg_val & reg_val);
+    }
+    else
+    {
+        if (reg_val)
+        {
+            hi6xxx_pmic_reg_write(SOC_SMART_PERI_EN_MARK_ADDR(0), raw_reg_val & (~BIT4_BIT1_MASK));
+        }
+        else
+        {
+            hi6xxx_pmic_reg_write(SOC_SMART_PERI_EN_MARK_ADDR(0), raw_reg_val | BIT4_BIT1_MASK);
+        }
+    }
+
+    return count;
+}
+
 static struct kobj_attribute pmic_mntn_attribute =
     __ATTR(pmic_exch, 0660, pmic_mntn_show, pmic_mntn_store);
 
 static struct kobj_attribute pmic_device_attribute =
     __ATTR(pmic_device_check, 0660, pmic_device_check_show, NULL);
 
+static struct kobj_attribute pmic_peri_en_ctrl_attribute =
+    __ATTR(pmic_peri_en_ctrl, 0660, pmic_peri_en_ctrl_show, pmic_peri_en_ctrl_store);
+
 static struct attribute *pmic_mntn_attrs[] = {
     &pmic_mntn_attribute.attr,
     &pmic_device_attribute.attr,
+    &pmic_peri_en_ctrl_attribute.attr,
     NULL,   /* need to NULL terminate the list of attributes */
 };
 

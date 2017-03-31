@@ -708,23 +708,6 @@ static int __init early_param_boottype(char * p)
 early_param("boottype", early_param_boottype);
 #endif
 
-static int __init early_parse_storage_cmdline(char *p)
-{
-	phys_addr_t size;
-	phys_addr_t start;
-	char *endp;
-
-	start = 0x80000000;
-	size  = memparse(p, &endp);
-	if (*endp == '@')
-		start = memparse(endp + 1, NULL);
-
-	arm_add_memory(start, size);
-
-	return 0;
-}
-early_param("mem_append", early_parse_storage_cmdline);
-
 static void __init request_standard_resources(struct machine_desc *mdesc)
 {
 	struct memblock_region *region;

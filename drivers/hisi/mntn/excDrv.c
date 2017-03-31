@@ -105,6 +105,7 @@ char *g_task_trace_name[8] = {"task trace cpu0",
                                      "task trace cpu5",
                                      "task trace cpu6",
                                      "task trace cpu7"};
+
 static char *g_reboot_reason[EXCH_S_MAX] = {"DIE",
                                             "PANIC",
 											"NOC",
@@ -115,7 +116,10 @@ static char *g_reboot_reason[EXCH_S_MAX] = {"DIE",
 											"WATCHPOINT",
 											"GPIO",
 											"MAILBOX",
-                                            "OTHERS"};
+											"CSI0",
+											"CSI1",
+											"OTHERS"};
+
 unsigned int g_irq_record_len[8];
 unsigned int g_irq_record_offset[8];
 unsigned int g_task_record_len[8];

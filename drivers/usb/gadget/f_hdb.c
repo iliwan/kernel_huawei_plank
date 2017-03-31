@@ -27,7 +27,7 @@
 #include <linux/device.h>
 #include <linux/miscdevice.h>
 
-#define hdb_BULK_BUFFER_SIZE           65536
+#define hdb_BULK_BUFFER_SIZE           32768
 
 /* number of tx requests to allocate */
 #define TX_REQ_MAX 4

@@ -17,9 +17,11 @@ extern "C" {
 #define    THIS_FILE_ID        PS_FILE_ID_USIMM_API_C
 
 
+/*Modified by ouyangfei for DART,2010-2-4,begin*/
 #if defined (__PS_WIN32_RECUR__) || defined (__DART__)
 VOS_UINT8 g_ucCardType = USIMM_CARD_USIM;
 #endif
+/*Modified by ouyangfei for DART,2010-2-4,end*/
 
 VOS_UINT32 USIMM_Read_OpenSpeedFile(VOS_UINT32 ulSenderPid, VOS_UINT32 ulSendPara, VOS_UINT16 usFileID)
 {
@@ -1220,7 +1222,10 @@ VOS_BOOL USIMM_IsTestCard(VOS_VOID)
 
         return VOS_FALSE;
     }
-
+    if(gstUSIMMPOOL.astpoolRecord[ulFileNum].pucContent == VOS_NULL)
+    {
+        return VOS_FALSE;
+    }
     VOS_MemCpy(aucPLMN, gstUSIMMPOOL.astpoolRecord[ulFileNum].pucContent + 1, USIMM_TEST_CARD_PLMN_LEN);
     /* coverity[uninit_use] */
     aucPLMN[0] &= 0xF0;
@@ -1328,11 +1333,13 @@ VOS_UINT32 USIMM_GetCardType(VOS_UINT8 *pucCardStatus, VOS_UINT8 *pucCardType)
 
     if(VOS_NULL_PTR != pucCardType)
     {
+/*Modified by ouyangfei for DART,2010-2-4,begin*/
 #if defined (__PS_WIN32_RECUR__) || defined (__DART__)
         *pucCardType   =   g_ucCardType;
 #else
         *pucCardType   = (VOS_UINT8)gastUSIMMCardAppInfo[USIMM_UICC_USIM].enCardType;
 #endif
+/*Modified by ouyangfei for DART,2010-2-4,end*/
     }
 
     return USIMM_API_SUCCESS;

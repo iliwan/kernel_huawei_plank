@@ -17,6 +17,7 @@
 #include <linux/board_sensors.h>
 #include <huawei_platform/sensor/sensor_info.h>
 #include "gs_rohm_kx023.h"
+#include	<linux/sensors.h>
 
 #ifdef CONFIG_HUAWEI_HW_DEV_DCT
 #include <linux/hw_dev_dec.h>
@@ -44,11 +45,25 @@ extern int Gsensor_data_count;
 /*DBG */
 /*This is the classcial Delay_time from framework and the units is ms*/
 
-#define DELAY_FASTEST  10
-#define DELAY_GAME     20
-#define DELAY_UI       68
-#define DELAY_NORMAL  200
-#define DELAY_ERROR 10000
+#define HZ_1  1000
+#define HZ_5  200
+#define HZ_10  100
+#define HZ_15  68
+#define HZ_25  40
+#define HZ_50  20
+#define HZ_100  10
+#define HZ_200  5
+
+#define OSA_0_781 0x08
+#define OSA_1_563 0x09
+#define OSA_3_125 0x0A
+#define OSA_6_25 0x0B
+#define OSA_12_5 0x00
+#define OSA_25 0x01
+#define OSA_50 0x02
+#define OSA_100 0x03
+#define OSA_200 0x04
+#define OSA_400 0x05
 
 /*
  * The following table lists the maximum appropriate poll interval for each
@@ -58,11 +73,14 @@ static const struct {
 	unsigned int cutoff;
 	u8 mask;
 } kxtik_odr_table[] = {
-	{ DELAY_FASTEST,ODR200F},
-	{ DELAY_GAME,   ODR100F},
-	{ DELAY_UI,      ODR25F},
-	{ DELAY_NORMAL,ODR12_5F},
-	{ DELAY_ERROR, ODR12_5F},
+	{ HZ_200,OSA_200},
+	{ HZ_100,OSA_100},
+	{ HZ_50,OSA_50},
+	{ HZ_25,OSA_25},
+	{ HZ_15,OSA_25},
+	{ HZ_10,OSA_12_5},
+	{ HZ_5,OSA_6_25},
+	{ HZ_1,OSA_0_781},
 };
 #define ACCL_DATA_SIZE 6
 #define GS_POLLING   1
@@ -72,11 +90,30 @@ static  int sensor_status;
 extern struct input_dev *sensor_dev;
 static  int reporte_count=0;
 static struct  Gsensor_excep rohm_excep;
-
+/*sensor class*/
+static struct sensors_classdev rohm_acc_cdev = {
+       .path_name="acc_sensor",
+	.name = "3-axis Accelerometer sensor",
+	.vendor = "ROHM_KX023",
+	.version = 1,
+	.handle = SENSORS_ACCELERATION_HANDLE,
+	.type = SENSOR_TYPE_ACCELEROMETER,
+	.max_range = "39.02266",
+	.resolution = "0.009576807",
+	.sensor_power = "0.23",
+	.min_delay = 10000,
+	.delay_msec = 200,
+	.fifo_reserved_event_count = 0,
+	.fifo_max_event_count = 0,
+	.enabled = 0,
+	.sensors_enable = NULL,
+	.sensors_poll_delay = NULL,
+};
 struct gs_data {
     uint16_t addr; 
 	struct i2c_client *client;
 	struct input_dev *input_dev;
+    struct sensors_classdev *cdev;
 	struct kx023_platform_data *pdata;
     int use_irq;
 	int sub_type;
@@ -91,11 +128,12 @@ struct gs_data {
 };
 
 static struct gs_data  *this_gs_data;
-static int accel_delay = GS_KX_TIMRER;     /*1s*/
+static int accel_delay = 10;     /*1s*/
 static atomic_t a_flag;
 static atomic_t kxtik_status_flag;
 struct input_dev *sensor_dev = NULL;
 /*sunlibin added*/
+static unsigned long  jiffies_save= 0;
 
 static int gs_who_am_i = KIONIX_ACCEL_WHO_AM_I_KX023;
 static int gs_ctrl_reg1 = KIONIX_ACCEL_WHO_AM_I_KX023;
@@ -242,7 +280,7 @@ static int gs_kxtik_open(struct inode *inode, struct file *file)
 	else
 	{
 		/* when device start, we set the default dilay time 68ms */
-		hrtimer_start(&this_gs_data->timer, ktime_set(0, DELAY_UI * 1000000), HRTIMER_MODE_REL);
+		hrtimer_start(&this_gs_data->timer, ktime_set(0, HZ_15 * 1000000), HRTIMER_MODE_REL);
 	}
 	return nonseekable_open(inode, file);
 }
@@ -351,10 +389,82 @@ static struct miscdevice gsensor_device = {
 	.fops = &gs_kxtik_fops,
 };
 #endif
+static int rohm_acc_enable_set(struct sensors_classdev *sensors_cdev,unsigned int enable)
+{
+    unsigned int val;
+    int ret;
+    val=enable;
+    gs_INFO("[GS]%s: val=%ld\n", __func__, val);
+    if(val)
+    {
+        if(!atomic_cmpxchg(&a_flag, 0, 1))
+        {
+            gs_init_reg(this_gs_data);
+
+            atomic_set(&kxtik_status_flag, GS_RESUME);
+            accel_delay = HZ_15;
+            if (this_gs_data->use_irq)
+            enable_irq(this_gs_data->client->irq);
+            else
+            {	
+            /* when device start, we set the default dilay time 68ms */
+            hrtimer_start(&this_gs_data->timer, ktime_set(0, HZ_15 * 1000000), HRTIMER_MODE_REL);
+            }
+            gs_FLOW("[GS]%s: enable!!!!!\n",__func__);
+
+        }
+        else
+        {
+            gs_FLOW("[GS]%s:already enable!!!!!\n",__func__);
+        }
+    }
+    else
+    {
+        if(atomic_cmpxchg(&a_flag, 1, 0))
+        {
+            ret  = reg_write(this_gs_data, gs_ctrl_reg1, 0x00);
+            atomic_set(&kxtik_status_flag, GS_SUSPEND);
+            if (this_gs_data->use_irq)
+            disable_irq(this_gs_data->client->irq);
+            else
+            hrtimer_cancel(&this_gs_data->timer);
+            accel_delay = GS_KX_TIMRER;
+            gs_FLOW("[GS]%s: disable!!!!!\n",__func__);
+        }
+        else
+        {
+            gs_FLOW("[GS]%s:already disable!!!!!\n",__func__);
+        }
+    }
+    return 0;
+}
+static int rohm_acc_poll_delay_set(struct sensors_classdev *sensors_cdev,unsigned int delay_msec)
+{
+    unsigned int val=delay_msec;
+
+    if(val)
+        accel_delay = val;
+    else
+        accel_delay = 10;   /*10ms*/
+
+    if (accel_delay < 10)
+        accel_delay = 10;
+    gs_INFO("[GS]%s, set poll delay time is val=%d,accel_delay=%d\n", __func__, val,accel_delay);
+
+    /*
+     * Set current interval to the greater of the minimum interval or
+     * the requested interval
+     */	
+    gs_kxtik_update_odr(this_gs_data);
+    return 0;
+}
 static void gs_work_func(struct work_struct *work)
 {
     s16 hw_d[3] = { 0 };
     s16 xyz[3] = {0};
+    static s16 olddata[3] = {0,0,0};
+    static int dataflag = 0;
+
 	int control_regster=0;
     u8 u8xl, u8xh, u8yl, u8yh, u8zl, u8zh;
     int sesc = accel_delay / 1000;
@@ -416,16 +526,41 @@ static void gs_work_func(struct work_struct *work)
 	xyz[2] = ((gs->pdata->negate_z) ? (-hw_d[gs->pdata->axis_map_z])
 		   : (hw_d[gs->pdata->axis_map_z]));
 
+	if(olddata[0] == xyz[0]) 
+	{
+		xyz[0]++;
+		dataflag |= 0x01;
+	}
+
+	if (olddata[1] == xyz[1])
+	{
+		xyz[1]++;
+		dataflag |= 0x02;
+	}
+
+	if (olddata[2] == xyz[2])
+	{
+		xyz[2]++;
+		dataflag |= 0x04;
+	}
+
 	if(( abs(xyz[0])+abs(xyz[1])+abs(xyz[2]) )<rohm_excep.min_three_axis )
 	{
 		control_regster=reg_read(gs, gs_ctrl_reg1);
 		gs_INFO("[GS]%s read [%x %x %x %x %x %x] x=%dmg, y=%dmg, z=%dmg, control_regster = %dmg\n", __func__,
             u8xl, u8xh, u8yl, u8yh, u8zl, u8zh, xyz[0], xyz[1], xyz[2], control_regster);
 	}
+
     input_report_abs(gs->input_dev, ABS_X,  xyz[0]);
     input_report_abs(gs->input_dev, ABS_Y,  xyz[1]);
     input_report_abs(gs->input_dev, ABS_Z,  xyz[2]);
     input_sync(gs->input_dev);
+    if (time_after_eq(jiffies, jiffies_save + PRINT_ACCDATA_PERIOD * HZ ))
+    {
+        jiffies_save = jiffies;
+        gs_INFO("[GS]%s: ACC data is X= %d,Y = %d,Z = %d\n",__func__, xyz[0],xyz[1],xyz[2]);
+    }
+    gs_DBG("[GS]%s rohm report %d.%d.%d.\n",__func__,xyz[0],xyz[1],xyz[2]);
     /*
      * There is a transform formula between ABS_X, ABS_Y, ABS_Z
      * and Android_X, Android_Y, Android_Z.
@@ -441,6 +576,25 @@ static void gs_work_func(struct work_struct *work)
     gs_sensor_data[0]= xyz[0];
     gs_sensor_data[1]= xyz[1];
     gs_sensor_data[2]= xyz[2];
+    olddata[0] = xyz[0];
+    olddata[1] = xyz[1];
+    olddata[2] = xyz[2];
+
+    if(dataflag & 0x01)
+    {
+        xyz[0]--;
+    }
+
+    if(dataflag & 0x02)
+    {
+        xyz[1]--;
+    }
+
+    if(dataflag & 0x04)
+    {
+        xyz[2]--;
+	}
+    dataflag = 0;
 
     if (gs->use_irq)
     {
@@ -448,19 +602,19 @@ static void gs_work_func(struct work_struct *work)
     }
     else
     {
-	    if(DT_tset)
+  	   if(DT_tset)
   	   {
-		Gsensor_data_count++;
-		hrtimer_start(&gs->timer, ktime_set(sesc, nsesc), HRTIMER_MODE_REL) ;
-		gs_INFO("[GS]%s, Gsensor_data_count= %d: enter dt add++ sec=%d, nsec=%d\n", __func__, Gsensor_data_count, sesc, nsesc);
-          }
-	  else
+			Gsensor_data_count++;
+			hrtimer_start(&gs->timer, ktime_set(sesc, nsesc), HRTIMER_MODE_REL);
+			gs_INFO("[GS]%s, Gsensor_data_count= %d: enter dt add++ sec=%d, nsec=%d\n", __func__, Gsensor_data_count, sesc, nsesc);
+       }
+	  /*else
 	  {
-       	 if(GS_RESUME == atomic_read(&kxtik_status_flag))
+	          if(GS_RESUME == atomic_read(&kxtik_status_flag))
            		 if (0 != hrtimer_start(&gs->timer, ktime_set(sesc, nsesc), HRTIMER_MODE_REL) )
 
 				gs_INFO("[GS]%s, line %d: hrtimer_start fail! sec=%d, nsec=%d\n", __func__, __LINE__, sesc, nsesc);
-	  }
+	  }*/
     }
 }
 
@@ -469,6 +623,8 @@ static enum hrtimer_restart gs_timer_func(struct hrtimer *timer)
 {
 	struct gs_data *gs = container_of(timer, struct gs_data, timer);		
 	queue_work(gs_wq, &gs->work);
+	gs_DBG("[GS]%s hrtimer_restart %d.\n",__func__, accel_delay);
+	hrtimer_start(&this_gs_data->timer, ns_to_ktime(accel_delay * 1000000), HRTIMER_MODE_REL);
 	return HRTIMER_NORESTART;
 }
 
@@ -619,13 +775,13 @@ static ssize_t attr_kx023_set_enable(struct device *dev, struct device_attribute
 			gs_init_reg(this_gs_data);
 	
 			atomic_set(&kxtik_status_flag, GS_RESUME);
-			accel_delay = DELAY_UI;
+			accel_delay = HZ_15;
 			if (this_gs_data->use_irq)
 				enable_irq(this_gs_data->client->irq);
 			else
 			{	
 		/* when device start, we set the default dilay time 68ms */
-				hrtimer_start(&this_gs_data->timer, ktime_set(0, DELAY_UI * 1000000), HRTIMER_MODE_REL);
+				hrtimer_start(&this_gs_data->timer, ns_to_ktime(accel_delay * 1000000), HRTIMER_MODE_REL);
 			}
 			gs_FLOW("[GS]%s: enable!!!!!\n",__func__);
 			
@@ -747,7 +903,7 @@ static int fb_notifier_callback(struct notifier_block *self,unsigned long event,
 				gs_init_reg(this_gs_data);
 				if (!this_gs_data->use_irq)
 				{
-					hrtimer_start(&this_gs_data->timer, ktime_set(1, DELAY_UI * 1000000), HRTIMER_MODE_REL);
+					hrtimer_start(&this_gs_data->timer, ns_to_ktime(accel_delay * 1000000), HRTIMER_MODE_REL);
 				}
 				else
 				{
@@ -1110,6 +1266,17 @@ static int gs_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		gs_INFO("[GS]gs_probe: gsensor_device register failed\n");
 		goto err_misc_device_register_failed;
 	}*/
+	
+	/*resgster sensorsclass*/
+       gs->cdev=&rohm_acc_cdev;
+       gs->cdev->sensors_enable=rohm_acc_enable_set;
+       gs->cdev->sensors_poll_delay=rohm_acc_poll_delay_set;
+       ret = sensors_classdev_register(&client->dev, gs->cdev);
+	if (ret) 
+      {
+	    gs_ERR("[GS]unable to register sensors_classdev: %d\n",ret);
+	}
+    
 #if defined(CONFIG_FB)
 		fb_acc.fb_notify.notifier_call = fb_notifier_callback;
 		ret = fb_register_client(&fb_acc.fb_notify);

@@ -27,18 +27,30 @@
 #include <linux/clk-private.h>
 #include <linux/delay.h>
 #include <linux/pwrctrl_power_state_manager.h>
-
+#include <linux/wakelock.h>
 #include "virt-dma.h"
+
+#ifdef CONFIG_HUAWEI_TSIF
+//#include "../tsif/tsif.h"
+#ifndef TSIF_DMA_LLI_NUM_IN_CHUNK
+#define TSIF_DMA_LLI_NUM_IN_CHUNK (8)
+#endif
+#ifndef TSIF_CHUNK_SIZE
+#define TSIF_CHUNK_SIZE (204*32*8)
+#endif
+#endif
 
 #define DRIVER_NAME		"hisi-dma"
 #define DMA_ALIGN		3
-#define DMA_MAX_SIZE		0x1ffc
+#define DMA_MAX_SIZE		0x1980//0x1ffc   /*64 even*/
 
 #define INT_STAT		0x00
 #define INT_TC1			0x04
+#define INT_TC2			0x08
 #define INT_ERR1		0x0c
 #define INT_ERR2		0x10
 #define INT_TC1_MASK		0x18
+#define INT_TC2_MASK		0x1c
 #define INT_ERR1_MASK		0x20
 #define INT_ERR2_MASK		0x24
 #define INT_TC1_RAW		0x600
@@ -58,6 +70,7 @@
 
 #define CX_LLI_CHAIN_EN		0x2
 #define CCFG_EN			0x1
+#define CCFG_ITC_EN         (0x1 << 1)
 #define CCFG_MEM2PER		(0x1 << 2)
 #define CCFG_PER2MEM		(0x2 << 2)
 #define CCFG_SRCINCR		(0x1 << 31)
@@ -115,11 +128,15 @@ struct hisi_dma_dev {
 	u32         dma_used_chans;
         bool        dma_share;
 };
-
+#ifdef CONFIG_HUAWEI_TSIF
+struct hisi_dma_desc_sw *g_ds; 
+extern struct dma_chan *tsi_chan;
+#endif
 #define to_hisi_dma(dmadev) container_of(dmadev, struct hisi_dma_dev, slave)
 
 /* Milliseconds */
 #define HISI_DMA_AUTOSUSPEND_DELAY	1000
+
 
 #ifdef CONFIG_ARCH_HI6XXX
 static int dma_power_qos_id=PWRCTRL_POWER_STAT_INVALID_ID;
@@ -215,12 +232,14 @@ static void hisi_dma_enable_dma(struct hisi_dma_dev *d, bool on)
 		writel(d->dma_used_chans, d ->base + INT_TC1_MASK);
 		writel(d->dma_used_chans, d ->base + INT_ERR1_MASK);
 		writel(d->dma_used_chans, d ->base + INT_ERR2_MASK);
+        writel(d->dma_used_chans, d ->base + INT_TC2_MASK);
 
 	} else {
 		/* mask irq */
 		writel(0x0, d ->base + INT_TC1_MASK);
 		writel(0x0, d ->base + INT_ERR1_MASK);
 		writel(0x0, d ->base + INT_ERR2_MASK);
+        writel(0x0, d ->base + INT_TC2_MASK);
 	}
 }
 
@@ -239,14 +258,17 @@ static irqreturn_t hisi_dma_int_handler(int irq, void *dev_id)
 {
 	struct hisi_dma_dev *d = (struct hisi_dma_dev *)dev_id;
 	struct hisi_dma_phy *p;
+    struct hisi_dma_phy *p1;
 	struct hisi_dma_chan *c;
 	u32 stat = readl(d->base + INT_STAT);
 	u32 tc1  = readl(d->base + INT_TC1);
+    u32 tc2  = readl(d->base + INT_TC2);
 	u32 err1 = readl(d->base + INT_ERR1);
 	u32 err2 = readl(d->base + INT_ERR2);
-	u32 i, tc1_irq = 0, err1_irq = 0, err2_irq = 0;
+	u32 i, tc1_irq = 0,tc2_irq = 0, err1_irq = 0, err2_irq = 0;
 	u32 stats = stat;
 
+  
 	while (stat) {
 		i = __ffs(stat);
 		stat &= (stat - 1);
@@ -254,6 +276,7 @@ static irqreturn_t hisi_dma_int_handler(int irq, void *dev_id)
 			p = &d->phy[i];
 			c = p->vchan;
 			if (c) {
+     
 				unsigned long flags;
 
 				spin_lock_irqsave(&c->vc.lock, flags);
@@ -266,6 +289,25 @@ static irqreturn_t hisi_dma_int_handler(int irq, void *dev_id)
 						__func__, p->idx, stats);
 			}
 			tc1_irq |= BIT(i);
+		}
+
+    if (likely(tc2 & BIT(i))) {
+			p = &d->phy[i];
+			c = p->vchan;
+			if (c) {  
+
+				unsigned long flags;
+
+				spin_lock_irqsave(&c->vc.lock, flags);
+				if(p->ds_run != NULL)					
+					vchan_cyclic_callback(&p->ds_run->vd);
+				//p->ds_done = p->ds_run;
+				spin_unlock_irqrestore(&c->vc.lock, flags);
+			} else {
+				dev_err(d->slave.dev, "%s: phy[%d] stats[0x%x]\n",
+						__func__, p->idx, stats);
+			}
+			tc2_irq |= BIT(i);
 		}
 
 		if (unlikely((err1 & BIT(i)) || (err2 & BIT(i)))) {
@@ -284,8 +326,12 @@ static irqreturn_t hisi_dma_int_handler(int irq, void *dev_id)
 	}
 
 	writel(tc1_irq, d->base + INT_TC1_RAW);
+    writel(tc2_irq, d->base + INT_TC2_RAW);
 	writel(err1_irq, d->base + INT_ERR1_RAW);
 	writel(err2_irq, d->base + INT_ERR2_RAW);
+
+    if (tc2_irq)
+        return IRQ_HANDLED;
 
 	if (tc1_irq || err1_irq || err2_irq) {
 		tasklet_schedule(&d->task);
@@ -619,7 +665,10 @@ static struct dma_async_tx_descriptor *hisi_dma_prep_slave_sg(
 	ds->desc_hw_lli = __virt_to_phys((unsigned long)&ds->desc_hw[0]);
 	ds->desc_num = num;
 	num = 0;
-
+#ifdef CONFIG_HUAWEI_TSIF    
+    if (tsi_chan == chan)
+        g_ds = ds;
+#endif
 	for_each_sg(sgl, sg, sglen, i) {
 		addr = sg_dma_address(sg);
 		avail = sg_dma_len(sg);
@@ -644,6 +693,10 @@ static struct dma_async_tx_descriptor *hisi_dma_prep_slave_sg(
 	}
 
 	ds->desc_hw[num-1].lli = 0;	/* end of link */
+#ifdef CONFIG_HUAWEI_TSIF
+    if (tsi_chan == chan)
+	    ds->desc_hw[num-1].lli = ds->desc_hw_lli| CX_LLI_CHAIN_EN ;
+#endif
 #if defined(CONFIG_DMA_NO_CCI)
 	dma_sync_single_for_device(chan->device->dev, ds->desc_hw_lli,
 	                           ds->desc_num * sizeof(ds->desc_hw[0]), DMA_TO_DEVICE);
@@ -652,6 +705,61 @@ static struct dma_async_tx_descriptor *hisi_dma_prep_slave_sg(
 	return vchan_tx_prep(&c->vc, &ds->vd, flags);
 }
 
+#ifdef CONFIG_HUAWEI_TSIF
+int hisi_dma_prep_slave_lli(struct tsif_device *tsif_device,struct dma_chan *chan, long addr,int addr_num,int stop)
+{
+	struct hisi_dma_chan *c = to_hisi_chan(chan);
+	struct hisi_dma_desc_sw *ds = g_ds;
+	size_t len, avail, total = 0;
+	struct scatterlist *sg;
+	dma_addr_t src = 0, dst = 0;
+	int num = addr_num;
+    int next_num = 0;    
+	avail = total = TSIF_CHUNK_SIZE;//204*32*8;
+
+	do {
+		len = DMA_MAX_SIZE;
+
+	    src = c->dev_addr;
+		dst = __virt_to_phys((unsigned long)addr);
+
+		hisi_dma_fill_desc(ds, dst, src, len, num++, c->ccfg); //&& ~(0x3 << 2) |CCFG_PER2MEM));
+
+		addr += len;
+		avail -= len;
+	} while (avail);
+
+
+	if (TSIF_DMA_LLI_NUM_IN_CHUNK == addr_num){
+        next_num = 0;
+      if (stop)
+             ds->desc_hw[2*TSIF_DMA_LLI_NUM_IN_CHUNK -1].lli = 0;
+      else
+            ds->desc_hw[2*TSIF_DMA_LLI_NUM_IN_CHUNK -1].lli =  ds->desc_hw_lli + next_num *
+		                       sizeof(struct hisi_desc_hw) | CX_LLI_CHAIN_EN;
+    }else {
+        next_num = TSIF_DMA_LLI_NUM_IN_CHUNK;
+        if (stop)
+            ds->desc_hw[TSIF_DMA_LLI_NUM_IN_CHUNK - 1].lli = 0;
+        else {
+
+            ds->desc_hw[TSIF_DMA_LLI_NUM_IN_CHUNK - 1].lli =  ds->desc_hw_lli + next_num *
+		                       sizeof(struct hisi_desc_hw) | CX_LLI_CHAIN_EN;
+
+        }
+
+    }       
+ 	
+	ds->size = total;
+#if defined(CONFIG_DMA_NO_CCI)
+    dma_sync_single_for_device(chan->device->dev, ds->desc_hw_lli,
+                           (TSIF_DMA_LLI_NUM_IN_CHUNK*2) * sizeof(ds->desc_hw[0]), DMA_TO_DEVICE);
+
+#endif	
+	return 0;
+}
+
+#endif
 static int hisi_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
                             unsigned long arg)
 {
@@ -711,7 +819,12 @@ static int hisi_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 		else
 			val = maxburst - 1;
 		c->ccfg |= (val << 20) | (val << 24);
-		c->ccfg |= CCFG_MEM2PER | CCFG_EN;
+#ifdef CONFIG_HUAWEI_TSIF        
+      if (tsi_chan == chan)  
+		c->ccfg |= CCFG_MEM2PER | CCFG_EN | CCFG_ITC_EN;
+      else
+#endif
+        c->ccfg |= CCFG_MEM2PER | CCFG_EN; 
 
 		/* specific request line */
 		c->ccfg |= c->vc.chan.chan_id << 4;
@@ -850,14 +963,16 @@ void show_dma_reg(struct dma_chan *chan)
 	for (i = d->dma_min_chan; i < d->dma_channels; i++) {
 		p = &d->phy[i];
         printk(KERN_ERR "idx[%2d]:CX_CONFIG:[0x%8x], CX_AXI_CONF:[0x%8x], "
-            "SRC:[0x%8x], DST:[0x%8x], CNT0:[0x%8x], CX_CURR_CNT0:[0x%8x]\n",
+            "SRC:[0x%8x], DST:[0x%8x], CNT0:[0x%8x], CX_CURR_CNT0:[0x%8x],CX_src:[0x%8x],CX_dst:[0x%8x]\n",
             i,
             readl(p->base + CX_CONFIG),
             readl(p->base + AXI_CONFIG),
             readl(p->base + CX_SRC),
             readl(p->base + CX_DST),
             readl(p->base + CX_CNT),
-            readl(p->base + CX_CUR_CNT));
+            readl(p->base + CX_CUR_CNT),
+            readl(p->base + 0x708 - 0x30*i),
+            readl(p->base + 0x70c - 0x30*i));
 	}
 
     dev_info(d->slave.dev, "INT_STAT = 0x%x\n", readl(d->base + INT_STAT));

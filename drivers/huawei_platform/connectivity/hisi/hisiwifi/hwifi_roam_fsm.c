@@ -355,6 +355,7 @@ void roam_connect_handle_trigger(struct roam_fsm_stru *fsm, void *data)
     if(cfg->hi110x_dev->pm_info->in_suspend)
     {
         HWIFI_INFO("screen off,do not roam to new ap.");
+        hi110x_set_suspend(cfg->hi110x_dev->pm_info, cfg->hi110x_dev->pm_info->in_suspend);
         return;
     }
 #endif

@@ -88,8 +88,8 @@ int32 ps_write_tty(struct ps_core_s *ps_core_d,const uint8 *data, int32 count)
         return -EINVAL;
     }
 
-    PS_PRINT_DBG("TX:data[0] = %x, data[1] = %x, data[2] = %x, data[3] = %x, data[count-1] = %x",
-                  data[0],data[1],data[2],data[3],data[count-1]);
+    PS_PRINT_DBG("TX:data[0] = %x, data[1] = %x, data[2] = %x, data[3] = %x, data[%d] = %x",
+                  data[0],data[1],data[2],data[3], count, data[count-1]);
     tty = ps_core_d->tty;
     /* write data to uart tx buf */
     return tty->ops->write(tty, data, count);
@@ -279,7 +279,10 @@ void host_allow_bfg_sleep(struct ps_core_s *ps_core_d)
     PS_PRINT_SUC("host allow bfg sleep and pull down gpio!\n");
     ps_core_d->ps_pm->bfg_gpio_state_set(0);
     ps_core_d->ps_pm->bfg_wake_lock(0);
-    atomic_set(&ps_core_d->bfg_beat_flag, 0);
+    if (timer_pending(&ps_core_d->beat_timer))
+    {
+        atomic_set(&ps_core_d->bfg_beat_flag, 0);
+    }
     mod_timer(&ps_core_d->beat_timer, jiffies + BEAT_TIME_SLEEP * HZ);
 }
 
@@ -344,7 +347,10 @@ int32 mod_beat_timer(uint8 on)
     if (on)
     {
         /*mod timer for active*/
-        atomic_set(&ps_core_d->bfg_beat_flag, 0);
+        if (timer_pending(&ps_core_d->beat_timer))
+        {
+            atomic_set(&ps_core_d->bfg_beat_flag, 0);
+        }
         mod_timer(&ps_core_d->beat_timer, jiffies + BEAT_TIME_ACTIVE * HZ);
     }
     else
@@ -382,20 +388,33 @@ uint8 check_device_state(struct ps_core_s *ps_core_d, uint8 type)
             mod_timer(&ps_core_d->bfg_timer, jiffies + BT_SLEEP_TIME * HZ);
             /*add by cwx145522 for pm end*/
         }
+        else
+        {
+            atomic_set(&ps_core_d->gnss_sleep_flag, 0);
+        }
         /*wake up bfg via gpio*/
         ps_core_d->ps_pm->bfg_gpio_state_set(1);
-        atomic_set(&ps_core_d->bfg_beat_flag, 0);
+
         /*mod beat timer to 3s*/
         mod_timer(&ps_core_d->beat_timer, jiffies + BEAT_TIME_ACTIVE * HZ);
+        if (timer_pending(&ps_core_d->beat_timer))
+        {
+            atomic_set(&ps_core_d->bfg_beat_flag, 0);
+        }
         /*wake lock host after wakeup bfg*/
         ps_core_d->ps_pm->bfg_wake_lock(1);
         /*wait for device wake up and init*/
         ps_core_d->ps_pm->bfg_spin_lock(0);
+		PS_PRINT_INFO("host has wakeup bfg\n");
         mdelay(10);
         return 0;
     }
     else
     {
+        if (GNSS_WRITE_FLAG == type)
+        {
+            atomic_set(&ps_core_d->gnss_sleep_flag, 0);
+        }
         ps_core_d->ps_pm->bfg_spin_lock(0);
         return 1;
     }
@@ -495,6 +514,7 @@ void beat_timer_expire(uint64 data)
 
     PS_PRINT_DBG("enter\n");
 
+    PS_PRINT_INFO("bfg_beat_flag=%d\n", atomic_read(&ps_core_d->bfg_beat_flag));
     if (0 == atomic_read(&ps_core_d->bfg_beat_flag))
     {
         PS_PRINT_ERR("host can not recvive beat information\n");
@@ -512,7 +532,17 @@ void beat_timer_expire(uint64 data)
                 }
                 else
                 {
-               		queue_work(ps_core_d->ps_rst_device_workqueue, &ps_core_d->rst_device_work);
+                    PS_PRINT_WARNING("bt open state:%d", atomic_read(&ps_core_d->bt_func_has_open));
+                    PS_PRINT_WARNING("gnss open state:%d", atomic_read(&ps_core_d->gnss_func_has_open) );
+                    if ((false == atomic_read(&ps_core_d->bt_func_has_open)) && (false == atomic_read(&ps_core_d->gnss_func_has_open)))
+                    {
+                        PS_PRINT_WARNING("only fm device in deep sleep, not reset device");
+                    }
+                    else
+                    {
+                        PS_PRINT_WARNING("add rest_device_work to queue_work");
+                        queue_work(ps_core_d->ps_rst_device_workqueue, &ps_core_d->rst_device_work);
+                    }
                 }
             }
         }
@@ -520,6 +550,7 @@ void beat_timer_expire(uint64 data)
 
     atomic_set(&ps_core_d->bfg_beat_flag, 0);
     /* yes or no deep sleep state */
+    ps_core_d->ps_pm->bfg_spin_lock(1);
     if (1 == ps_core_d->ps_pm->bfg_gpio_state_get())
     {   /* set heat time for normal state */
         mod_timer(&ps_core_d->beat_timer, jiffies + BEAT_TIME_ACTIVE * HZ);
@@ -528,6 +559,7 @@ void beat_timer_expire(uint64 data)
     {   /* set heat time for deep sleep state */
         mod_timer(&ps_core_d->beat_timer, jiffies + BEAT_TIME_SLEEP * HZ);
     }
+    ps_core_d->ps_pm->bfg_spin_lock(0);
 
     return;
 }
@@ -1025,13 +1057,50 @@ int32 ps_check_packet_head(struct ps_core_s *ps_core_d, uint8 *buf_ptr, int32 co
             /* check packet lenth less then sys packet lenth */
             if (ps_core_d->rx_pkt_total_len < SYS_TOTAL_PACKET_LENTH)
             {   /* the packet lenth is err */
-                PS_PRINT_ERR("the pkt len is ERR: %x", ps_core_d->rx_pkt_total_len);
+                PS_PRINT_ERR("the pkt len is ERR: %x\n", ps_core_d->rx_pkt_total_len);
                 return RX_PACKET_ERR;
             }
+
+	        switch (ps_core_d->rx_pkt_type)
+	        {
+                case PACKET_RX_FUNC_BT:
+                    if (BT_FRAME_MAX_LEN < ps_core_d->rx_pkt_total_len)
+                    {
+                        PS_PRINT_ERR("type=%d, the pkt len is ERR: 0x%x\n", ps_core_d->rx_pkt_type, ps_core_d->rx_pkt_total_len);
+                        return RX_PACKET_ERR;
+                    }
+	                break;
+                case PACKET_RX_FUNC_GNSS_START:
+                case PACKET_RX_FUNC_GNSS_INT:
+                case PACKET_RX_FUNC_GNSS_LAST:
+                    if (GNSS_FRAME_MAX_LEN < ps_core_d->rx_pkt_total_len)
+                    {
+                        PS_PRINT_ERR("type=%d, the pkt len is ERR: 0x%x\n", ps_core_d->rx_pkt_type, ps_core_d->rx_pkt_total_len);
+                        return RX_PACKET_ERR;
+                    }
+	                break;
+                case PACKET_RX_FUNC_FM:
+                    if (FM_FRAME_MAX_LEN < ps_core_d->rx_pkt_total_len)
+                    {
+                        PS_PRINT_ERR("type=%d, the pkt len is ERR: 0x%x\n", ps_core_d->rx_pkt_type, ps_core_d->rx_pkt_total_len);
+                        return RX_PACKET_ERR;
+                    }
+	                break;
+                case PACKET_RX_FUNC_BFG_DBG:
+                    if (DBG_FRAME_MAX_LEN < ps_core_d->rx_pkt_total_len)
+                    {
+                        PS_PRINT_ERR("type=%d, the pkt len is ERR: 0x%x\n", ps_core_d->rx_pkt_type, ps_core_d->rx_pkt_total_len);
+                        return RX_PACKET_ERR;
+                    }
+	                break;
+                default:
+                    break;
+	        }
+
             /* check packet lenth large than buf total lenth */
             if (ps_core_d->rx_pkt_total_len > PUBLIC_BUF_MAX)
             {   /* recv packet lenth is err, delete it */
-                PS_PRINT_ERR("the pkt len is too large: %x", ps_core_d->rx_pkt_total_len);
+                PS_PRINT_ERR("the pkt len is too large: %x\n", ps_core_d->rx_pkt_total_len);
                 ps_core_d->rx_pkt_total_len = 0;
                 return RX_PACKET_ERR;
             }
@@ -1039,7 +1108,7 @@ int32 ps_check_packet_head(struct ps_core_s *ps_core_d, uint8 *buf_ptr, int32 co
             if ((PACKET_RX_FUNC_SYS == ps_core_d->rx_pkt_type)&&
                 (ps_core_d->rx_pkt_total_len > SYS_TOTAL_PACKET_LENTH))
             {
-                PS_PRINT_ERR("the pkt type and len err: %x, %x", ps_core_d->rx_pkt_type,
+                PS_PRINT_ERR("the pkt type and len err: %x, %x\n", ps_core_d->rx_pkt_type,
                     ps_core_d->rx_pkt_total_len);
                 return RX_PACKET_ERR;
             }
@@ -1056,17 +1125,17 @@ int32 ps_check_packet_head(struct ps_core_s *ps_core_d, uint8 *buf_ptr, int32 co
             }
             else
             {   /* the packet is a err packet */
-                PS_PRINT_ERR("the pkt end is ERR: %x", *ptr);
+                PS_PRINT_ERR("the pkt end is ERR: %x\n", *ptr);
                 return RX_PACKET_ERR;
             }
         }
         else
         {
-            PS_PRINT_ERR("the pkt type is ERR: %x", ps_core_d->rx_pkt_type);
+            PS_PRINT_ERR("the pkt type is ERR: %x\n", ps_core_d->rx_pkt_type);
             return RX_PACKET_ERR;
         }
     }
-    PS_PRINT_ERR("the pkt head is ERR: %x", *ptr);
+    PS_PRINT_ERR("the pkt head is ERR: %x\n", *ptr);
     return RX_PACKET_ERR;
 }
 
@@ -1204,7 +1273,31 @@ int32 ps_core_recv(void *disc_data, const uint8 *data, int32 count)
     }
     return 0;
 }
+static unsigned int g_reset_cnt = 0;
+void reset_uart_rx_buf(void)
+{
+	uint32 i = 0;
+	struct ps_core_s *ps_core_d = NULL;
+	ps_get_core_reference(&ps_core_d);
 
+    if (0 < ps_core_d->rx_have_recv_pkt_len)
+    {   /* have decode all public buf data, reset ptr and lenth */
+        PS_PRINT_WARNING("uart rx buf has data, rx_have_recv_pkt_len=%d\n", ps_core_d->rx_have_recv_pkt_len);
+	    PS_PRINT_WARNING("uart rx buf has data, rx_have_del_public_len=%d\n", ps_core_d->rx_have_del_public_len);
+	    PS_PRINT_WARNING("uart rx buf has data, rx_decode_public_buf_ptr=%p\n", ps_core_d->rx_decode_public_buf_ptr);
+	    PS_PRINT_WARNING("uart rx buf has data, rx_public_buf_org_ptr=%p\n", ps_core_d->rx_public_buf_org_ptr);
+	    for(i = 0;i < ps_core_d->rx_have_recv_pkt_len; i++)
+	    {
+			PS_PRINT_INFO("uart rx buf has data, data[%d]=0x%x\n", i, *(ps_core_d->rx_decode_public_buf_ptr + i));
+	    }
+		g_reset_cnt++;
+	    PS_PRINT_WARNING("reset uart rx buf, reset cnt=%d\n", g_reset_cnt);
+        ps_core_d->rx_have_del_public_len = 0;
+        ps_core_d->rx_have_recv_pkt_len = 0;
+        ps_core_d->rx_decode_public_buf_ptr = ps_core_d->rx_public_buf_org_ptr;
+
+    }
+}
 /**
  * Prototype    : ps_bt_enqueue
  * Description  : push skb data to skb head queue from tail
@@ -2191,9 +2284,9 @@ int32 ps_core_init(struct ps_core_s **core_data)
     ps_core_d->beat_timer.expires  = jiffies + BEAT_TIME_ACTIVE*HZ;
     ps_core_d->beat_timer.data     = (unsigned long)ps_core_d;
 
-    atomic_set(&ps_core_d->bt_fm_data_flag, 0);
+    atomic_set(&ps_core_d->bt_fm_data_flag, 1);
     atomic_set(&ps_core_d->gnss_sleep_flag, 0);
-    atomic_set(&ps_core_d->bfg_beat_flag, 0);
+    atomic_set(&ps_core_d->bfg_beat_flag, 1);
 
     ps_core_d->bt_state     = POWER_OFF_STATE;
     ps_core_d->fm_state     = POWER_OFF_STATE;

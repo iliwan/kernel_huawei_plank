@@ -674,10 +674,12 @@ VOS_UINT32  FC_CCORE_RcvIntraMsg( MsgBlock * pMsg )
             break;
 
         case ID_FC_CHANGE_POINT_IND:
+            /* add by wangrong */
             FC_POINT_Change( ((FC_CHANGE_POINT_IND_STRU *)pMsg)->enFcId,
                              ((FC_CHANGE_POINT_IND_STRU *)pMsg)->enPolicyId,
                              ((FC_CHANGE_POINT_IND_STRU *)pMsg)->enPri,
                              ((FC_CHANGE_POINT_IND_STRU *)pMsg)->enModemId);
+            /* add by wangrong */
             break;
 
         case ID_FC_TEMPERATURE_OVERLOAD_IND:

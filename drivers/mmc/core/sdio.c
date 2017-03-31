@@ -37,7 +37,9 @@
 #include <linux/huawei/hw_connectivity.h>
 #endif
 #ifdef  CONFIG_HUAWEI_DSM
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
+extern void dw_mci_dsm_dump(struct dw_mci  *host, int err_num);
+
 #endif
 static int sdio_read_fbr(struct sdio_func *func)
 {
@@ -1307,7 +1309,7 @@ err:
 	pr_err("%s: error %d whilst initialising SDIO card\n",
 		mmc_hostname(host), err);
 #ifdef CONFIG_HUAWEI_DSM
-	dw_mci_dsm_dump(host, DSM_SDIO_ATTACH_ERR_NO);
+	dw_mci_dsm_dump(dev_get_drvdata(host->parent), DSM_SDIO_ATTACH_ERR_NO);
 #endif
 	return err;
 }

@@ -1,7 +1,7 @@
 #ifndef _HISI_USB_H_
 #define _HISI_USB_H_
 
-#ifdef CONFIG_HI3635_USB
+#if (defined CONFIG_HI3635_USB) || (defined CONFIG_ARCH_HI3630) || (defined CONFIG_ARCH_HI6XXX)
 enum hisi_charger_type {
 	CHARGER_TYPE_SDP = 0,		/* Standard Downstreame Port */
 	CHARGER_TYPE_CDP,		/* Charging Downstreame Port */

@@ -70,6 +70,13 @@ extern "C" {
 #define NAS_MMC_NVIM_MAX_USER_CFG_OPLMN_DATA_LEN              (500)             /* 用户配置OPLMN的最大字节数,扩容前只支持500*/
 #define NAS_MMC_NVIM_MAX_USER_CFG_OPLMN_DATA_EXTEND_LEN       (1280)            /* 扩展后的用户配置OPLMN的最大字节数*/
 
+
+/* Modified by c00318887 for DPlmn扩容和优先接入HPLMN, 2015-5-18, begin */
+/* 扩容:由128改256; 增加预置类型信息,由6改7*/
+#define NAS_MMC_NVIM_MAX_CFG_DPLMN_DATA_LEN             (7*256)            /* 扩展后的用户配置DPLMN的最大字节数 */
+#define NAS_MMC_NVIM_MAX_CFG_NPLMN_DATA_LEN             (7*256)            /* 扩展后的用户配置NPLMN的最大字节数 */
+/* Modified by c00318887 for DPlmn扩容和优先接入HPLMN, 2015-5-18, end */
+
 #define NAS_MMC_NVIM_MAX_CFG_DPLMN_DATA_EXTEND_LEN       (6*128)            /* 扩展后的用户配置DPLMN的最大字节数*/
 #define NAS_MMC_NVIM_MAX_CFG_NPLMN_DATA_EXTEND_LEN       (6*128)            /* 扩展后的用户配置NPLMN的最大字节数*/
 #define NAS_MMC_NVIM_MAX_CFG_HPLMN_NUM                   (3*8)
@@ -131,6 +138,13 @@ typedef VOS_UINT16  NV_ID_ENUM_U16;
 
 #define NAS_MMC_NVIM_MAX_CAUSE_NUM      (10)     /* NV配置原因值最大个数 */
 #define NAS_NV_TRI_MODE_CHAN_PARA_PROFILE_NUM      ( 8 )                       /*  包含全网通性特的通道配置场景数目 */
+
+/* Added by c00318887 for file refresh需要触发背景搜, 2015-4-28, begin */
+/* 高优先级PLMN refresh 触发背景搜默认延迟时长: 单位 秒 */
+#define NV_ITEM_HIGH_PRIO_PLMN_REFRESH_TRIGGER_BG_SEARCH_DEFAULT_DELAY_LEN    (5)
+/* Added by c00318887 for file refresh需要触发背景搜, 2015-4-28, end */
+
+#define NAS_NVIM_LTE_OOS_2G_PREF_PLMN_SEL_MAX_IMSI_LIST_NUM      (16)    /* SIM卡列表 (LTE OOS后先搜2G再搜3G) */
 
 /*****************************************************************************
   3 Massage Declare
@@ -510,6 +524,34 @@ typedef struct
 }NAS_MMC_NVIM_USER_CFG_OPLMN_EXTEND_STRU;
 
 
+/* Added by c00318887 for DPlmn扩容和优先接入HPLMN, 2015-5-28, begin */
+/*****************************************************************************
+ 结构名    : NAS_MMC_NVIM_CFG_DPLMN_NPLMN_INFO_STRU
+ 结构说明  : en_NV_Item_CMCC_Cfg_Dplmn_Nplmn_Info NVIM
+            en_NV_Item_UNICOM_Cfg_Dplmn_Nplmn_Info
+            en_NV_Item_CT_Cfg_Dplmn_Nplmn_Info
+            中的DPLMN NPLMN功能信息
+ 1.日    期   : 2015年5月28日
+   作    者   : c00318887
+   修改内容   : 漫游优化搜网DPlmn扩容和优先接入HPLMN
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT16                         usDplmnListNum;                                       /* 本地配置的Dplmn的个数 */
+    VOS_UINT16                         usNplmnListNum;                                       /* 本地配置的Nplmn的个数 */
+
+    /* DPLMN数据,每7个字节代表一个dplmn信息，第1-3个字节为sim卡格式plmn id，
+       第4-5字节为支持的接入技术(0x8000为支持w，0x4000为支持lte，0x0080为支持gsm)，
+       第6字节为域信息:1(cs域注册成功)；2(ps域注册成功)；3(cs ps均注册成功)
+       第7直接为预置标示信息: 1(预置Dplmn), 0(自学习到的DPLMN) */
+    VOS_UINT8                          aucDPlmnList[NAS_MMC_NVIM_MAX_CFG_DPLMN_DATA_LEN];
+
+    /* NPLMN数据,每7个字节代表一个nplmn信息，第1-3个字节为sim卡格式plmn id，
+       第4-5字节为支持的接入技术(0x8000为支持w，0x4000为支持lte，0x0080为支持gsm)，
+       第6字节为域信息:1(cs域注册成功)；2(ps域注册成功)；3(cs ps均注册成功)
+       第7直接为预置标示信息: 1(预置nplmn), 0(自学习到的nplmn) */
+    VOS_UINT8                          aucNPlmnList[NAS_MMC_NVIM_MAX_CFG_NPLMN_DATA_LEN];/* NPLMN数据*/
+}NAS_MMC_NVIM_CFG_DPLMN_NPLMN_INFO_STRU;
 typedef struct
 {
     VOS_UINT16                         usDplmnListNum;                                       /* 本地配置的Dplmn的个数 */
@@ -522,7 +564,10 @@ typedef struct
     /* NPLMN数据,每6个字节代表一个nplmn信息，第1-3个字节为sim卡格式plmn id，
        第4-5字节为支持的接入技术(0x8000为支持w，0x4000为支持lte，0x0080为支持gsm)，第6字节为域信息:1(cs域注册成功)；2(ps域注册成功)；3(cs ps均注册成功)*/
     VOS_UINT8                          aucNPlmnList[NAS_MMC_NVIM_MAX_CFG_NPLMN_DATA_EXTEND_LEN];/* NPLMN数据*/
-}NAS_MMC_NVIM_CFG_DPLMN_NPLMN_INFO_STRU;
+}NAS_MMC_NVIM_CFG_DPLMN_NPLMN_INFO_OLD_STRU;
+/* Added by c00318887 for DPlmn扩容和优先接入HPLMN, 2015-5-28, end */
+
+
 typedef struct
 {
     VOS_UINT16                         usCfgDplmnNplmnFlag;
@@ -936,6 +981,24 @@ typedef struct
 
 }NAS_MMC_NVIM_SEARCH_HPLMN_TIMER_STRU;
 
+/* Added by c00318887 for file refresh需要触发背景搜, 2015-4-28, begin */
+/*****************************************************************************
+ 结构名    : NAS_MML_HIGH_PRIO_PLMN_REFRESH_TRIGGER_BG_SEARCH_CFG_STRU
+ 结构说明  : en_NV_Item_HIGH_PRIO_PLMN_REFRESH_TRIGGER_BG_SEARCH_CFG NV项结构
+ 1.日    期   : 2015年4月28日
+   作    者   : c00318887
+   修改内容   : 新建
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT8                           ucTriggerBGSearchFlag;  /* 0: mmc收到高优先级PLMN更新时不启动BG SEARCH; 1:mmc收到高优先级PLMN更新时启动BG SEARCH */
+    VOS_UINT8                           ucReserved;
+    VOS_UINT16                          usSearchDelayLen;             /* BG SEARCH Delay 时长, 单位: 秒  */
+}NAS_MMC_NVIM_HIGH_PRIO_PLMN_REFRESH_TRIGGER_BG_SEARCH_STRU;
+
+/* Added by c00318887 for file refresh需要触发背景搜, 2015-4-28, end */
+
+
 /*en_NV_Item_EFust_Service_Cfg 8285*/
 
 typedef struct
@@ -1092,6 +1155,34 @@ typedef struct
     VOS_UINT8                           ucCsfbEmgCallEnableLteTimerLen;         /* L下紧急呼叫无法正常csfb到gu，通过搜网到gu场景disable lte启动enable lte定时器时长，单位:分钟， nv项激活时如果为0默认5分钟 */
     VOS_UINT8                           ucReserved;
 }NAS_MMC_NVIM_ENABLE_LTE_TIMER_LEN_STRU;
+
+
+/* Added by c00318887 for 移植T3402 , 2015-6-17, begin */
+/*****************************************************************************
+ 结构名    : NAS_MMC_NVIM_DISABLE_LTE_START_T3402_ENABLE_LTE_CFG_STRU
+ 结构说明  : en_NV_Item_DISABLE_LTE_START_T3402_ENABLE_LTE_CFG NV项结构
+             ucT3402Flag 用来控制Disable LTE 后到再次把LTE 恢复所需的定时器时长:
+             如果ucT3402Flag 是0，则Disable LTE 后到再次把LTE 恢复所需的定时器时长由NV_Item_Enable_Lte_Timer_Len  0x2404（9220）设置值决定
+             如果 ucT3402Flag 配置为 1，在以下场景将使用LMM_MMC_T3402_LEN_NOTIFY消息中的长度
+            1) EPS ONLY成功,CS被拒18,CS被拒16,17,22,other cause,EPS尝试次数达到5次
+            2) 联合EPS注册被拒 #19, 次数达到最大值
+            3) 联合EPS注册被拒 #301, 次数达到最大值 
+            4) 联合EPS注册被拒 #other cause, 次数达到最大值
+            5) 联合EPS注册被拒 #401, 次数达到最大值
+ 1.日    期   : 2015年4月28日
+   作    者   : c00318887
+   修改内容   : 新建
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT8                           ucT3402Flag;                           /* 0: 不使用LMM_MMC_T3402_LEN_NOTIFY消息中的长度; 1:使用LMM_MMC_T3402_LEN_NOTIFY消息中的长度 */
+    VOS_UINT8                           ucHighPrioRatTimerNotEnableLteFlag;    /* 1:高优先级RAT HPLMN TIMER 超时不重新ENABLE lte；0: 高优先级RAT HPLMN TIMER 超时重新ENABLE lte */
+    VOS_UINT8                           ucReserved1;
+    VOS_UINT8                           ucReserved2;
+}NAS_MMC_NVIM_DISABLE_LTE_START_T3402_ENABLE_LTE_CFG_STRU;
+
+/* Added by c00318887 for 移植T3402 , 2015-6-17, end */
+
 typedef struct
 {
     VOS_UINT8                                               ucIsrSupport;       /* ISR ???? */
@@ -1261,6 +1352,7 @@ typedef struct
     VOS_UINT32  ulMcc;    /*用于测试使用指定MCC*/
     VOS_UINT32  ulMnc;    /*用于测试使用指定MNC*/
 }NAS_RABM_NVIM_WCDMA_VOICE_PREFER_STRU;
+/*Added by z00306637 for RATRFSWITCH, 2015-01-04, begin*/
 /*****************************************************************************
  结构名    : NAS_NV_TRI_MODE_ENABLE_STRU
  结构说明  : en_NV_Item_TRI_MODE_ENABLE NV项结构
@@ -1338,6 +1430,7 @@ typedef struct
 
 
 
+/*Added by z00306637 for RATRFSWITCH, 2015-01-04, end*/
 
 
 typedef struct
@@ -1365,6 +1458,43 @@ typedef struct
     VOS_UINT8                           ucReserved3;
 }NAS_MMC_NVIM_ROAM_DISPLAY_CFG_STRU;
 
+
+
+typedef struct
+{
+    VOS_UINT16                          usMtCsfbPagingProcedureLen;
+    VOS_UINT8                           ucReserved1;
+    VOS_UINT8                           ucReserved2;
+}NAS_MMC_NVIM_PROTECT_MT_CSFB_PAGING_PROCEDURE_LEN_STRU;
+
+
+enum NAS_SMS_PS_CONCATENATE_ENUM
+{
+    NAS_SMS_PS_CONCATENATE_DISABLE      = 0,
+    NAS_SMS_PS_CONCATENATE_ENABLE,
+
+    NAS_SMS_PS_CONCATENATE_BUTT
+};
+typedef VOS_UINT8 NAS_SMS_PS_CONCATENATE_ENUM_UINT8;
+
+
+typedef struct
+{
+    NAS_SMS_PS_CONCATENATE_ENUM_UINT8   enSmsConcatenateFlag;
+    VOS_UINT8                           ucReserved1;
+    VOS_UINT8                           ucReserved2;
+    VOS_UINT8                           ucReserved3;
+} NAS_NV_SMS_PS_CTRL_STRU;
+
+
+typedef struct
+{
+    VOS_UINT8                          ucImsiListNum;                                                  /*功能起效的SIM卡数目(LTE OOS后先搜2G再搜3G)  */
+    VOS_UINT8                          ucReserved1;
+    VOS_UINT8                          ucReserved2;
+    VOS_UINT8                          ucReserved3;
+    NAS_SIM_FORMAT_PLMN_ID             astImsiList[NAS_NVIM_LTE_OOS_2G_PREF_PLMN_SEL_MAX_IMSI_LIST_NUM];/* SIM卡列表 (LTE OOS后先搜2G再搜3G) */
+}NAS_MMC_NVIM_LTE_OOS_2G_PREF_PLMN_SEL_CFG_STRU;
 
 /*****************************************************************************
   6 UNION

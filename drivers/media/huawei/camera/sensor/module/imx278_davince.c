@@ -223,10 +223,18 @@ imx278_davince_match_id(
     uint16_t sensor_id = 0;
     uint8_t modue_id = 0;
     char *sensor_name[4]={"imx278_sunny","imx278_liteon","imx278_lg","imx278"};
+    uint8_t retry = 0;
 
     cam_info("%s TODO.", __func__);
-
-    misp_get_module_info(sensor->board_info->sensor_index,&sensor_id,&modue_id);
+    for(retry = 0;retry < 2; retry++){
+        misp_get_module_info(sensor->board_info->sensor_index,&sensor_id,&modue_id);
+        if(sensor_id==0){
+            cam_info("%s try to read camera id again",__func__);
+            continue;
+        }else{
+            break;
+        }
+    }
 
      if (sensor_id == 0x278) {
         cdata->data = sensor->board_info->sensor_index;
@@ -261,7 +269,11 @@ static ssize_t imx278_davince_powerctrl_show(struct device *dev,
 static ssize_t imx278_davince_powerctrl_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	int state = simple_strtol(buf, NULL, 10);
+#ifndef DEBUG_HISI_CAMERA
+    return count;
+#else
+    int state  = 0;
+    state = simple_strtol(buf, NULL, 10);
 	cam_info("enter %s, state %d", __func__, state);
 
 	if (state == POWER_ON)
@@ -270,6 +282,7 @@ static ssize_t imx278_davince_powerctrl_store(struct device *dev,
 		imx278_davince_power_down(&s_imx278_davince.intf);
 
 	return count;
+#endif
 }
 
 
@@ -339,14 +352,14 @@ imx278_davince_config(
 		case SEN_CONFIG_READ_REG_SETTINGS:
 			break;
 		case SEN_CONFIG_ENABLE_CSI:
-			if(!csi_enable)
+			if(imx278_davince_power_on && !csi_enable)
 			{
 				ret = si->vtbl->csi_enable(si);
 				csi_enable = true;
 			}
 			break;
 		case SEN_CONFIG_DISABLE_CSI:
-			if(csi_enable)
+			if(imx278_davince_power_on && csi_enable)
 			{
 				ret = si->vtbl->csi_disable(si);
 				csi_enable = false;

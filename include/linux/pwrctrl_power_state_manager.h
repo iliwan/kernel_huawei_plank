@@ -55,6 +55,12 @@ typedef enum tagPWRCTRL_SLEEP_STATE_CLIENT_ID_E
 	PWRCTRL_SLEEP_EDMAC,
 	PWRCTRL_SLEEP_SDIO,
 	PWRCTRL_SLEEP_ADE,
+	PWRCTRL_SLEEP_UART0,
+	PWRCTRL_SLEEP_UART1,
+	PWRCTRL_SLEEP_UART2,
+	PWRCTRL_SLEEP_UART3,
+	PWRCTRL_SLEEP_UART4,
+	PWRCTRL_SLEEP_UART5,
 	PWRCTRL_SLEEP_CLIENT_BUTT
 }PWRCTRL_SLEEP_STATE_CLIENT_ID_E;
 
@@ -102,6 +108,12 @@ typedef struct PWRCTRL_POWER_STAT_QOS_ID_S
 	int pwrctrl_power_stater_sdcard_qos_id;
 	int pwrctrl_power_stater_edmac_qos_id;
 	int pwrctrl_power_stater_ade_qos_id;
+	int pwrctrl_power_stater_uart0_qos_id;
+	int pwrctrl_power_stater_uart1_qos_id;
+	int pwrctrl_power_stater_uart2_qos_id;
+	int pwrctrl_power_stater_uart3_qos_id;
+	int pwrctrl_power_stater_uart4_qos_id;
+	int pwrctrl_power_stater_uart5_qos_id
 }PWRCTRL_POWER_STAT_QOS_ID;
 
 /*****************************************************************************

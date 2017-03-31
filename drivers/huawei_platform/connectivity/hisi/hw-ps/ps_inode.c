@@ -2809,7 +2809,8 @@ STATIC ssize_t gnss_lowpower_state_store(struct device *dev,
     if (1 == flag)
     {
         /*if bt and fm are both shutdown ,we will pull down gpio directly*/
-		
+        PS_PRINT_SUC("gnss request sleep, will check state\n");
+        pm_data->core_data->ps_pm->bfg_spin_lock(1);
         if (!timer_pending(&pm_data->core_data->bfg_timer) &&
              check_bfg_not_booting(pm_data->core_data))
         {
@@ -2819,6 +2820,7 @@ STATIC ssize_t gnss_lowpower_state_store(struct device *dev,
 
         /*set the flag to 1 means gnss request sleep*/
         atomic_set(&pm_data->core_data->gnss_sleep_flag, 1);
+        pm_data->core_data->ps_pm->bfg_spin_lock(0);
     }
     else
     {

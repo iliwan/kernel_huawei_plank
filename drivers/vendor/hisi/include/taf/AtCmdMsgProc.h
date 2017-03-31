@@ -448,6 +448,29 @@ extern VOS_UINT32 AT_RcvMmaSrchedPlmnInfoInd(
     VOS_VOID                           *pMsg
 );
 
+/* Added by zwx247453 for VOLTE SWITCH, 2015-02-02, Begin */
+#if (FEATURE_ON == FEATURE_IMS)
+VOS_UINT32 AT_RcvMmaImsSwitchSetCnf(
+    VOS_VOID                           *pMsg
+);
+
+VOS_UINT32 AT_RcvMmaImsSwitchQryCnf(
+    VOS_VOID                           *pMsg
+);
+VOS_UINT32 AT_RcvMmaVoiceDomainSetCnf(
+    VOS_VOID                           *pMsg
+);
+
+VOS_UINT32 AT_VoiceDomainTransToOutputValue(
+    TAF_MMA_VOICE_DOMAIN_ENUM_UINT32    enVoiceDoman,
+    VOS_UINT32                         *pulValue
+);
+
+VOS_UINT32 AT_RcvMmaVoiceDomainQryCnf(
+    VOS_VOID                           *pMsg
+);
+#endif
+/* Added by zwx247453 for VOLTE SWITCH, 2015-02-02, End */
 
 #if (VOS_OS_VER == VOS_WIN32)
 #pragma pack()

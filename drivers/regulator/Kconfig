@@ -527,7 +527,14 @@ config REGULATOR_HI6XXX
 	---help---
 	Regulator module depend on PMIC  Scharge IC mtcmos driver
 	
-config HI3XXX_REGULATOR_KIRIN925
+config HI3XXX_REGULATOR_KIRIN930
+	tristate "HiSilicon system interior voltage PMIC"
+	depends on HI3XXX_HI3630_CORE
+	help
+	  This driver provides support for the voltage regulators on the
+	  HiSilicon system interior voltage / Codec IC.
+
+config HI3XXX_REGULATOR_KIRIN920
 	tristate "HiSilicon system interior voltage PMIC"
 	depends on HI3XXX_HI3630_CORE
 	help

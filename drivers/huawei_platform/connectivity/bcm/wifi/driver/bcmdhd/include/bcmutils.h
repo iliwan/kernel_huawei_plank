@@ -198,6 +198,9 @@ extern void *pktoffset(osl_t *osh, void *p,  uint offset);
 #define DSCP_EF		0x2E
 
 extern uint pktsetprio(void *pkt, bool update_vtag);
+#ifdef HW_TX_802_1X_PRIO
+extern void pktset1xprio(void *pkt, int prio);
+#endif
 extern bool pktgetdscp(uint8 *pktdata, uint pktlen, uint8 *dscp);
 
 /* string */

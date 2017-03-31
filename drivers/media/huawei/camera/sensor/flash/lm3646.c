@@ -433,13 +433,14 @@ static int hw_lm3646_on(struct hw_flash_ctrl_t *flash_ctrl, void *data)
     struct hw_lm3646_private_data_t *pdata;
     struct hw_flash_cfg_data *cdata = (struct hw_flash_cfg_data *)data;
     int rc= 0;
-    pdata = (struct hw_lm3646_private_data_t *)flash_ctrl->pdata;
 
     if ((NULL == flash_ctrl) || (NULL == cdata)) {
         cam_err("%s flash_ctrl or cdata is NULL.", __func__);
         return -1;
     }
     cam_info("%s mode=%d, level=%d.\n", __func__, cdata->mode, cdata->data);
+
+    pdata = (struct hw_lm3646_private_data_t *)flash_ctrl->pdata;
 
     mutex_lock(flash_ctrl->hw_flash_mutex);
     if(pdata->need_wakelock ==1)

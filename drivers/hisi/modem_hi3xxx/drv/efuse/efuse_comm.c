@@ -40,12 +40,7 @@ struct work_struct efuse_work;
 
 EFUSE_DATA_STRU efuse_msg ;
 
-int efuse_debug_flag = 1;
-
-void efuse_debug_flag_ctrl(int flag)
-{
-    efuse_debug_flag = flag;
-}
+int efuse_debug_flag = 0;
 
 void bsp_efuse_show(void)
 {

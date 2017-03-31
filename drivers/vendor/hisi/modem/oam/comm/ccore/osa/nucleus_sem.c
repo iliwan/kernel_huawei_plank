@@ -248,7 +248,7 @@ VOS_UINT32 VOS_SmCCreate( VOS_CHAR   acSmName[4],
 
         if( 0xFFFFFFFF == ulSmInit )
         {
-            iSemId->SemType  = VOS_SEM_TYPE_MUTEX;
+            iSemId->SemType  = VOS_SEM_TYPE_MUTEX;
         }
         else
         {
@@ -327,7 +327,7 @@ VOS_UINT32 VOS_SmDelete( VOS_SEM Sm_ID )
     {
         if(temp_Ptr->Flag == VOS_SEM_CTRL_BLK_IDLE)
         {
-            VOS_SetErrorNo(VOS_ERRNO_SEMA4_CCREATE_OBJTFULL);
+            VOS_SetErrorNo(VOS_ERRNO_SEMA4_CCREATE_OBJTFULL);
             return(VOS_ERRNO_SEMA4_CCREATE_INVALID_SMID);
         }
 

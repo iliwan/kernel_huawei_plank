@@ -29,7 +29,7 @@
 #if defined (CONFIG_HUAWEI_DSM)
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #endif
 
 #define CY_I2C_DATA_SIZE  (2 * 256)

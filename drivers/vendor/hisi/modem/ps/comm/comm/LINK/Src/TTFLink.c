@@ -125,7 +125,7 @@ VOS_UINT32 TTF_LinkInsertNext(VOS_UINT32 ulPid, TTF_LINK_ST * pLink,
 
     if ( (VOS_NULL_PTR == pLink) || (VOS_NULL_PTR == pCurr) || (VOS_NULL_PTR == pInsert))
     {
-        PS_LOG(ulPid, 0, PS_PRINT_WARNING, "Warning: pLink, pCurr Or pInsert is Null!");
+        PS_LOG(ulPid, 0, PS_PRINT_WARNING, "Warning: pLink¡¢pCurr Or pInsert is Null!");
         return PS_FAIL;
     }
 
@@ -264,7 +264,7 @@ VOS_UINT32 TTF_LinkPeekNext(VOS_UINT32 ulPid, const TTF_LINK_ST * pLink,
 
     if (( VOS_NULL_PTR == pLink ) || ( VOS_NULL_PTR == pCurr ) || ( VOS_NULL_PTR == ppCurrNext ))
     {
-        PS_LOG(ulPid, 0, PS_PRINT_WARNING, "Warning: pLink, pInsert Or ppCurrNext is Null!");
+        PS_LOG(ulPid, 0, PS_PRINT_WARNING, "Warning: pLink¡¢pInsert Or ppCurrNext is Null!");
         return PS_FAIL;
     }
 
@@ -335,7 +335,7 @@ VOS_UINT32 TTF_LinkPeekPrev(VOS_UINT32 ulPid, TTF_LINK_ST * pLink,
 
     if (( VOS_NULL_PTR == pLink ) || ( VOS_NULL_PTR == pCurr ) || ( VOS_NULL_PTR == ppCurrPrev ))
     {
-        PS_LOG(ulPid, 0, PS_PRINT_WARNING, "\n Warning: pLink, pInsert Or ppCurrPrev is Null!\n");
+        PS_LOG(ulPid, 0, PS_PRINT_WARNING, "\n Warning: pLink¡¢pInsert Or ppCurrPrev is Null!\n");
         return PS_FAIL;
     }
 

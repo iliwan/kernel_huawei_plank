@@ -1845,7 +1845,12 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	android_wifi_priv_cmd priv_cmd;
 
 	net_os_wake_lock(net);
-
+#ifdef BCM_PATCH_CVE_2016_2475
+	if (!capable(CAP_NET_ADMIN)) {
+		ret = -EPERM;
+		goto exit;
+	}
+#endif
 	if (!ifr->ifr_data) {
 		ret = -EINVAL;
 		goto exit;

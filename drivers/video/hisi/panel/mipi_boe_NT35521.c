@@ -43,8 +43,10 @@
 #include <linux/lcd_tuning.h>
 
 #if defined (CONFIG_HUAWEI_DSM)
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #endif
+#include <huawei_platform/log/log_jank.h>
+
 
 #define PWM_LEVEL 100
 
@@ -1290,6 +1292,9 @@ static int mipi_boe_panel_on(struct platform_device *pdev)
 		pinfo->lcd_init_step = LCD_INIT_SEND_SEQUENCE;
 	} else if (pinfo->lcd_init_step == LCD_INIT_SEND_SEQUENCE) {
 		if (!g_display_on) {
+            /*Jank log for lcd power on*/
+            LOG_JANK_D(JLID_KERNEL_LCD_POWER_ON, "%s", "JL_KERNEL_LCD_POWER_ON");
+
             /* lcd pinctrl normal */
             pinctrl_cmds_tx(pdev, boe_lcd_pinctrl_normal_cmds, \
                 ARRAY_SIZE(boe_lcd_pinctrl_normal_cmds));
@@ -1352,6 +1357,8 @@ static int mipi_boe_panel_off(struct platform_device *pdev)
 	BUG_ON(balongfd == NULL);
 
 	if (g_display_on) {
+        /*Jank log for lcd power off*/
+        LOG_JANK_D(JLID_KERNEL_LCD_POWER_OFF, "%s", "JL_KERNEL_LCD_POWER_OFF");
 
         /* lcd display off sequence */
     	mipi_dsi_cmds_tx(boe_display_off_cmds, \
@@ -1570,12 +1577,22 @@ static int mipi_boe_panel_set_backlight(struct platform_device *pdev)
 
 	else if(last_level == 0 && level !=0)
 	{
+		/*Jank log*/
+		LOG_JANK_D(JLID_KERNEL_LCD_BACKLIGHT_ON, "JL_KERNEL_LCD_BACKLIGHT_ON,%u", level);
 		vcc_cmds_tx(NULL, boe_lcd_bl_enable_cmds, \
 			ARRAY_SIZE(boe_lcd_bl_enable_cmds));
 	}
-	last_level = level;
+	#ifdef FINAL_RELEASE_MODE
+	if ((level == 0) || (last_level == 0 && level !=0))
+	{
+		//modified for beta test, it will be modified after beta test.
+		balongfb_loge(" set backlight succ ,balongfd->bl_level = %d, level = %d \n",balongfd->bl_level,level);
+	}
+	#else
 	//modified for beta test, it will be modified after beta test.
-	balongfb_loge(" set backlight succ ,balongfd->bl_level = %d, level = %d \n",balongfd->bl_level,level);
+	balongfb_logi(" set backlight succ ,balongfd->bl_level = %d, level = %d \n",balongfd->bl_level,level);
+	#endif
+	last_level = level;
 	return 0;
 }
 #if  LCD_CHECK_MIPI_SUPPORT

@@ -303,23 +303,18 @@ u32 bsp_nvm_flushEx(u32 off,u32 len,u32 itemid)
     if(nv_file_access((s8*)NV_IMG_PATH,0))
     {
         fp = nv_file_open((s8*)NV_IMG_PATH,(s8*)NV_FILE_WRITE);
-        if(NULL == fp)
-        {
-            nv_debug(NV_API_FLUSH, 6, ret,0,0);
-            goto nv_flush_err;
-        }
-        nv_file_close(fp);
-        return bsp_nvm_flushEn();
+        off = 0;
+        len = ddr_info->file_len;
     }
     else
     {
         fp = nv_file_open((s8*)NV_IMG_PATH,(s8*)NV_FILE_RW);
-        if(NULL == fp)
-        {
-            ret = BSP_ERR_NV_NO_FILE;
-            nv_debug(NV_API_FLUSH,2,ret,0,0);
-            goto nv_flush_err;
-        }
+    }
+    if(NULL == fp)
+    {
+        ret = BSP_ERR_NV_NO_FILE;
+        nv_debug(NV_API_FLUSH,2,ret,0,0);
+        goto nv_flush_err;
     }
 
     nv_ipc_sem_take(IPC_SEM_NV_CRC, IPC_SME_TIME_OUT);

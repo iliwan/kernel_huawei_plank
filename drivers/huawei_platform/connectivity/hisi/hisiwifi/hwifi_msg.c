@@ -70,7 +70,7 @@ uint8  g_ba_max_tx    = 0x2;
 uint8  g_ba_max_rx    = 0x2;
 uint8  g_ba_max_retry = 0x10;
 uint8  g_ec212_count  = 0;
-
+extern int32 g_dev_err_subcnt;
 /* wid value */
 #define FILTER_VALUE         0x10
 
@@ -139,7 +139,7 @@ void hwifi_roam_calc_tx_failed_scale(struct cfg_struct *cfg, uint32 tx_success_p
 #endif
 void hwifi_get_rate_info(DEVICE_STATS_STRU stStatInfo, struct rate_info *rate_info);
 static int32 smooth_signal_rssi(struct cfg_struct *cfg, int32 rssi);
-
+extern uint32 get_wifi_rssi(void);
 
 int32  hwifi_sta_2040_enable_ctrl_set(struct cfg_struct *cfg,uint8 enabled)
 {
@@ -2205,6 +2205,8 @@ int32 hwifi_recv_stats_result(struct cfg_struct *cfg, uint8 *buf)
         stats_result.signal = -1;
     }
 
+	stats_result.signal -= get_wifi_rssi();
+	HWIFI_DEBUG("======eanble rssi fix, rssi=%d===========\n", get_wifi_rssi());
 #ifdef __ROAM__
     cfg->roam.roam_fsm.roam_scan_interval_s = calc_scan_interval(&cfg->roam, cfg->latest_signal);
 #endif
@@ -2416,7 +2418,7 @@ int32 hwifi_recv_conn_res(struct cfg_struct *cfg, uint8 *buf)
         /* get assoc resp ie */
         connect_res.resp_ie_len = OS_LE16_TO_CPU(assoc_resp_frame->mgmt_len - ASSOC_RESP_IE_OFFSET);
         connect_res.resp_ie    = assoc_resp_frame->mgmt_val + ASSOC_RESP_IE_OFFSET;
-
+        g_dev_err_subcnt = 0;
         HWIFI_INFO("RECV_CONN_RES : assoc_req_frame->mgmt_len = %u,assoc_resp_frame->mgmt_len = %u",
                     connect_res.req_ie_len, connect_res.resp_ie_len);
     }
@@ -2524,9 +2526,6 @@ int32 hwifi_report_diconnect_res(struct cfg_struct *cfg, uint16 reason)
     /* device上报去关联后,立即删除扫描列表信息 */
     clean_scanned_bss_immediately(&cfg->scan.bss_mgmt);
 
-    ret = report_disconnect_event(cfg, &disconn_res);
-    PRINT_REPORT_EVT_RET("disconnect", ret);
-
 #ifdef WLAN_POWER_MANAGEMENT
     /* 去关联时，将watchdog timer删除 */
     if (g_powermgmt_switch)
@@ -2545,6 +2544,10 @@ int32 hwifi_report_diconnect_res(struct cfg_struct *cfg, uint16 reason)
         }
     }
 #endif
+
+    /* let stop_wdg before report event, avoid wdg 100ms timeout */
+    ret = report_disconnect_event(cfg, &disconn_res);
+    PRINT_REPORT_EVT_RET("disconnect", ret);
 
     return ret;
 }
@@ -5157,14 +5160,14 @@ int32 hwifi_set_dev_roam_report_enabled(struct cfg_struct *cfg, uint8 enabled)
     if(NULL == cfg)
     {
         HWIFI_WARNING("argument cfg is null.\n");
-        return -EFAIL;
+        return -EFAIL;
     }
 
     if(enabled != ROAM_DEVICE_SCAN_TRIGGER_REPORT_DISABLE &&
         enabled != ROAM_DEVICE_SCAN_TRIGGER_REPORT_ENABLE)
     {
         HWIFI_WARNING("argument enabled(%d) is not right.\n", enabled);
-        return -EFAIL;
+        return -EFAIL;
     }
 
     msg_size = sizeof(struct hwifi_msg_header) + sizeof(struct char_wid);

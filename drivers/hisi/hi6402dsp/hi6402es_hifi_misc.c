@@ -292,6 +292,11 @@ static int hi6402es_get_input_param(unsigned int usr_para_size,
 	IN_FUNCTION;
 
 	para_size_in = roundup(usr_para_size, 4);
+	if (para_size_in < usr_para_size) {
+		HI6402ES_DSP_ERROR("usr buffer overflow\n");
+		goto ERR;
+	}
+
 	para_in = kzalloc(para_size_in, GFP_KERNEL);
 	if (para_in == NULL) {
 		HI6402ES_DSP_ERROR("kzalloc fail\n");

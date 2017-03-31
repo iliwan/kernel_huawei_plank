@@ -55,7 +55,9 @@ NAS_CALLBACK_TYPE    Nas_RrSyncInd(SYNC_INFO_STRU *pSyncInfo);
 NAS_CALLBACK_TYPE    Nas_RabScInd(RAB_SC_INFO_STRU *pScInfo);
 NAS_CALLBACK_TYPE    Nas_PowerOffCnf(VOS_VOID);
 NAS_CALLBACK_TYPE    Nas_RrStartCnf(VOS_VOID);
+/* Added by songshulong 20050131 begin */
 NAS_CALLBACK_TYPE Nas_RrAcInfoChangeInd( VOS_UINT32  ulAcChangeInd );
+/* Added by songshulong 20050131 end */
 
 
 /* RABM使用的API，由AS提供 */

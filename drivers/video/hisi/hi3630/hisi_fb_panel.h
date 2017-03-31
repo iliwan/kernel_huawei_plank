@@ -86,6 +86,12 @@
 #define BL_SET_BY_BLPWM	BIT(2)
 #define BL_SET_BY_MIPI	BIT(3)
 
+/* supported display effect type */
+#define COMFORM_MODE                 BIT(0)
+#define ACM_COLOR_ENHANCE_MODE       BIT(1)
+#define IC_COLOR_ENHANCE_MODE        BIT(2)
+#define LED_RG_COLOR_TEMP_MODE       BIT(16)
+
 /* LCD init step */
 enum {
 	LCD_INIT_NONE = 0,
@@ -311,8 +317,12 @@ struct hisi_panel_info {
 	uint8_t esd_enable;
 	uint8_t dirty_region_updt_support;
 	uint8_t dsi_bit_clk_upt_support;
+	uint8_t grayscale_support;
 
 	uint8_t acm_support;
+	u8 acm_color_enhancement_mode_support;
+	u8 lcd_ic_color_enhancement_mode_support;
+	u8 lcd_ipc_mode_support;
 	uint32_t acm_valid_num;
 	uint32_t r0_hh;
 	uint32_t r0_lh;
@@ -399,12 +409,24 @@ struct hisi_fb_panel_data {
 	ssize_t (*lcd_comform_mode_show) (struct platform_device *pdev, char *buf);
 	ssize_t (*lcd_starlight_mode_store) (struct platform_device *pdev, const char *buf, size_t count);
 	ssize_t (*lcd_starlight_mode_show) (struct platform_device *pdev, char *buf);
+	ssize_t (*lcd_ic_color_enhancement_mode_store) (struct platform_device *pdev, const char *buf, size_t count);
+	ssize_t (*lcd_ic_color_enhancement_mode_show) (struct platform_device *pdev, char *buf);
+	ssize_t (*lcd_acm_state_store) (struct platform_device *pdev, const char *buf, size_t count);
+	ssize_t (*lcd_acm_state_show) (struct platform_device *pdev, char *buf);
 	ssize_t (*lcd_voltage_enable_store) (struct platform_device *pdev, const char *buf, size_t count);
 	ssize_t (*lcd_bist_check) (struct platform_device *pdev, char *buf);
 	ssize_t (*amoled_pcd_errflag_check)(struct platform_device *pdev, char *buf);
 	ssize_t (*amoled_acl_store) (struct platform_device *pdev, const char *buf, size_t count);
 	ssize_t (*amoled_acl_show) (struct platform_device *pdev, char *buf);
 	ssize_t (*amoled_hbm_store) (struct platform_device *pdev, const char *buf, size_t count);
+	ssize_t (*amoled_hbm_show) (struct platform_device *pdev, char *buf);
+	ssize_t (*lcd_test_config_store) (struct platform_device *pdev, const char *buf, size_t count);
+	ssize_t (*lcd_test_config_show) (struct platform_device *pdev, char *buf);
+	ssize_t (*lcd_filter_show) (struct platform_device *pdev, char *buf);
+	ssize_t (*pic_enhance_mode_store) (struct platform_device *pdev, const char *buf, size_t count);
+	ssize_t (*pic_enhance_mode_show) (struct platform_device *pdev, char *buf);	
+	ssize_t (*lcd_support_mode_store) (struct platform_device *pdev, const char *buf, size_t count);
+	ssize_t (*lcd_support_mode_show) (struct platform_device *pdev, char *buf);
 
 	struct platform_device *next;
 };
@@ -453,6 +475,10 @@ int panel_next_set_display_region(struct platform_device *pdev, struct dss_rect 
 ssize_t panel_next_lcd_model_show(struct platform_device *pdev, char *buf);
 ssize_t panel_next_lcd_cabc_mode_show(struct platform_device *pdev, char *buf);
 ssize_t panel_next_lcd_cabc_mode_store(struct platform_device *pdev, const char *buf, size_t count);
+ssize_t panel_next_lcd_ic_color_enhancement_mode_show(struct platform_device *pdev, char *buf);
+ssize_t panel_next_lcd_ic_color_enhancement_mode_store(struct platform_device *pdev,const char *buf, size_t count);
+ssize_t panel_next_lcd_support_mode_show(struct platform_device *pdev, char *buf);
+ssize_t panel_next_lcd_support_mode_store(struct platform_device *pdev,const char *buf, size_t count);
 ssize_t panel_next_lcd_check_reg(struct platform_device *pdev, char *buf);
 ssize_t panel_next_lcd_mipi_detect(struct platform_device *pdev, char *buf);
 ssize_t panel_next_mipi_dsi_bit_clk_upt_store(struct platform_device *pdev, const char *buf, size_t count);
@@ -462,6 +488,18 @@ ssize_t panel_next_lcd_hkadc_debug_store(struct platform_device *pdev, const cha
 ssize_t panel_next_lcd_gram_check_show(struct platform_device *pdev, char *buf);
 ssize_t panel_next_lcd_gram_check_store(struct platform_device *pdev, const char *buf, size_t count);
 ssize_t panel_next_lcd_voltage_enable_store(struct platform_device *pdev, const char *buf, size_t count);
+ssize_t panel_next_lcd_bist_check(struct platform_device *pdev, char *buf);
+ssize_t panel_next_amoled_acl_show(struct platform_device *pdev, char *buf);
+ssize_t panel_next_amoled_acl_store(struct platform_device *pdev,
+	const char *buf, size_t count);
+ssize_t panel_next_amoled_acl_store(struct platform_device *pdev,
+	const char *buf, size_t count);
+ssize_t panel_next_amoled_hbm_show(struct platform_device *pdev, char *buf);
+ssize_t panel_next_amoled_hbm_store(struct platform_device *pdev,
+	const char *buf, size_t count);
+ssize_t panel_next_lcd_test_config_show(struct platform_device *pdev, char *buf);
+ssize_t panel_next_lcd_test_config_store(struct platform_device *pdev,
+	const char *buf, size_t count);
 
 int hisi_pwm_set_backlight(struct hisi_fb_data_type *hisifd);
 int hisi_pwm_off(struct platform_device *pdev);

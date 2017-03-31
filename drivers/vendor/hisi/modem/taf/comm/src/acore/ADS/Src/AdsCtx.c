@@ -614,7 +614,9 @@ VOS_VOID ADS_UL_ProcEvent(VOS_UINT32 ulEvent)
 {
     if (ulEvent & ADS_UL_EVENT_DATA_PROC)
     {
+        ADS_UL_WakeLock();
         ADS_UL_ProcLinkData();
+        ADS_UL_WakeUnLock();
         ADS_DBG_UL_PROC_EVENT_NUM(1);
     }
 
@@ -637,29 +639,18 @@ VOS_VOID ADS_DL_ProcEvent(VOS_UINT32 ulEvent)
 {
     if (ulEvent & ADS_DL_EVENT_IPF_RD_INT)
     {
-        ADS_DBG_DL_PROC_RD_EVENT_NUM(1);
+        ADS_DL_WakeLock();
         ADS_DL_ProcIpfResult();
+        ADS_DL_WakeUnLock();
+        ADS_DBG_DL_PROC_RD_EVENT_NUM(1);
     }
-    else if (ulEvent & ADS_DL_EVENT_IPF_ADQ_EMPTY_INT)
+
+    if (ulEvent & ADS_DL_EVENT_IPF_ADQ_EMPTY_INT)
     {
+        ADS_DL_ProcAdq();
         ADS_DBG_DL_PROC_AD_EMPTY_EVENT_NUM(1);
-        ADS_DL_ProcAdqEmptyEvent(ulEvent);
-    }
-    else
-    {
-        ADS_DBG_DL_PROC_OTHER_EVENT_NUM(1);
     }
 
-    return;
-}
-
-
-VOS_VOID ADS_DL_ProcAdqEmptyEvent(VOS_UINT32 ulEvent)
-{
-#if (FEATURE_OFF == FEATURE_SKB_EXP)
-    ADS_DL_ProcIpfAdqEmtpyEvent();
-    ADS_DBG_DL_PROC_ADQ_EMPTY_EVENT_NUM(1);
-#endif
     return;
 }
 
@@ -694,6 +685,165 @@ VOS_VOID ADS_DL_ResetFcAssemParamInfo(VOS_VOID)
 
     return;
 }
+
+
+VOS_UINT32 ADS_UL_EnableTxWakeLockTimeout(VOS_UINT32 ulValue)
+{
+    ADS_IPF_CTX_STRU                   *pstIpfCntxt = VOS_NULL_PTR;
+
+    pstIpfCntxt = ADS_GetIpfCtx();
+
+    if (ulValue > pstIpfCntxt->ulTxWakeLockTimeout)
+    {
+        pstIpfCntxt->ulTxWakeLockTimeout = ulValue;
+    }
+
+    return 0;
+}
+
+
+VOS_UINT32 ADS_UL_WakeLockTimeout(VOS_VOID)
+{
+    ADS_IPF_CTX_STRU                   *pstIpfCntxt = VOS_NULL_PTR;
+    VOS_UINT32                          ulRet;
+
+    pstIpfCntxt = ADS_GetIpfCtx();
+    ulRet       = pstIpfCntxt->ulTxWakeLockTimeout;
+
+    if (0 != pstIpfCntxt->ulTxWakeLockTimeout)
+    {
+        /*lint -e713*/
+        wake_lock_timeout(&(pstIpfCntxt->stTxWakeLock),
+                          msecs_to_jiffies(pstIpfCntxt->ulTxWakeLockTimeout));
+        /*lint +e713*/
+    }
+
+    pstIpfCntxt->ulTxWakeLockTimeout = 0;
+
+    return ulRet;
+}
+
+
+VOS_UINT32 ADS_UL_WakeLock(VOS_VOID)
+{
+    ADS_IPF_CTX_STRU                   *pstIpfCntxt = VOS_NULL_PTR;
+    VOS_UINT32                          ulRet;
+
+    pstIpfCntxt = ADS_GetIpfCtx();
+
+    if (VOS_FALSE == pstIpfCntxt->ulWakeLockEnable)
+    {
+        return 0;
+    }
+
+    wake_lock(&(pstIpfCntxt->stUlBdWakeLock));
+    pstIpfCntxt->ulUlBdWakeLockCnt++;
+    ulRet = pstIpfCntxt->ulUlBdWakeLockCnt;
+
+    return ulRet;
+}
+
+
+VOS_UINT32 ADS_UL_WakeUnLock(VOS_VOID)
+{
+    ADS_IPF_CTX_STRU                   *pstIpfCntxt = VOS_NULL_PTR;
+    VOS_UINT32                          ulRet;
+
+    pstIpfCntxt = ADS_GetIpfCtx();
+
+    if (VOS_FALSE == pstIpfCntxt->ulWakeLockEnable)
+    {
+        return 0;
+    }
+
+    ADS_UL_WakeLockTimeout();
+
+    wake_unlock(&(pstIpfCntxt->stUlBdWakeLock));
+    pstIpfCntxt->ulUlBdWakeLockCnt--;
+    ulRet = pstIpfCntxt->ulUlBdWakeLockCnt;
+
+    return ulRet;
+}
+
+
+VOS_UINT32 ADS_DL_EnableRxWakeLockTimeout(VOS_UINT32 ulValue)
+{
+    ADS_IPF_CTX_STRU                   *pstIpfCntxt = VOS_NULL_PTR;
+
+    pstIpfCntxt = ADS_GetIpfCtx();
+
+    if (ulValue > pstIpfCntxt->ulRxWakeLockTimeout)
+    {
+        pstIpfCntxt->ulRxWakeLockTimeout = ulValue;
+    }
+
+    return 0;
+}
+
+
+VOS_UINT32 ADS_DL_WakeLockTimeout(VOS_VOID)
+{
+    ADS_IPF_CTX_STRU                   *pstIpfCntxt = VOS_NULL_PTR;
+    VOS_UINT32                          ulRet;
+
+    pstIpfCntxt = ADS_GetIpfCtx();
+    ulRet       = pstIpfCntxt->ulRxWakeLockTimeout;
+
+    if (0 != pstIpfCntxt->ulRxWakeLockTimeout)
+    {
+        /*lint -e713*/
+        wake_lock_timeout(&(pstIpfCntxt->stRxWakeLock),
+                          msecs_to_jiffies(pstIpfCntxt->ulRxWakeLockTimeout));
+        /*lint +e713*/
+    }
+
+    pstIpfCntxt->ulRxWakeLockTimeout = 0;
+
+    return ulRet;
+}
+
+
+VOS_UINT32 ADS_DL_WakeLock(VOS_VOID)
+{
+    ADS_IPF_CTX_STRU                   *pstIpfCntxt = VOS_NULL_PTR;
+    VOS_UINT32                          ulRet;
+
+    pstIpfCntxt = ADS_GetIpfCtx();
+
+    if (VOS_FALSE == pstIpfCntxt->ulWakeLockEnable)
+    {
+        return 0;
+    }
+
+    wake_lock(&(pstIpfCntxt->stDlRdWakeLock));
+    pstIpfCntxt->ulDlRdWakeLockCnt++;
+    ulRet = pstIpfCntxt->ulDlRdWakeLockCnt;
+
+    return ulRet;
+}
+
+
+VOS_UINT32 ADS_DL_WakeUnLock(VOS_VOID)
+{
+    ADS_IPF_CTX_STRU                   *pstIpfCntxt = VOS_NULL_PTR;
+    VOS_UINT32                          ulRet;
+
+    pstIpfCntxt = ADS_GetIpfCtx();
+
+    if (VOS_FALSE == pstIpfCntxt->ulWakeLockEnable)
+    {
+        return 0;
+    }
+
+    ADS_DL_WakeLockTimeout();
+
+    wake_unlock(&(pstIpfCntxt->stDlRdWakeLock));
+    pstIpfCntxt->ulDlRdWakeLockCnt--;
+    ulRet = pstIpfCntxt->ulDlRdWakeLockCnt;
+
+    return ulRet;
+}
+
 
 VOS_SEM ADS_GetULResetSem(VOS_VOID)
 {
@@ -745,6 +895,12 @@ ADS_STATS_INFO_CTX_STRU* ADS_GetStatsInfoCtx(VOS_UINT8 ucInstanceIndex)
     pstAdsSpecCtx = &(g_stAdsCtx.astAdsSpecCtx[ucInstanceIndex]);
 
     return &(pstAdsSpecCtx->stAdsStatsInfoCtx);
+}
+
+
+ADS_IPF_CTX_STRU* ADS_GetIpfCtx(VOS_VOID)
+{
+    return &(g_stAdsCtx.stAdsIpfCtx);
 }
 
 
@@ -1002,12 +1158,12 @@ VOS_VOID ADS_ResetIpfCtx(VOS_VOID)
     g_stAdsCtx.stAdsIpfCtx.ucSendingFlg = VOS_FALSE;
 }
 
-
 VOS_VOID ADS_InitIpfCtx(VOS_VOID)
 {
-    VOS_UINT32                          ulRst;
+    VOS_UINT32                          ulRet;
     ADS_NV_DYNAMIC_THRESHOLD_STRU       stThreshold;
     ADS_UL_DYNAMIC_ASSEM_INFO_STRU     *pstUlAssemParmInfo;
+    TAF_NV_ADS_WAKE_LOCK_CFG_STRU       stWakeLockCfg;
 
 #if(FEATURE_OFF == FEATURE_SKB_EXP)
     VOS_UINT8                           i;
@@ -1027,6 +1183,8 @@ VOS_VOID ADS_InitIpfCtx(VOS_VOID)
     /* 初始化下行RD BUFF*/
     PS_MEM_SET(g_stAdsCtx.stAdsIpfCtx.astIpfDlRdBuff, 0x00, (VOS_SIZE_T)(IPF_DLRD_DESC_SIZE * sizeof(IPF_RD_DESC_S)));
 
+    PS_MEM_SET(&stWakeLockCfg, 0x00, sizeof(TAF_NV_ADS_WAKE_LOCK_CFG_STRU));
+
     /* 默认上行数据发送保护定时器时长为10ms */
     g_stAdsCtx.stAdsIpfCtx.ulProtectTmrLen   = 10;
 
@@ -1034,11 +1192,11 @@ VOS_VOID ADS_InitIpfCtx(VOS_VOID)
 
     PS_MEM_SET(&stThreshold, 0x00, (VOS_SIZE_T)sizeof(ADS_NV_DYNAMIC_THRESHOLD_STRU));
 
-    ulRst = NV_ReadEx(MODEM_ID_0,
+    ulRet = NV_ReadEx(MODEM_ID_0,
                       en_NV_Item_ADS_DYNAMIC_THRESHOLD_CFG,
                       &stThreshold,
                       sizeof(ADS_NV_DYNAMIC_THRESHOLD_STRU));
-    if(NV_OK != ulRst)
+    if(NV_OK != ulRet)
     {
         pstUlAssemParmInfo->ulActiveFlag                      = VOS_FALSE;
         pstUlAssemParmInfo->ulProtectTmrExpCnt                = 0;
@@ -1088,6 +1246,34 @@ VOS_VOID ADS_InitIpfCtx(VOS_VOID)
 
     /* 默认数据不在发送 */
     g_stAdsCtx.stAdsIpfCtx.ucSendingFlg = VOS_FALSE;
+
+    wake_lock_init(&g_stAdsCtx.stAdsIpfCtx.stUlBdWakeLock, WAKE_LOCK_SUSPEND, "ipf_bd_wake");
+    wake_lock_init(&g_stAdsCtx.stAdsIpfCtx.stDlRdWakeLock, WAKE_LOCK_SUSPEND, "ipf_rd_wake");
+
+    wake_lock_init(&g_stAdsCtx.stAdsIpfCtx.stTxWakeLock, WAKE_LOCK_SUSPEND, "ads_tx_wake");
+    wake_lock_init(&g_stAdsCtx.stAdsIpfCtx.stRxWakeLock, WAKE_LOCK_SUSPEND, "ads_rx_wake");
+
+    g_stAdsCtx.stAdsIpfCtx.ulWakeLockEnable         = VOS_FALSE;
+
+    g_stAdsCtx.stAdsIpfCtx.ulUlBdWakeLockCnt        = 0;
+    g_stAdsCtx.stAdsIpfCtx.ulDlRdWakeLockCnt        = 0;
+
+    g_stAdsCtx.stAdsIpfCtx.ulTxWakeLockTimeout      = 0;
+    g_stAdsCtx.stAdsIpfCtx.ulRxWakeLockTimeout      = 0;
+
+    g_stAdsCtx.stAdsIpfCtx.ulTxWakeLockTmrLen       = 500;
+    g_stAdsCtx.stAdsIpfCtx.ulRxWakeLockTmrLen       = 500;
+
+    ulRet = NV_ReadEx(MODEM_ID_0, en_NV_Item_ADS_WAKE_LOCK_CFG,
+                      &stWakeLockCfg, sizeof(TAF_NV_ADS_WAKE_LOCK_CFG_STRU));
+    if (NV_OK == ulRet)
+    {
+        g_stAdsCtx.stAdsIpfCtx.ulWakeLockEnable     = stWakeLockCfg.ulEnable;
+        g_stAdsCtx.stAdsIpfCtx.ulTxWakeLockTmrLen   = stWakeLockCfg.ulTxWakeTimeout;
+        g_stAdsCtx.stAdsIpfCtx.ulRxWakeLockTmrLen   = stWakeLockCfg.ulRxWakeTimeout;
+    }
+
+    return;
 }
 
 
@@ -1162,6 +1348,8 @@ VOS_VOID ADS_InitCtx(VOS_VOID)
 
     /* 初始化当前实例索引值 */
     g_stAdsCtx.ucAdsCurInstanceIndex = ADS_INSTANCE_INDEX_0;
+
+    return;
 }
 
 #ifdef __cplusplus

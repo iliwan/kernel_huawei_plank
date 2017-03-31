@@ -13,7 +13,9 @@
 #include "errorlog.h"
 #include "apminterface.h"
 #include "hpaoperatertt.h"
+/* Added by ouyangfei for AT Project, 2011-11-08, begin */
 #include "TafDrvAgent.h"
+/* Added by ouyangfei for AT Project, 2011-11-08, end */
 #include "OmApi.h"
 #include "phyoaminterface.h"
 #include "TafOamInterface.h"

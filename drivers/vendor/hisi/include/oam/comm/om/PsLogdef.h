@@ -1,3 +1,21 @@
+/******************************************************************************
+
+                版权所有 (C), 2001-2011, 华为技术有限公司
+
+ ******************************************************************************
+  文 件 名   : PsLogdef.h
+  版 本 号   : 初稿
+  作    者   : 李霄 46160
+  生成日期   : 2007年4月23日
+  最近修改   :
+  功能描述   : PsLogdef.h 的头文件
+  函数列表   :
+  修改历史   :
+  1.日    期   : 2007年4月23日
+    作    者   : 李霄 46160
+    修改内容   : 创建文件
+
+******************************************************************************/
 #ifndef __PSLOGDEF_H__
 #define __PSLOGDEF_H__
 
@@ -1353,7 +1371,9 @@ typedef enum
                   PS_FILE_ID_L_LRRCMDTPROC_C,
                   /* V7R2 MDT END */
 
+                  /* add by zhuochao for ECID begin */
                   PS_FILE_ID_L_LRRCMTAPROC_C,
+                  /* add by zhuochao for ECID end */
 
 /*  1064  */      PS_FILE_ID_L_PSSTUB_C,
                   PS_FILE_ID_L_RRCRRCADRX_C,
@@ -1387,6 +1407,7 @@ typedef enum
             PS_FILE_ID_QOS_FC_STATUS_C,
             /*ERABM*/
             PS_FILE_ID_NASERABMCDSMSGPROC_C,
+/*added by z103912 2012-2-2 for ROHC*/
                 PS_FILE_ID_L_ROHC_CONSTRUCT_PKT,
                 PS_FILE_ID_L_ROHC_COMP_PROF0_C,
                 PS_FILE_ID_L_ROHC_COMP_PROF1_C,
@@ -1567,6 +1588,7 @@ typedef enum
                   PS_FILE_ID_CCORE_FLOW_CTRL_C,
                   PS_FILE_ID_TTF_MEM_RB_C,
                   PS_FILE_ID_TTF_MEMCTRL_C,
+                  /* Added by h0016399 for DSDA Project，2012-12-24,  end */
                   PS_FILE_ID_IMM_RB_C,
                   PS_FILE_ID_IMM_ZC_C,
                   PS_FILE_ID_IMM_MNTN_C,
@@ -1641,6 +1663,7 @@ typedef enum
 
                   PS_FILE_ID_TAF_MTC_API_C,
 
+/* V7R1 LTE file added by gongyu start */
                  PS_FILE_ID_WAS_COMMCCBAPIEUTRA_C,
                  PS_FILE_ID_WAS_COMMSAVEIER8EUTRA_C,
                  PS_FILE_ID_WAS_CSELCELLRESELSTARTEUTRA_C,
@@ -1685,6 +1708,7 @@ typedef enum
                  PS_FILE_ID_WAS_RMMNTNEUTRA_C,
                  PS_FILE_ID_WAS_RMPROCMSGEUTRA_C,
                  PS_FILE_ID_WAS_MAINCCB_C,
+/* V7R1 LTE file added by gongyu end */
 
                   PS_FILE_ID_GAS_GCOM_CTX_LTE_C,
                   PS_FILE_ID_GAS_GCOM_PUBLIC_LTE_C,
@@ -2052,6 +2076,10 @@ typedef enum
                   PS_FILE_ID_TAF_MMA_MNTN_C,
                   PS_FILE_ID_TAF_MMA_MSG_PRIO_COMPARE_C,
                   PS_FILE_ID_TAF_MMA_TIMERMGMT_C,
+                  PS_FILE_ID_TAF_MMA_FSM_IMS_SWITCH_C,
+                  PS_FILE_ID_TAF_MMA_FSM_IMS_SWITCH_TBL_C,
+                  PS_FILE_ID_TAF_MMA_COM_FUNC_C,
+
 
                   PS_FILE_ID_TAF_MMA_SND_APP_C,
 
@@ -2202,9 +2230,15 @@ typedef enum
                   PS_FILE_ID_BST_INIT_C,
                   PS_FILE_ID_BST_OS_OPENSSL_MEM_C,
                   PS_FILE_ID_BST_PAL_OPENSSL_TIME_C,
+                  /* Added by w0014666 for CALL DROP CHR, 2015-01-19, begin */
                   PS_FILE_ID_GAS_INTER_HO_ERRLOG_C,
+                  /* Added by w0014666 for CALL DROP CHR, 2015-01-19, end */
 
+                 /* Added by w0014666 for CALL DROP CHR, 2015-01-19, begin */
                  PS_FILE_ID_GAS_MNTN_G2L_C,
+                 /* Added by w0014666 for CALL DROP CHR, 2015-01-19, end */
+				 
+                  PS_FILE_ID_NASTCMTCMSGPROC_C,
                   PS_FILE_ID_BUTT
 
 }PS_FILE_ID_DEFINE_ENUM;

@@ -1482,12 +1482,13 @@ VOS_VOID SI_STK_CardStatusMsgProc(PS_SI_MSG_STRU *pMsg)
         {
             SI_STKCommDataFree(gstUsatCmdDecode.SatType, (SI_SAT_COMMDATA_STRU *)&gstUsatCmdDecode.CmdStru);
 
-            VOS_MemSet(&gstUsatCmdDecode, 0, sizeof(gstUsatCmdDecode));
         }
         else
         {
 
         }
+        
+        VOS_MemSet(&gstUsatCmdDecode, 0, sizeof(gstUsatCmdDecode));
     }
     else
     {

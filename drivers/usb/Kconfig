@@ -141,4 +141,10 @@ source "drivers/usb/phy/Kconfig"
 
 source "drivers/usb/gadget/Kconfig"
 
+config HUAWEI_USB_OTGSWITCH
+	depends on USB_GADGET
+	bool "Use extern control otg feature"
+	default n
+	---help---
+	  through the dynamic way to open or close the otg feature.
 endif # USB_SUPPORT

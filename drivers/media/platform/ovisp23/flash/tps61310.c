@@ -401,6 +401,11 @@ static int tps61310_off(struct hisi_flash_ctrl_t *flash_ctrl)
 		return -1;
 	}
 
+	if (STANDBY_MODE == flash_ctrl->state.mode) {
+		cam_notice("%s flash led has been powered off.", __func__);
+		return 0;
+	}
+
 	mutex_lock(flash_ctrl->hisi_flash_mutex);
 	flash_ctrl->state.mode = STANDBY_MODE;
 	flash_ctrl->state.data = 0;
@@ -427,6 +432,38 @@ static int tps61310_off(struct hisi_flash_ctrl_t *flash_ctrl)
 	mutex_unlock(flash_ctrl->hisi_flash_mutex);
 
 	return 0;
+}
+
+/* check flash is open or short */
+static int tps61310_check(struct hisi_flash_ctrl_t *flash_ctrl)
+{
+	unsigned char val;
+	struct hisi_flash_i2c_client *i2c_client;
+	struct hisi_flash_i2c_fn_t *i2c_func;
+	int status = -1;
+
+	i2c_client = flash_ctrl->flash_i2c_client;
+	if(i2c_client == NULL) {
+		cam_err("%s: i2c client is NULL", __func__);
+		return FLASH_LED_ERROR;
+	}
+
+	i2c_func = flash_ctrl->flash_i2c_client->i2c_func_tbl;
+	if(i2c_func == NULL) {
+		cam_err("%s: i2c function is NULL", __func__);
+		return FLASH_LED_ERROR;
+	}
+
+	tps61310_set_reset(flash_ctrl, HIGH);
+	i2c_func->i2c_read(i2c_client, REGISTER3, &val);
+	if(val & 0x10) {
+		status = FLASH_LED_FAULT;
+	} else {
+		status = FLASH_LED_NORMAL;
+	}
+	tps61310_set_reset(flash_ctrl, LOW);
+
+	return status;
 }
 
 static int tps61310_match(struct hisi_flash_ctrl_t *flash_ctrl)
@@ -593,7 +630,7 @@ static ssize_t tps61310_lightness_show(struct device *dev,
         int rc=0;
 
         snprintf(buf, MAX_ATTRIBUTE_BUFFER_SIZE, "mode=%d, data=%d.\n",
-		tps61310_ctrl.state.mode, tps61310_ctrl.state.mode);
+		tps61310_ctrl.state.mode, tps61310_ctrl.state.data);
         rc = strlen(buf)+1;
         return rc;
 }
@@ -694,7 +731,7 @@ static void tps61310_torch_brightness_set(struct led_classdev *cdev,
 	struct flash_cfg_data cdata;
 	int rc;
 
-	if (STANDBY_MODE == (int)brightness) {
+	if (STANDBY_MODE == (flash_mode)brightness) {
 		rc = tps61310_off(&tps61310_ctrl);
 		if (rc < 0) {
 			cam_err("%s tps61310 off error.", __func__);
@@ -746,6 +783,7 @@ static int tps61310_register_attribute(struct hisi_flash_ctrl_t *flash_ctrl, str
 		goto err_out;
 	}
 
+#ifdef DEBUG_HISI_CAMERA
 	rc = device_create_file(dev, &tps61310_lightness);
 	if (rc < 0) {
 		cam_err("%s failed to creat lightness attribute.", __func__);
@@ -763,6 +801,9 @@ static int tps61310_register_attribute(struct hisi_flash_ctrl_t *flash_ctrl, str
 err_create_flash_mask_file:
 	device_remove_file(dev, &tps61310_lightness);
 err_create_lightness_file:
+#else
+    return 0;
+#endif
 	led_classdev_unregister(&flash_ctrl->cdev_torch);
 err_out:
 	return rc;
@@ -779,7 +820,7 @@ static int tps61310_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tps61310_id[] = {
-	{"tps61310", (unsigned long)&tps61310_ctrl},
+	{"tps61310", (int)&tps61310_ctrl},
 	{}
 };
 
@@ -822,6 +863,8 @@ static struct hisi_flash_fn_t tps61310_func_tbl = {
 	.flash_off = tps61310_off,
 	.flash_match = tps61310_match,
 	.flash_get_dt_data = tps61310_get_dt_data,
+	/* check flash open or short */
+	.flash_check = tps61310_check,
 	.flash_register_attribute = tps61310_register_attribute,
 };
 

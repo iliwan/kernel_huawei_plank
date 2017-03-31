@@ -106,6 +106,12 @@ typedef enum
     TAF_MSG_MMA_ABORT_NET_SCAN_REQ,
 
     TAF_MSG_MMA_CPOL_INFO_QUERY_REQ,
+
+    /* Modified by c00318887 for file refresh 需要触发背景搜, 2015-3-9, begin */
+    TAF_MSG_MMA_REFRESH_STUB_SET_REQ,
+    /* Modified by c00318887 for file refresh 需要触发背景搜, 2015-3-9, end */
+    TAF_MSG_MMA_AUTO_RESEL_STUB_SET_REQ,
+    
     TAF_MSG_BUTT
 }TAF_MSG_TYPE;
 typedef VOS_UINT16   TAF_MSG_TYPE_ENUM_U16;

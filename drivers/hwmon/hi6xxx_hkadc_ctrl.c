@@ -456,12 +456,12 @@ void acpu_hkadc_fill_chan_map(void)
         } else {
             printk(KERN_ALERT"acpu_hkadc_fill_chan_map get map ERROR: logic_id %d \n",
                             logic_id);
-        }   
+        }   
     }
 }
 
 int thermal_data_init(void)
-{
+{
     int i = 0;
     int phy_chan;
     struct hkadc_chan_config*  chan_cfg;

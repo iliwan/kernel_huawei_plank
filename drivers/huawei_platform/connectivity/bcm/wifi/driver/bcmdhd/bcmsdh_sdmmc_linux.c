@@ -228,18 +228,21 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 	struct sdio_func *func = dev_to_sdio_func(pdev);
 	mmc_pm_flag_t sdio_flags;
 
-	sd_err(("%s Enter\n", __FUNCTION__));
+	sd_err(("%s +\n", __FUNCTION__));
 	if (func->num != 2)
 		return 0;
 
 	sdioh = sdio_get_drvdata(func);
 	err = bcmsdh_suspend(sdioh->bcmsdh);
-	if (err)
+	if (err){
+		sd_err(("%s -\n", __FUNCTION__));
 		return err;
+	}
 
 	sdio_flags = sdio_get_host_pm_caps(func);
 	if (!(sdio_flags & MMC_PM_KEEP_POWER)) {
 		sd_err(("%s: can't keep power while host is suspended\n", __FUNCTION__));
+		sd_err(("%s -\n", __FUNCTION__));
 		return  -EINVAL;
 	}
 
@@ -247,20 +250,21 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 	err = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
 	if (err) {
 		sd_err(("%s: error while trying to keep power\n", __FUNCTION__));
+		sd_err(("%s -\n", __FUNCTION__));
 		return err;
 	}
 #if defined(OOB_INTR_ONLY)
 #ifndef HW_WIFI_OOB_INT_SET
 	bcmsdh_oob_intr_set(sdioh->bcmsdh, FALSE);
 #endif
-#endif 
+#endif
 	dhd_mmc_suspend = TRUE;
 #ifdef HW_WIFI_WAKEUP_SRC_PARSE
 	g_wifi_firstwake = TRUE;
 #endif
 
 	smp_mb();
-	sd_err(("%s out\n", __FUNCTION__));
+	sd_err(("%s -\n", __FUNCTION__));
 
 	return 0;
 }
@@ -270,7 +274,7 @@ static int bcmsdh_sdmmc_resume(struct device *pdev)
 	sdioh_info_t *sdioh;
 	struct sdio_func *func = dev_to_sdio_func(pdev);
 
-	sd_err(("%s Enter\n", __FUNCTION__));
+	sd_err(("%s +\n", __FUNCTION__));
 	if (func->num != 2)
 		return 0;
 
@@ -280,11 +284,10 @@ static int bcmsdh_sdmmc_resume(struct device *pdev)
 #ifndef HW_WIFI_OOB_INT_SET
 	bcmsdh_resume(sdioh->bcmsdh);
 #endif
-#endif 
+#endif
 
 	smp_mb();
-	sd_err(("%s out\n", __FUNCTION__));
-
+	sd_err(("%s -\n", __FUNCTION__));
 	return 0;
 }
 

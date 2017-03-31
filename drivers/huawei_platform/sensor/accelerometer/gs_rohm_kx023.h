@@ -111,6 +111,7 @@ typedef enum
 #define KIONIX_ACCEL_G_4G		1
 #define KIONIX_ACCEL_G_6G		2
 #define KIONIX_ACCEL_G_8G		3
+#define PRINT_ACCDATA_PERIOD		30
 
 struct kx023_platform_data {
 	int (*adapt_fn)(void);	/* fucntion is suported in some product */

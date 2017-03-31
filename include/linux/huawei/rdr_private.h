@@ -36,7 +36,7 @@ extern int g_rdr_dump_stack_len;
 extern int *bsp_dump_log_buf_len;
 
 typedef void (*rdr_funcptr_0)(void);
-typedef void (*rdr_funcptr_1)(u64);
+typedef void (*rdr_funcptr_1)(unsigned long);
 typedef void (*rdr_funcptr_2)(unsigned long, unsigned long);
 typedef void (*rdr_funcptr_3)(unsigned long, unsigned long, unsigned long);
 int  task_switch_hook_del(rdr_funcptr_2 switch_hook);

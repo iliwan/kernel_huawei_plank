@@ -381,7 +381,7 @@ XML_RESULT_ENUM_UINT32 xml_write_nv_data(void)
         ref_info.nv_off += (xml_ctrl.card_type - NV_USIMM_CARD_1)*ref_info.nv_len;
     }
 
-    returnval = nv_write_to_mem(xml_ctrl.g_puclnvitem,ref_info.nv_len,file_info.file_id,ref_info.nv_off);
+    returnval = xml_nv_write_to_mem(xml_ctrl.g_puclnvitem,ref_info.nv_len,file_info.file_id,ref_info.nv_off);
     if(returnval)
     {
         xml_write_error_log(__LINE__, usnvitemid, returnval);
@@ -1281,7 +1281,7 @@ XML_RESULT_ENUM_UINT32 xml_decode_xml_file(FILE* pfile)
 
         lreaded = nv_file_read((u8*)(xml_ctrl.g_pclfilereadbuff),1,XML_FILE_READ_BUFF_SIZE,pfile);
         if(lreaded > XML_FILE_READ_BUFF_SIZE)
-        {
+        {
             xml_write_error_log(__LINE__, 0, XML_RESULT_FALIED_READ_FILE);
             return XML_RESULT_FALIED_READ_FILE;
         }
@@ -1565,6 +1565,23 @@ out:
     return returnval;
 }
 
+/*
+ * copy user buff to global ddr,used to write nv data to ddr
+ * &file_id :file id
+ * &offset:  offset of global file ddr
+ */
+u32 xml_nv_write_to_mem(u8* pdata,u32 size,u32 file_id,u32 offset)
+{
+    struct nv_global_ddr_info_stru* ddr_info = (struct nv_global_ddr_info_stru*)NV_GLOBAL_INFO_ADDR;
+    if(offset > ddr_info->file_info[file_id-1].size)
+    {
+        printf("[%s]:offset 0x%x\n",__FUNCTION__,offset);
+        return BSP_ERR_NV_FILE_ERROR;
+    }
+    memcpy((u8*)(NV_GLOBAL_CTRL_INFO_ADDR+ddr_info->file_info[file_id-1].offset + offset),pdata,(s32)size);
+
+    return NV_OK;
+}
 
 
 void xml_help(void)

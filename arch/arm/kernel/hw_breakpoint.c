@@ -29,6 +29,7 @@
 #include <linux/hw_breakpoint.h>
 #include <linux/smp.h>
 #include <linux/cpu_pm.h>
+#include <linux/coresight.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
@@ -979,7 +980,7 @@ static void reset_ctrl_regs(void *unused)
 	 * Unconditionally clear the OS lock by writing a value
 	 * other than CS_LAR_KEY to the access register.
 	 */
-	ARM_DBG_WRITE(c1, c0, 4, ~CS_LAR_KEY);
+	ARM_DBG_WRITE(c1, c0, 4, ~CORESIGHT_UNLOCK);
 	isb();
 
 	/*

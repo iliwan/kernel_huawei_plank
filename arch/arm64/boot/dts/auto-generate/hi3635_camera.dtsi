@@ -84,7 +84,7 @@
 		hisi,reset_valid = <1>;
 		hisi,vcmpd_valid = <0>;
 		hisi,i2c-index = <0>;
-		hisi,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		hisi,i2c-speed = <0x0a>;
 		hisi,i2c-addr = <0x20>;
 		hisi,i2c-addr_bits = <1>;
 		hisi,i2c-val_bits = <0>;
@@ -117,7 +117,7 @@
 		hisi,reset_valid = <1>;
 		hisi,vcmpd_valid = <0>;
 		hisi,i2c-index = <0>;
-		hisi,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		hisi,i2c-speed = <0x0a>;
 		hisi,i2c-addr = <0x34>;
 		hisi,i2c-addr_bits = <1>;
 		hisi,i2c-val_bits = <0>;
@@ -151,7 +151,7 @@
 		hisi,reset_valid = <1>;
 		hisi,vcmpd_valid = <0>;
 		hisi,i2c-index = <0>;
-		hisi,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		hisi,i2c-speed = <0x0a>;
 		hisi,i2c-addr = <0x34>;
 		hisi,i2c-addr_bits = <1>;
 		hisi,i2c-val_bits = <0>;
@@ -185,7 +185,7 @@
 		hisi,reset_valid = <1>;
 		hisi,vcmpd_valid = <0>;
 		hisi,i2c-index = <1>;
-		hisi,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		hisi,i2c-speed = <0x0a>;
 		hisi,i2c-addr = <0x6c>;
 		hisi,i2c-addr_bits = <1>;
 		hisi,i2c-val_bits = <0>;
@@ -218,7 +218,7 @@
 		hisi,reset_valid = <1>;
 		hisi,vcmpd_valid = <0>;
 		hisi,i2c-index = <1>;
-		hisi,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		hisi,i2c-speed = <0x0a>;
 		hisi,i2c-addr = <0x30>;
 		hisi,i2c-addr_bits = <1>;
 		hisi,i2c-val_bits = <0>;

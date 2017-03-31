@@ -257,6 +257,7 @@ typedef struct
     INT16  sCRS_SinrR1;
     INT16 sCRS_AvgSinr;
     //INT16  sDRS_AvgSinr;
+    /* END: Added by wujing, 2013/02/04  */
     INT32  lCRS_Rsrq;
     INT32  lCRS_RsrpR0;
     INT32  lCRS_RsrpR1;
@@ -264,10 +265,12 @@ typedef struct
     INT32  lDRS_RsrpR1;
     INT32  lCRS_RssiR0;
     INT32  lCRS_RssiR1;
+    /* BEGIN: Added by xueqiuyan, 2013/8/13   PN:DRS_SNR*/
     INT16  sDRS_SnrP5P7Rx0;
     INT16  sDRS_SnrP5P7Rx1;
     INT16  sDRS_SnrP8Rx0;
     INT16  sDRS_SnrP8Rx1;
+    /* END:   Added by xueqiuyan, 2013/8/13 */
 } LPHY_DT_MEAS_INFO_IND_STRU;
 
 #ifdef __cplusplus

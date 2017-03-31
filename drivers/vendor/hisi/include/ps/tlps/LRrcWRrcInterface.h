@@ -575,7 +575,8 @@ typedef struct
     VOS_MSG_HEADER                                                              /*_H2ASN_Skip*/
     LRRC_WRRC_MSG_TYPE_ENUM_UINT32                          enMsgId;            /*_H2ASN_Skip*/
     VOS_UINT16                                              usOpId;
-    VOS_UINT8                                               aucReserved[2];
+    VOS_UINT8                                               ucValidFreqNum;
+    VOS_UINT8                                               ucReserved;
     LRRC_GURRC_MEAS_RESULT_ENUM_UINT32                      enRslt;
 }LRRC_WRRC_IDLE_MEASURE_CNF_STRU;
 
@@ -623,7 +624,8 @@ typedef struct
     VOS_MSG_HEADER                                                              /*_H2ASN_Skip*/
     LRRC_WRRC_MSG_TYPE_ENUM_UINT32                          enMsgId;            /*_H2ASN_Skip*/
     VOS_UINT16                                              usOpId;
-    VOS_UINT8                                               aucReserved[2];
+    VOS_UINT8                                               ucValidFreqNum;
+    VOS_UINT8                                               ucReserved;
     LRRC_GURRC_MEAS_RESULT_ENUM_UINT32                      enRslt;
 }LRRC_WRRC_CONNECTED_MEASURE_CNF_STRU;
 
@@ -1009,7 +1011,9 @@ typedef struct
    astUtranCellInfo存放顺序为:高优先级信息 -> 中优先级信息 -> 低优先级信息
    ****************************************************************************/
    VOS_UINT16                                               usHighPrioNum;
+   /* begin: for modify TDD max Meas Num  */
    LRRC_GURRC_UTRAN_CELL_INFO_STRU                          astUtranCellInfo[LRRC_TRRC_PHY_MAX_SUPPORT_CARRIER_NUM];
+   /* end: for modify TDD max Meas Num  */
 }LRRC_GURRC_UTRAN_CELL_INFO_LIST_STRU;
 
 /*****************************************************************************
@@ -1123,7 +1127,9 @@ typedef struct
 {
     VOS_UINT16                                              usArfcnNum;
     VOS_UINT8                                               aucReserved[2];
+    /* begin: for modify TDD max Meas Num  */
     GURRC_LRRC_UTRAN_SIGNLE_FREQ_MEAS_RESULT_STRU           astUtranResult[LRRC_TRRC_PHY_MAX_SUPPORT_CARRIER_NUM];
+    /* end: for modify TDD max Meas Num  */
 }GURRC_LRRC_UTRAN_MEAS_RESULT_IND_STRU;
 
 /*****************************************************************************

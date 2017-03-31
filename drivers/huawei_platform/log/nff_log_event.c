@@ -2,36 +2,10 @@
 #include <linux/syscalls.h>
 #include <linux/rtc.h>
 
-enum CRITIC_ERRLOG_TYPE {
-	TIMER_INIT_ERR = 0,
-	SEB_GET_LCS_ERR,
-	SEB_READOTP_ERR,
-	SEB_LCS_DEF_ERR,
-	SEB_RETURN_ERR,
-	EMMC_READ_VRL_ERR,
-	EMMC_READ_FASTBOOT_ERR,
-	EMMC_INIT_ERR,
-	EMMC_READ_ERR,
-	VRL_CHK_ERR,
-	VRL_PARSER_ERR,
-	CHGSTORE_ADDR_ERR,
-	FASTBOOT_VERF_ERR,
-	EFUSEPRELOAD_ERR,
-	SECBOOT_GET_LCS_ERR,
-	DDR_DETECTED_ERR,
-	DDR_DENSITY_ERR,
-	CRITIC_MAX_ERR
-};
-
 struct event {
 	char name[16];
 	char args[5][16];
 };
-
-struct ERRLOG_INFO{
-  unsigned int err_num;
-  char * err_str;
- };
 
 enum {
 	RESET_MOUNT_FAIL,
@@ -60,52 +34,7 @@ enum {
 #define NFF_LOG_FILE_OLD "/splash2/reset_stats.old"
 #define MAX_FILE_SIZE     ( 512 * 1024 )
 #define INVALID_ARGS     "INVALID_ARGS"
-#define INVALID_U32      0x89748974
-
-struct ERRLOG_INFO err_info_arr[] = {
-		{TIMER_INIT_ERR, "timer init"},
-		{SEB_GET_LCS_ERR, "seb get lcs"},
-		{SEB_READOTP_ERR, "seb read otp"},
-		{SEB_LCS_DEF_ERR, "seb lcs define"},
-		{SEB_RETURN_ERR,	"seb return err"},
-		{EMMC_READ_VRL_ERR, "read vrl"},
-		{EMMC_READ_FASTBOOT_ERR, "read fastboot"},
-		{EMMC_INIT_ERR, "emmc init"},
-		{EMMC_READ_ERR, "emmc read"},
-		{VRL_CHK_ERR, "vrl check"},
-		{VRL_PARSER_ERR, "vrl parse"},
-		{CHGSTORE_ADDR_ERR, "chgstore addr"},
-		{FASTBOOT_VERF_ERR, "fastboot veryf"},
-		{EFUSEPRELOAD_ERR, "efuse prelad"},
-		{SECBOOT_GET_LCS_ERR, "secboot get lcs"},
-		{DDR_DETECTED_ERR, "ddr detected"},
-		{DDR_DENSITY_ERR, "ddr density"}
- 
-	};
-
-
-char *func_str[] =	{
-	"NO_ERROR",
-	"EMMC_INIT",
-	"BOARDID_INIT",
-	"SELECT_HW_CONFIG",
-	"PROCESS_MODE",
-	"LOAD_M3",
-	"LOAD_MODEM",
-	"LOAD_TEEOS",
-	"LOAD_HIFI",
-	"LOAD_BBE16",
-	"LOAD_KERNEL",
-	"LOAD_RECOVERY",
-	"BOOT_KERNEL",
-	"BOOT_RECOVERY",
-	"LOAD_IOM3",
-	"LOAD_BL31",
-	"LOAD_LPM3",
-	"GET_BATT_TEMP",
-	"PANIC",
-	"MAX_ERROR",
-};
+#define INVALID_U32      (0x89748974)
 
 #define NFF_EVENT_INIT(event)                                             \
 	do {                                                                  \
@@ -118,27 +47,28 @@ char *func_str[] =	{
 		strncpy(event.args[4], INVALID_ARGS, sizeof(event.args[4]) - 1);  \
 	} while(0)
 
-int reset_type = RESET_MAX;
-int pmu_event = PMU_MAX;
+static int reset_type = RESET_MAX;
+static int pmu_event = PMU_MAX;
 
 static DEFINE_MUTEX(nff_log_mutex);
 
+/* get reset_type from cmdline */
 static int __init early_parse_reset_type_cmdline(char *p)
 {
 	if (p) {
-		if (!strcmp(p, "MountFail")) {
+		if (!strncmp(p, "MountFail",strlen("MountFail"))) {
 			reset_type = RESET_MOUNT_FAIL;
-		} else if (!strcmp(p, "PanicReset")) {
+		} else if (!strncmp(p, "PanicReset",strlen("PanicReset"))) {
 			reset_type = RESET_APANIC;
-		} else if (!strcmp(p, "WatchDog")) {
+		} else if (!strncmp(p, "WatchDog",strlen("WatchDog"))) {
 			reset_type = RESET_WATCHDOG;
-		} else if (!strcmp(p, "press1s")) {
+		} else if (!strncmp(p, "press1s",strlen("press1s"))) {
 			reset_type = RESET_PRESS1;
-		} else if (!strcmp(p, "press10s")) {
+		} else if (!strncmp(p, "press10s",strlen("press10s"))) {
 			reset_type = RESET_PRESS10;
-		} else if (!strcmp(p, "AbnormalReset")) {
+		} else if (!strncmp(p, "AbnormalReset",strlen("AbnormalReset"))) {
 			reset_type = RESET_ABNORMAL;
-		} else if (!strcmp(p, "SMPL")) {
+		} else if (!strncmp(p, "SMPL",strlen("SMPL"))) {
 			reset_type = RESET_SMPL;
 		}
     }
@@ -147,6 +77,7 @@ static int __init early_parse_reset_type_cmdline(char *p)
 }
 early_param("normal_reset_type", early_parse_reset_type_cmdline);
 
+/* get pmu_event from cmdline */
 static int __init early_parse_pmu_event_cmdline(char *p)
 {
 	if (p) {
@@ -168,9 +99,9 @@ static int __init early_parse_pmu_event_cmdline(char *p)
 		} else if (!strcmp(p, "VSYS_LOW")) {
 			pmu_event = PMU_VSYS_LOW;
 		}
-    }
+	}
 
-    return 0;
+	return 0;
 }
 early_param("pmu_event", early_parse_pmu_event_cmdline);
 
@@ -181,7 +112,7 @@ static void get_current_time(char *ts, unsigned int len)
 	struct rtc_time tm;
 
 	if(!ts) {
-	   return;
+		return;
 	}
 
 	memset(&tv, 0, sizeof(struct timeval));
@@ -196,6 +127,7 @@ static void get_current_time(char *ts, unsigned int len)
 		tm.tm_hour, tm.tm_min, tm.tm_sec);
 }
 
+/* save nff log to /splash2 */
 static int nff_log_event(struct event* event)
 {
 	int fd = -1;
@@ -215,11 +147,14 @@ static int nff_log_event(struct event* event)
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
 
-	if (sys_newstat(NFF_LOG_FILE, &statbuf) < 0) {
+	/* try to get file /splash2/reset_stats size */
+	ret = sys_newstat(NFF_LOG_FILE, &statbuf);
+	if (ret < 0) {
 		pr_err("<%s: %d>, stat failed! ret = %d\n", __func__, __LINE__, ret);
 	} else {
 		if (statbuf.st_size >= MAX_FILE_SIZE) {
-			if (sys_rename(NFF_LOG_FILE, NFF_LOG_FILE_OLD) < 0) {
+			ret = sys_rename(NFF_LOG_FILE, NFF_LOG_FILE_OLD);
+			if (ret < 0) {
 				pr_err("<%s: %d>, rename failed! ret = %d\n", __func__, __LINE__, ret);
 				set_fs(old_fs);
 				return -1;
@@ -227,7 +162,9 @@ static int nff_log_event(struct event* event)
 		}
 	}
 
-	if (sys_access(NFF_LOG_FILE, 0)) {
+	/* try to create or open file /splash2/reset_stats */
+	ret = sys_access(NFF_LOG_FILE, 0);
+	if (ret) {
 		fd = sys_open(NFF_LOG_FILE, O_CREAT | O_RDWR, 0664);  /* create file */
 		if (fd < 0) {
 			pr_err("<%s: %d>, create open failed, ret = %d\n", __func__, __LINE__, fd);
@@ -271,6 +208,7 @@ static int nff_log_event(struct event* event)
 	return 0;
 }
 
+/* save log of hungtask */
 void nff_log_event_hungtask(char *taskname)
 {
 	struct event hungtask_event;
@@ -293,6 +231,7 @@ void nff_log_event_hungtask_test(void)
 	nff_log_event_hungtask(current->comm);
 }
 
+/* save log of ocp */
 void nff_log_event_ocp(char *ldo)
 {
 	struct event ocp_event;
@@ -315,6 +254,7 @@ void nff_log_event_ocp_test(void)
 	nff_log_event_ocp("LDO16(test)");
 }
 
+/* save log of ddrc */
 void nff_log_event_ddrc(unsigned int port, unsigned int mid, bool rw, bool pri, bool sec)
 {
 	struct event ddrc_event;
@@ -338,7 +278,7 @@ void nff_log_event_ddrc_test(void)
 	nff_log_event_ddrc(0x2, 0x31, 0, 0, 0);
 }
 
-
+/* save log of modemcrash */
 void nff_log_event_subsys_err(unsigned int mod_id, unsigned int arg1,
 				unsigned int arg2, unsigned int arg3)
 {
@@ -360,13 +300,12 @@ void nff_log_event_subsys_err(unsigned int mod_id, unsigned int arg1,
 	mutex_unlock(&nff_log_mutex);
 }
 
-
 void nff_log_event_subsys_err_test(void)
 {
 	nff_log_event_subsys_err(0x82000001, 0x20b, 0x93, 0x35229e38);
 }
 
-
+/* save log of reset */
 void nff_log_event_reset(void)
 {
 	struct event reset_event;
@@ -436,31 +375,4 @@ void nff_log_event_reset(void)
 	nff_log_event(&reset_event);
 	mutex_unlock(&nff_log_mutex);
 }
-int nff_log_errlog(unsigned int err_num)
-{
-	struct event errlog_event;
-	int ret;
-	if (err_num > CRITIC_MAX_ERR)
-		return 0;
-	NFF_EVENT_INIT(errlog_event);
-	snprintf(errlog_event.name, sizeof(errlog_event.name), "%15s", "ERRLOG");
-	snprintf(errlog_event.args[0], sizeof(errlog_event.args[0]), "%-15s", err_info_arr[err_num].err_str);
-	mutex_lock(&nff_log_mutex);
-	ret = nff_log_event(&errlog_event);
-	mutex_unlock(&nff_log_mutex);
-	return ret;
-}
 
-int nff_log_funerr(unsigned int func_num, unsigned int err_num)
-{
-	struct event fun_event;
-	int ret;
-	NFF_EVENT_INIT(fun_event);
-	snprintf(fun_event.name, sizeof(fun_event.name), "%15s", "FUNERR");
-	snprintf(fun_event.args[0], sizeof(fun_event.args[0]), "%-15s", func_str[func_num]);
-	snprintf(fun_event.args[1], sizeof(fun_event.args[1]), "%04x", err_num);
-	mutex_lock(&nff_log_mutex);
-	ret = nff_log_event(&fun_event);
-	mutex_unlock(&nff_log_mutex);
-	return ret;
-}

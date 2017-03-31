@@ -1775,6 +1775,10 @@ static const struct mmc_bus_ops mmc_ops = {
 	.sleep = mmc_sleep,
 	.remove = mmc_remove,
 	.detect = mmc_detect,
+#ifdef CONFIG_MMC_PASSWORDS
+	.sysfs_add = NULL,
+	.sysfs_remove = NULL,
+#endif
 	.suspend = NULL,
 	.resume = NULL,
 	.power_restore = mmc_power_restore,
@@ -2123,10 +2127,11 @@ int dsm_emmc_get_log(void *card, int code, char *err_msg)
         printk(KERN_ERR "dj Err num: %d, %s\n",code, err_msg);
 		/*print card CID info*/
 		if(NULL != card_dev){
+			get_device(&card_dev->dev);
 			if(sizeof(struct mmc_cid) < buff_size){
 				ret = snprintf(dsm_log_buff,buff_size,
-					"Card's cid:%08x%08x%08x%08x\n\n", card_dev->raw_cid[0], card_dev->raw_cid[1],
-					card_dev->raw_cid[2], card_dev->raw_cid[3]);
+					"Card's cid:%08x%08x%08x%08x\nmanfid:0x%06x name:%s oemid: 0x%04x fwrev:0x%x hwrev:0x%x\n", card_dev->raw_cid[0], card_dev->raw_cid[1],
+					card_dev->raw_cid[2], card_dev->raw_cid[3], card_dev->cid.manfid, card_dev->cid.prod_name, card_dev->cid.oemid, card_dev->cid.fwrev, card_dev->cid.hwrev);
 				dsm_log_buff += ret;
 				buff_size -= ret;
 				pr_info("Card's cid:%08x%08x%08x%08x\n\n", card_dev->raw_cid[0], card_dev->raw_cid[1],
@@ -2175,6 +2180,7 @@ int dsm_emmc_get_log(void *card, int code, char *err_msg)
 				printk(KERN_ERR "%s:g_emmc_dsm_log Buff size is not enough\n", __FUNCTION__);
 				printk(KERN_ERR "%s:eMMC error message is: %s\n", __FUNCTION__, err_msg);
 			}
+			put_device(&card_dev->dev);
 		}
 		/*get size of used buffer*/
 		emmc_dsm_real_upload_size = sizeof(g_emmc_dsm_log.emmc_dsm_log) - buff_size;
@@ -2184,11 +2190,13 @@ int dsm_emmc_get_log(void *card, int code, char *err_msg)
 	}else{
 		printk("%s:Err num: %d, %s\n",__FUNCTION__, code, err_msg);
 		if(NULL != card_dev){
+			get_device(&card_dev->dev);
 			pr_info("Card's cid:%08x%08x%08x%08x\n\n", card_dev->raw_cid[0], card_dev->raw_cid[1],
 				card_dev->raw_cid[2], card_dev->raw_cid[3]);
 			pr_info("Card's ios.clock:%uHz, ios.old_rate:%uHz, ios.power_mode:%u, ios.timing:%u, ios.bus_mode:%u, ios.bus_width:%u\n",
 					card_dev->host->ios.clock, card_dev->host->ios.old_rate, card_dev->host->ios.power_mode, card_dev->host->ios.timing,
 					card_dev->host->ios.bus_mode, card_dev->host->ios.bus_width);
+			put_device(&card_dev->dev);
 		}
 	}
       printk(KERN_ERR "dj leave dsm_emmc_get_log\n");

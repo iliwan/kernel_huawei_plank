@@ -67,6 +67,10 @@ extern "C" {
 /* Error Log 上报定时器 */
 #define OM_ERRLOG_TIMER_LENTH               (5000)
 
+/* Send Log Tool MSG Type*/
+#define OM_ERRLOG_SEND_MSG                  (0x0000DDDD)
+#define OM_ERRLOG_RCV_MSG                   (0x0000EEEE)
+#define OM_APP_ERRLOG_HOOK_IND              (0xBBFF)
 /*****************************************************************************
   3 枚举定义
 *****************************************************************************/
@@ -382,6 +386,18 @@ typedef struct
     OM_ERR_LOG_MOUDLE_ID_ENUM_UINT32    enProjectModule;   /* 设备号 */
     pFuncOMGetData                      pSendUlAtFunc;     /* 各组件注册 接收数据函数 */  
 }OM_REGISTER_PROJECT_CTX_STRU;
+typedef struct
+{
+    VOS_UINT8           ucFuncType;
+    VOS_UINT8           ucCpuId;
+    VOS_UINT16          usLength;
+    VOS_UINT32          ulSn;           /*Sequence Number for Trace, Event, OTA msg.*/
+    VOS_UINT32          ulTimeStamp;    /*CPU time coming from ARM.*/
+    VOS_UINT16          usPrimId;
+    VOS_UINT16          usToolId;
+    VOS_UINT32          ulDateType;
+    VOS_UINT8           aucValue[4];
+}OM_ERRLOG_TRANS_MSG_STRU;
 
 /*****************************************************************************
   8 UNION定义

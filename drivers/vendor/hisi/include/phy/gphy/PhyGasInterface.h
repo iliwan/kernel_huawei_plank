@@ -494,7 +494,7 @@ typedef struct
     VOS_UINT16                              usTimeAlignment;                    /* 新小区和原来小区之间的QNOFFSET差，模5000 */
     VOS_UINT32                              ulFnOffset;                         /* 新小区和原来小区之间的FN差，模2715648*/
     VOS_UINT16                              usBSIC;
-    VOS_UINT16                              usRsv;                              /* 四字节对齐 */
+    GAS_PHY_MODE_ENUM_UINT16                enResel2GsmRatType;                 /* 重选到GSM的接入模式类型，CCO使用，重选流程不使用 */
 } MPH_CELL_RESELECT_REQ_STRU;
 
 
@@ -860,8 +860,14 @@ typedef struct
     VOS_UINT16                              usRTDValid;
     VOS_UINT16                              usRTD;
     GAS_PHY_SYNC_VALID_TYPE_ENUM_UINT16     usSyncValid;
+    GAS_PHY_MODE_ENUM_UINT16                enHo2GsmRatType;                    /* HO到GSM的接入模式类型 */
+	VOS_UINT16                              usRsv;
+	
     AMR_CONFIG_STRU                         stAMR_CONFIG;
 } MPH_HO_REQ_STRU;
+
+
+
 typedef struct
 {
     VOS_MSG_HEADER                                                              /* _H2ASN_Skip */ /* 消息头 */

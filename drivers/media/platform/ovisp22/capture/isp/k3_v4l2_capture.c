@@ -71,9 +71,9 @@
 
 #include "video_config.h"
 #include "video_reg_ops.h"
-
+#include "k3_isp.h"
 #if defined (CONFIG_HUAWEI_DSM)
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #endif
 
 #define CAM_DEF_WIDTH   640
@@ -86,19 +86,19 @@
 /* Camera control struct data */
 static v4l2_ctl_struct v4l2_ctl;
 camera_frame_buf *isp_rsv_frame[STATE_MAX];
-
-
+extern k3_isp_data isp_data;
 static int video_nr = -1;
 #ifdef READ_BACK_RAW
 static u8 buf_used = 0;
 
 #endif
 #ifdef CONFIG_DEBUG_FS
+#ifdef CAM_DEBUG_NODE
 static struct dentry *debugfs_camera_dir;
 static struct dentry *debugfs_isp_reg;
 static struct dentry *debugfs_sensor_reg;//sensor reg read/write interface
 #endif
-
+#endif
 #define SAFE_GET_DRVDATA(cam, fh) \
 		do { \
 			if ((fh) == NULL) { \
@@ -232,13 +232,13 @@ static inline void k3_register_buffer(camera_frame_buf *a,
 		return;
 	}
 	print_info("%s, frame ion_handle=%p", __func__, a->ion_handle);
-	
+
 	iommu_format.is_tile = 0;
 	if (0 != ion_map_iommu(ion_client,a->ion_handle,&iommu_format)){
 		print_error("%s: viraddr null, ion_map_kernel fail.", __func__);
 	}
 	a->phyaddr = iommu_format.iova_start;
-	
+
 	a->viraddr = ion_map_kernel(ion_client, a->ion_handle);
 	if(NULL == a->viraddr) {
 		print_error("%s: viraddr null, ion_map_kernel fail.", __func__);
@@ -332,6 +332,10 @@ static int k3_v4l2_ioctl_s_fmt_capture(struct file *file, void *fh,
 	CHECK_STATE(STATE_CAPTURE);
 	CHECK_STATE(STATE_IPP);
 
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 
     /* if ZSL state is off */
 	if (CAMERA_ZSL_ON != k3_isp_get_zsl_state()){
@@ -383,6 +387,10 @@ static int k3_v4l2_ioctl_s_fmt_preview(struct file *file, void *fh,
 
 	print_debug("enter %s", __func__);
     print_info("%s:preview_fmt->fmt.pix.width=%d,preview_fmt->fmt.pix.height=%d",__func__,fmt->fmt.pix.width,fmt->fmt.pix.height);
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 
 	SAFE_GET_DRVDATA(cam, fh);
 
@@ -636,6 +644,11 @@ static int k3_v4l2_ioctl_g_ctrl(struct file *file, void *fh,
 
 	case V4L2_CID_MAX_FOCUS_AREA:
 		{
+            if (NULL == cam->sensor) {
+                print_error("%s,sensor is null",__func__);
+                a->value = 0;
+                break;
+            }
 			if (CAMERA_USE_SENSORISP == cam->sensor->isp_location || NULL == cam->sensor->vcm) {
 				/* front camera do not support touch point focus */
 				a->value = 0;
@@ -647,6 +660,12 @@ static int k3_v4l2_ioctl_g_ctrl(struct file *file, void *fh,
 
 	case V4L2_CID_MAX_METERING_AREA:
 		{
+            if (NULL == cam->sensor) {
+                print_error("%s,sensor is null",__func__);
+                a->value = 0;
+                break;
+            }
+
 			if (CAMERA_USE_SENSORISP == cam->sensor->isp_location) {
 				/* front camera do not support metering */
 				a->value = 0;
@@ -767,6 +786,12 @@ static int k3_v4l2_ioctl_g_ctrl(struct file *file, void *fh,
 	case V4L2_CID_GET_EQUIV_FOCUS:
 		{
 			a->value = k3_isp_get_equivalent_focus();
+			break;
+		}
+
+	case V4L2_CID_GET_AEC_STATE:
+		{
+			a->value = k3_isp_get_aec_state();
 			break;
 		}
 
@@ -1119,6 +1144,32 @@ static int k3_v4l2_ioctl_s_ctrl(struct file *file, void *fh,
 			break;
 		}
     /* end */
+	case  V4L2_CID_SET_B_SHUTTER_MODE:
+		{
+			k3_isp_set_b_shutter_mode(v4l2_param->value);
+			break;
+		}
+
+	case V4L2_CID_SET_PRO_MANUAL_ISO:
+		{
+
+			k3_isp_set_pro_mamual_iso(v4l2_param->value);
+			break;
+		}
+
+	case V4L2_CID_SET_PRO_MANUAL_EXPO:
+		{
+
+			k3_isp_set_pro_mamual_expo(v4l2_param->value);
+			break;
+		}
+
+	case V4L2_CID_SET_PRO_MODE:
+		{
+			k3_isp_set_pro_mode(v4l2_param->value);
+			break;
+		}
+
 	default:
 	    print_info("warning:unknown CID,v4l2_param->id=%d", v4l2_param->id);
 		break;
@@ -1189,6 +1240,10 @@ static long k3_v4l2_ioctl_g_caps(struct file *file, void *fh, bool private,
 
 	for (i = 0; i < ext_ctls->count; ++i) {
 		controls[i].value = 0;   /* [false alarm]:controls[i]²»»áÎªNULL  */
+         if (NULL == cam->sensor){
+            print_error("%s (%d) sensor is null", __func__, __LINE__);
+            goto out;
+        }
 
 		if(cam->sensor->isp_location == CAMERA_USE_K3ISP ||
 			V4L2_CID_ZOOM_RELATIVE == controls[i].id)
@@ -1344,6 +1399,31 @@ static int k3_v4l2_ioctl_g_ext_ctrls(struct file *file, void *fh,
             if(copy_to_user(rect, data_buf, sizeof(crop_rect_s))){
                 print_error("V4L2_CID_GET_YUV_CROP_RECT mem error! %s", __FUNCTION__);
             }
+			break;
+		}
+
+		case V4L2_CID_GET_PRO_AE_STATS:
+		{
+			void __user *aeStats_usr = controls[cid_idx].string;
+
+	            if (NULL == aeStats_usr)
+	            {
+	            	ret = -EFAULT;
+	            	print_error("NULL aeStats_usr");
+	            	goto out;
+	            }
+	            data_buf = kmalloc(sizeof(ae_stats), GFP_KERNEL);
+	            if (!data_buf) {
+	            	ret = -ENOMEM;
+	            	print_error("fail to allocate buffer");
+	            	goto out;
+	            }
+			k3_isp_get_ae_stats((ae_stats*)data_buf);
+
+	          if(copy_to_user(aeStats_usr, data_buf, sizeof(ae_stats))){
+	                print_error("V4L2_CID_GET_PRO_AE_STATS mem error! %s", __FUNCTION__);
+	            }
+
 			break;
 		}
 
@@ -1605,12 +1685,91 @@ static int k3_v4l2_ioctl_s_ext_ctrls(struct file *file, void *fh,
 		case  V4L2_CID_SET_HW_3A_PARAM:
 		{
 			hw_3a_param *ae_result =  (hw_3a_param*)(controls[cid_idx].string);
-			func_ret = ispv1_set_hw_3a_param(ae_result);
+
+			data_buf = kmalloc(sizeof(hw_3a_param), GFP_KERNEL);
+			if (!data_buf) {
+				ret = -ENOMEM;
+				print_error("fail to allocate buffer");
+				goto end;
+			}
+
+			if(copy_from_user(data_buf, ae_result, sizeof(hw_3a_param))){
+                print_error("set V4L2_CID_SET_HW_3A_PARAM mem error! %s", __FUNCTION__);
+            }
+
+			func_ret = ispv1_set_hw_3a_param((hw_3a_param *)data_buf);
+            if (func_ret != 0) {
+                ret = -EINVAL;
+            }
+
+            if(NULL != data_buf){
+                kfree(data_buf);
+                data_buf = NULL;
+            }
+			break;
+		}
+
+		case V4L2_CID_SET_B_SHUTTER_LONG_AE:
+		{
+			data_buf = kmalloc(sizeof(b_shutter_ae_iso_s), GFP_KERNEL);
+			if (!data_buf) {
+				ret = -ENOMEM;
+				print_error("%s %s V4L2_CID_SET_B_SHUTTER_LONG_AE fail to allocate buffer", BSHUTTER_LOG_TAG, __func__);
+				goto end;
+			}
+
+            if(copy_from_user(data_buf, (void __user *)controls[cid_idx].string, sizeof(b_shutter_ae_iso_s))){
+                print_error("%s %s V4L2_CID_SET_B_SHUTTER_LONG_AE", BSHUTTER_LOG_TAG, __FUNCTION__);
+				goto end;
+            }
+
+			func_ret = k3_isp_set_b_shutter_long_ae((b_shutter_ae_iso_s*)data_buf);
 			if (func_ret != 0) {
 				ret = -EINVAL;
 			}
 			break;
 		}
+
+		case V4L2_CID_SET_B_SHUTTER_HDR_AE:
+		{
+			data_buf = kmalloc(sizeof(b_shutter_hdr_aeciso_s), GFP_KERNEL);
+			if (!data_buf) {
+				ret = -ENOMEM;
+				print_error("%s %s V4L2_CID_SET_B_SHUTTER_HDR_AE fail to allocate buffer", BSHUTTER_LOG_TAG, __func__);
+				goto end;
+			}
+            if(copy_from_user(data_buf, (void __user *)controls[cid_idx].string, sizeof(b_shutter_hdr_aeciso_s))){
+                print_error("%s %s V4L2_CID_SET_B_SHUTTER_HDR_AE", BSHUTTER_LOG_TAG, __FUNCTION__);
+				goto end;
+            }
+
+			func_ret = k3_isp_set_b_shutter_hdr_ae((b_shutter_hdr_aeciso_s*)data_buf);
+			if (func_ret != 0) {
+				ret = -EINVAL;
+			}
+			break;
+		}
+
+		case V4L2_CID_SET_B_SHUTTER_ECGC:
+		{
+			data_buf = kmalloc(sizeof(b_shutter_ae_iso_s), GFP_KERNEL);
+			if (!data_buf){
+				ret = -ENOMEM;
+				print_error("%s %s V4L2_CID_SET_B_SHUTTER_ECGC fail to allocate buffer", BSHUTTER_LOG_TAG, __func__);
+				goto end;
+			}
+            if(copy_from_user(data_buf, (void __user *)controls[cid_idx].string, sizeof(b_shutter_ae_iso_s))){
+                print_error("%s %s V4L2_CID_SET_B_SHUTTER_ECGC", BSHUTTER_LOG_TAG, __FUNCTION__);
+				goto end;
+            }
+
+			func_ret = k3_isp_set_b_shutter_ecgc((b_shutter_ae_iso_s*)data_buf);
+			if (func_ret != 0) {
+				ret = -EINVAL;
+			}
+			break;
+		}
+
 		default:
 			print_error("%s, id=%#x, value=%#x", __func__,
 					controls[cid_idx].id, controls[cid_idx].value);
@@ -1754,7 +1913,9 @@ static int k3_v4l2_ioctl_dqbuf(struct file *file, void *fh,
 	unsigned long lock_flags;
 	camera_state state;
 	signed long         wait_time;
-
+#if defined (CONFIG_HUAWEI_DSM)
+	static unsigned int err_cnt = 0;
+#endif
 	SAFE_GET_DRVDATA(cam, fh);
 	/*print_debug("enter %s, cam 0x%x", __func__, (u32)cam); */
 
@@ -1777,6 +1938,20 @@ static int k3_v4l2_ioctl_dqbuf(struct file *file, void *fh,
         }
 	}
 
+	if(CAMERA_B_SHUTTER_MODE_ON == isp_data.b_shutter_state)//this is just used to b_shutter_algo capture, nees to >=max(3s b_shutter_algo, 5s timeout),now 6s
+	{
+		wait_time = 3 * ((long)(cam->dqbuf_irq_timeout) * HZ);
+		if(STATE_CAPTURE == state){
+			print_info("%s %s wait_event_interruptible_timeout=%d",BSHUTTER_LOG_TAG,__func__,wait_time);
+		}
+	}
+
+	if(PRO_MODE_ON == isp_data.pro_mode)
+	{
+		wait_time = 10 * ((long)(cam->dqbuf_irq_timeout) * HZ);
+	}
+
+
     print_debug("wait_event_interruptible_timeout: %d",wait_time);
     /*lint -e666*/
     if (!wait_event_interruptible_timeout(cam->data_queue.queue[state],
@@ -1792,6 +1967,19 @@ static int k3_v4l2_ioctl_dqbuf(struct file *file, void *fh,
 
             print_info("state:%d dequeue buffer time out <done_q(%d)>, but queue not empty.",
                     state, list_empty(&cam->data_queue.done_q[state]));
+#if defined (CONFIG_HUAWEI_DSM)
+	if( STATE_PREVIEW== state){
+	 err_cnt++;
+	   if(err_cnt > 2){
+	       if (!dsm_client_ocuppy(client_ovisp22)){
+	            dsm_client_record(client_ovisp22,"state:%d dequeue buffer time out <done_q(%d)>, but queue not empty.",
+	                 state, list_empty(&cam->data_queue.done_q[state]));
+	            dsm_client_notify(client_ovisp22, DSM_ISP22_DQBUF_TIMEOUT_ERROR_NO);
+	       }
+	     }
+	}
+#endif
+
         } else {
 	     if((cam->sensor !=NULL) &&(cam->sensor->sensor_dump_reg != NULL)){
 		        cam->sensor->sensor_dump_reg();
@@ -1801,6 +1989,18 @@ static int k3_v4l2_ioctl_dqbuf(struct file *file, void *fh,
             dump_isp_mac_size_reg();
             print_error("state:%d dequeue buffer time out <done_q(%d)>",
                     state, list_empty(&cam->data_queue.done_q[state]));
+
+#if defined (CONFIG_HUAWEI_DSM)
+	  if( STATE_PREVIEW== state){
+	      err_cnt++;
+		if(err_cnt > 2){
+			if (!dsm_client_ocuppy(client_ovisp22)){
+			dsm_client_record(client_ovisp22,"state:%d dequeue buffer time out <done_q(%d)>",state, list_empty(&cam->data_queue.done_q[state]));
+			dsm_client_notify(client_ovisp22, DSM_ISP22_DQBUF_TIMEOUT_ERROR_NO);
+			}
+		}
+	}
+#endif
             ret = -ETIME;
             goto out;
         }
@@ -1809,6 +2009,11 @@ static int k3_v4l2_ioctl_dqbuf(struct file *file, void *fh,
         ret = -ERESTARTSYS;
         goto out;
     }
+#if defined (CONFIG_HUAWEI_DSM)
+    else{
+        err_cnt =0;
+   }
+#endif
 
 	#ifndef CONFIG_ARM64
 	trace_dot(CAM, "14", 0);
@@ -1877,6 +2082,10 @@ static int k3_v4l2_ioctl_streamon(struct file *file, void *fh,
 	int ret = -EINVAL;
 	camera_state state;
 	v4l2_ctl_struct *cam = NULL;
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 
 	SAFE_GET_DRVDATA(cam, fh);
 
@@ -1942,6 +2151,10 @@ static int k3_v4l2_ioctl_streamoff(struct file *file, void *fh,
 	struct semaphore *lock;
 
 	print_info("enter %s", __func__);
+	if (NULL == isp_data.sensor)
+	{
+		return -ENODEV;
+	}
 
 	SAFE_GET_DRVDATA(cam, fh);
 
@@ -2088,6 +2301,12 @@ static int k3_v4l2_ioctl_s_param(struct file *file, void *fh,
 	cam->frame_rate = a->parm.capture.timeperframe;
 
 	sensor = cam->sensor;
+
+    if (NULL == cam->sensor){
+        print_error("%s (%d) sensor is null", __func__, __LINE__);
+        return  -ENODEV;
+    }
+
 	if (sensor->effect != NULL) {
 		u32 *this_fps = sensor->effect->ae_param.fps;
 		max_fps = this_fps[0];
@@ -2465,7 +2684,7 @@ static int k3_v4l2_open(struct file *file)
 	int ret = 0;
 	struct video_device *dev = video_devdata(file);
 	v4l2_ctl_struct *cam = NULL;
-	struct ion_device *ion_dev;
+	struct ion_device *ion_dev = NULL;
 
     #ifndef CONFIG_ARM64
     trace_dot(CAM, "1", 0);
@@ -3125,6 +3344,7 @@ static struct platform_driver k3_v4l2_driver = {
 		   },
 };
 #ifdef CONFIG_DEBUG_FS
+#ifdef CAM_DEBUG_NODE
 static int isp_reg_debug_open(struct inode *inode, struct file *file)
 {
 	file->private_data = inode->i_private;
@@ -3142,6 +3362,7 @@ static ssize_t isp_reg_debug_write(struct file *filp,
     mm_segment_t fs;
     int i;
     char buf[32]={0};
+
 
 	dfilp = filp_open("/data/ispregs", O_CREAT|O_WRONLY, 0666);
 	if (IS_ERR_OR_NULL(dfilp)) {
@@ -3189,6 +3410,7 @@ static const struct file_operations debugfs_isp_reg_fops = {
 	.write = isp_reg_debug_write,
 	//.read = isp_reg_debug_read,
 };
+#endif
 
 static struct proc_dir_entry *camera_dir = NULL;//camera dir in proc
 static struct proc_dir_entry *otp_entry = NULL; //sensor_otp entry
@@ -3248,6 +3470,7 @@ static const struct file_operations sensor_otp_proc_fops = {
 	.release    = single_release,
 };
 
+#ifdef CAM_DEBUG_NODE
 //reg to be read
 static int regRead;
 
@@ -3348,6 +3571,7 @@ static const struct file_operations debugfs_sensor_reg_fops = {
 	.read = sensor_reg_debug_read,
 };
 
+#endif
 #endif
 
 #if 0
@@ -3450,6 +3674,7 @@ int camera_init(void)
 	}
 
 #ifdef CONFIG_DEBUG_FS
+#ifdef CAM_DEBUG_NODE
 	debugfs_camera_dir = debugfs_create_dir("camera", NULL);
 	debugfs_isp_reg = debugfs_create_file("isp_reg",
 											S_IFREG |S_IWUSR|S_IWGRP,
@@ -3458,6 +3683,7 @@ int camera_init(void)
 											&debugfs_isp_reg_fops);
 	debugfs_sensor_reg =  debugfs_create_file("sensor_reg", 0664, debugfs_camera_dir,
 										 NULL, &debugfs_sensor_reg_fops);
+#endif
 #endif
 
 	camera_dir = proc_mkdir("camera", NULL);//create proc/camera dir
@@ -3498,9 +3724,11 @@ void camera_exit(void)
 	}
 
 #ifdef CONFIG_DEBUG_FS
+#ifdef CAM_DEBUG_NODE
 	if (NULL != debugfs_camera_dir) {
 		debugfs_remove(debugfs_camera_dir);
 	}
+#endif
 #endif
 	remove_proc_entry("sensor_otp", camera_dir);
 	remove_proc_entry("camera", NULL);

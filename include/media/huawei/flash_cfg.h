@@ -21,6 +21,7 @@ typedef enum {
 	TORCH_MODE,
 	TORCH_LEFT_MODE,
 	TORCH_RIGHT_MODE,
+	TORCH_VIDEO_MODE,
 	MAX_MODE,
 } flash_mode;
 

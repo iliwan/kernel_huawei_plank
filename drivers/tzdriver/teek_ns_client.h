@@ -121,6 +121,7 @@ typedef struct tag_TC_NS_SMC_CMD{
     unsigned int    login_method;
     unsigned int    login_data;
     unsigned int    err_origin;
+    unsigned int    uid;
     bool    started;
 } TC_NS_SMC_CMD;
 
@@ -162,7 +163,7 @@ TC_NS_Session *tc_find_session(struct list_head *session_list,
 
 
 int TC_NS_ClientOpen(TC_NS_DEV_File **dev_file, uint8_t kernel_api);
-int TC_NS_ClientClose(TC_NS_DEV_File *dev);
+int TC_NS_ClientClose(TC_NS_DEV_File *dev, int flag);
 int is_agent_alive(unsigned int agent_id);
 
 int TC_NS_OpenSession(TC_NS_DEV_File *dev_file, TC_NS_ClientContext

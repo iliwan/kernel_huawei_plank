@@ -116,6 +116,8 @@ extern u8* balongfd_reg_base_ade;
 extern u8* balongfd_reg_base_dsi0;
 //extern u32 g_smmu_flag;
 
+extern u32 not_use_scharger;
+
 
 /* ADE */
 #define ADE_CH_SECU_LINE	11
@@ -426,6 +428,9 @@ struct balong_fb_data_type {
     u32 lcd_readvalue;
     u32 lcd_inversion_mode;
 
+    /*for scan */
+    u32 lcd_scan_mode;
+
     /* for frc */
     s32 frc_state;
     s32 frc_threshold_count;
@@ -507,6 +512,8 @@ extern char g_lcd_name_buf[100];
 #define VSYNC_CTRL_EXPIRE_COUNT    (4)
 
 extern u32 three_lane_flag;
+/* Define a flag for adjusting of color temperature. */
+extern u32 colortemp_adjust_flag;
 
 /******************************************************************************
  ** FUNCTIONS PROTOTYPES

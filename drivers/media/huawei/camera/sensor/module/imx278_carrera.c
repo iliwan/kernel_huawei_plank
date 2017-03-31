@@ -43,22 +43,6 @@ struct sensor_power_setting hw_imx278_carrera_power_setting[] = {
         .sensor_index = SENSOR_INDEX_INVALID,
         .delay = 1,
     },
-    //SCAM AVDD 2.85V
-    {
-        .seq_type = SENSOR_AVDD2,
-        .data = (void*)"slave-sensor-avdd",
-        .config_val = LDO_VOLTAGE_V2P85V,
-        .sensor_index = SENSOR_INDEX_INVALID,
-        .delay = 0,
-    },
-
-    //SCAM DVDD1.2V
-    {
-        .seq_type = SENSOR_DVDD2,
-        .config_val = LDO_VOLTAGE_1P2V,
-        .sensor_index = SENSOR_INDEX_INVALID,
-        .delay = 0,
-    },
 
     //MCAM1 AFVDD 2.85V
     {
@@ -248,7 +232,11 @@ static ssize_t imx278_carrera_powerctrl_show(struct device *dev,
 static ssize_t imx278_carrera_powerctrl_store(struct device *dev,
     struct device_attribute *attr, const char *buf, size_t count)
 {
-    int state = simple_strtol(buf, NULL, 10);
+#ifndef DEBUG_HISI_CAMERA
+    return count;
+#else
+    int state  = 0;
+    state = simple_strtol(buf, NULL, 10);
     cam_info("enter %s, state %d", __func__, state);
 
     if (state == POWER_ON)
@@ -257,6 +245,7 @@ static ssize_t imx278_carrera_powerctrl_store(struct device *dev,
         imx278_carrera_power_down(&s_imx278_carrera.intf);
 
     return count;
+#endif
 }
 
 
@@ -326,14 +315,14 @@ int
         case SEN_CONFIG_READ_REG_SETTINGS:
         break;
         case SEN_CONFIG_ENABLE_CSI:
-            if(!csi_enable)
+            if(imx278_carrera_power_on && !csi_enable)
             {
                 ret = si->vtbl->csi_enable(si);
                 csi_enable = true;
             }
         break;
         case SEN_CONFIG_DISABLE_CSI:
-            if(csi_enable)
+            if(imx278_carrera_power_on && csi_enable)
             {
                 ret = si->vtbl->csi_disable(si);
                 csi_enable = false;

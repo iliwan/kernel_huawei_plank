@@ -13,6 +13,7 @@
 #include <linux/hisi/reset.h>
 #ifdef CONFIG_ARCH_HI6XXX
 #include "soc_baseaddr_interface.h"
+#include "../mntn/reset_sub_hifi.h"
 #endif
 
 #define ERR_CODE_NR	7
@@ -41,6 +42,11 @@ static char *opc[] = {
 };
 
 static enoc_init_type s_noc_err_init_type = NOC_INIT_NONE;
+
+/* save memory when hifi NOC */
+#ifdef CONFIG_HISI_NOC_HI6220_PLATFORM
+extern sreset_mgr_assistant_hifi  g_reset_assistant_hifi;
+#endif
 
 /*offset of ADE regs*/
 static const int s_ade_regs_offset[] =
@@ -117,10 +123,6 @@ static void print_errlog0(unsigned int val)
 	else
 		pr_err("\t[opc=%d] out of range!\n",idx);
 }
-
-extern void iom3_noc_handler(void);
-extern void iom3_noc_set_nmi(void);
-
 /*输出输出base+0x18的值的含义*/
 static unsigned int print_errlog1(unsigned int val, unsigned int idx)
 {
@@ -155,12 +157,8 @@ static unsigned int print_errlog1(unsigned int val, unsigned int idx)
 
 	shift = ffs(noc_bus->targ_subrange_mask) - 1;
 	targetsubrange = (val & (noc_bus->targ_subrange_mask)) >> shift;
-   	pr_err("\t[target_subrange]: %d\n", targetsubrange);
+	pr_err("\t[target_subrange]: %d\n", targetsubrange);
 
-	if((9 == initflow)||(10 == initflow)){
-		noc_set_iom3_nmi();
-		iom3_noc_handler();
-	}
     return noc_find_addr_from_routeid(idx, initflow, targetflow, targetsubrange);
 
 }
@@ -554,12 +552,8 @@ void hi6220_noc_err_probe_hanlder(void __iomem *base)
             Reset after C starts running again.*/
             break;
         case NOC_INIT_HIFI:
-            /*runstall hifi*/
-            do_hifi_runstall();
-            /*don't reset system now if it is hifi that triger this noc irq,
-            for saving hifi log.
-            Reset after hifi starts running again.*/
-            systemError((int)BSP_MODU_MNTN, EXCH_S_NOC, 0, base, SZ_128);
+            /* save memory when hifi NOC */
+            up(&(g_reset_assistant_hifi.sem_wait_hifisave));
             break;
         case NOC_INIT_MEDIA:
             /*don't reset system if media noc, for printking logs*/

@@ -979,7 +979,74 @@ VOS_VOID OM_DspTypeInd(VOS_UINT8 ucModemId,VOS_UINT32 ulPhyMode, VOS_UINT16 usRe
     return ;
 }
 
+VOS_UINT32 OM_QueryPaTempByPhyChan(APP_OM_MSG_EX_STRU *pstAppToOmMsg,
+                                           VOS_UINT16 usReturnPrimId)
+{
+    OM_APP_MSG_EX_STRU              *pstOmToAppMsg;
+    VOS_UINT32                       ulTotalSize;
+    VOS_UINT16                      *pusData;
+    OM_APP_PA_ATTRIBUTE_STRU        *pstPaAttribute;
+    VOS_UINT16                       usChannelNo = 0;
+    VOS_UINT32                       ulIndex;
+    VOS_UINT32                       ulNum;
+    VOS_INT16                        sTempValue = 0;
+    VOS_INT                          lStatus = 0;
+    VOS_INT32                        lResult = VOS_OK;
+    VOS_UINT32                       ulResult;
 
+    /*指向查询类型数组的指针*/
+    pusData = (VOS_UINT16*)(pstAppToOmMsg->aucPara);
+    /*得到所有查询类型所占的字节数*/
+    ulNum = pstAppToOmMsg->usLength - (OM_APP_MSG_EX_LEN - VOS_OM_HEADER_LEN);
+    /*获取查询类型的个数*/
+    ulNum = ulNum/sizeof(usChannelNo);
+    /*返回数据包的总长度，参见OM_APP_PA_ATTRIBUTE_STRU*/
+    ulTotalSize = (OM_APP_MSG_EX_LEN + sizeof(VOS_UINT32))
+                              + (ulNum*sizeof(OM_PA_ITEM_STRU));
+    pstOmToAppMsg = (OM_APP_MSG_EX_STRU*)VOS_MemAlloc(WUEPS_PID_OM,
+                                          DYNAMIC_MEM_PT, ulTotalSize);
+    if (VOS_NULL_PTR == pstOmToAppMsg)
+    {
+        OM_SendResult(pstAppToOmMsg->ucFuncType, VOS_ERR, usReturnPrimId);
+        PS_LOG(WUEPS_PID_OM, 0, PS_PRINT_WARNING, "OM_QueryPaTempByPhyChan: VOS_MemAlloc.\n");
+        return  VOS_ERR;
+    }
+
+    pstPaAttribute = (OM_APP_PA_ATTRIBUTE_STRU*)(pstOmToAppMsg->aucPara);
+    usChannelNo = *pusData;
+
+    /*调用底软接口，获取PA属性*/
+    for (ulIndex = 0; ulIndex < ulNum; ulIndex++)
+    {
+        usChannelNo = *pusData;
+        lResult = drv_hkadc_get_phy_temp(usChannelNo, VOS_NULL_PTR, &sTempValue, HKADC_CONV_DELAY);
+        lStatus = sTempValue;
+        /*查询失败*/
+        if (VOS_OK != lResult)
+        {
+            /*Just for PcLint*/
+            ulResult = (VOS_UINT32)lResult;
+            ulResult <<= 16;
+            ulResult |= usChannelNo;
+            VOS_MemFree(WUEPS_PID_OM, pstOmToAppMsg);
+            OM_SendResult(pstAppToOmMsg->ucFuncType, ulResult, usReturnPrimId);
+            PS_LOG1(WUEPS_PID_OM, 0, PS_PRINT_ERROR,
+                      "OM_QueryPaTempByPhyChan:Failed type.\n", (VOS_INT32)ulResult);
+            return VOS_ERR;
+        }
+        /*填写查询的结果*/
+        pstPaAttribute->aPaItem[ulIndex].usQueryType  = usChannelNo;
+        pstPaAttribute->aPaItem[ulIndex].sQueryResult = (VOS_INT16)lStatus;
+        pusData++;
+    }
+    /*Assign the length field.*/
+    pstOmToAppMsg->usLength = (VOS_UINT16)(ulTotalSize - VOS_OM_HEADER_LEN);
+    pstPaAttribute->ulResult = VOS_OK;
+
+    OM_SendContent(pstAppToOmMsg->ucFuncType, pstOmToAppMsg, usReturnPrimId);
+    VOS_MemFree(WUEPS_PID_OM, pstOmToAppMsg);
+    return VOS_OK;
+}
 VOS_UINT32 OM_QueryPA(APP_OM_MSG_EX_STRU *pstAppToOmMsg,
                                            VOS_UINT16 usReturnPrimId)
 {
@@ -1797,6 +1864,7 @@ OM_MSG_FUN_STRU g_astOmMsgFunTbl[] =
     {OM_QueryModemNumReq,          APP_OM_QUERY_MODEM_NUM_REQ,        OM_APP_QUERY_MODEM_NUM_CNF},
     {OM_WriteFileReq,              APP_OM_WRITE_NV_LOG_FILE_REQ,      OM_APP_WRITE_NV_LOG_FILE_CNF},
     {OM_QuerySliceReq,             APP_OM_QUERY_SLICE_REQ,            OM_APP_QUERY_SLICE_CNF},
+    {OM_QueryPaTempByPhyChan,      APP_OM_PA_TEMP_PHY_CHAN_REQ,       OM_APP_PA_TEMP_PHY_CHAN_IND},
 };
 VOS_VOID OM_QueryMsgProc(OM_REQ_PACKET_STRU *pRspPacket, OM_RSP_FUNC *pRspFuncPtr)
 {
@@ -2797,7 +2865,74 @@ VOS_VOID OM_DspTypeInd(VOS_UINT8 ucModemId,VOS_UINT32 ulPhyMode, VOS_UINT16 usRe
     return ;
 }
 
+VOS_UINT32 OM_QueryPaTempByPhyChan(APP_OM_MSG_EX_STRU *pstAppToOmMsg,
+                                           VOS_UINT16 usReturnPrimId)
+{
+    OM_APP_MSG_EX_STRU              *pstOmToAppMsg;
+    VOS_UINT32                       ulTotalSize;
+    VOS_UINT16                      *pusData;
+    OM_APP_PA_ATTRIBUTE_STRU        *pstPaAttribute;
+    VOS_UINT16                       usChannelNo = 0;
+    VOS_UINT32                       ulIndex;
+    VOS_UINT32                       ulNum;
+    VOS_INT16                        sTempValue = 0;
+    VOS_INT                          lStatus = 0;
+    VOS_INT32                        lResult = VOS_OK;
+    VOS_UINT32                       ulResult;
 
+    /*指向查询类型数组的指针*/
+    pusData = (VOS_UINT16*)(pstAppToOmMsg->aucPara);
+    /*得到所有查询类型所占的字节数*/
+    ulNum = pstAppToOmMsg->usLength - (OM_APP_MSG_EX_LEN - VOS_OM_HEADER_LEN);
+    /*获取查询类型的个数*/
+    ulNum = ulNum/sizeof(usChannelNo);
+    /*返回数据包的总长度，参见OM_APP_PA_ATTRIBUTE_STRU*/
+    ulTotalSize = (OM_APP_MSG_EX_LEN + sizeof(VOS_UINT32))
+                              + (ulNum*sizeof(OM_PA_ITEM_STRU));
+    pstOmToAppMsg = (OM_APP_MSG_EX_STRU*)VOS_MemAlloc(WUEPS_PID_OM,
+                                          DYNAMIC_MEM_PT, ulTotalSize);
+    if (VOS_NULL_PTR == pstOmToAppMsg)
+    {
+        OM_SendResultChannel((OM_LOGIC_CHANNEL_ENUM_UINT32)pstAppToOmMsg->ucCpuId, pstAppToOmMsg->ucFuncType, (VOS_UINT32)VOS_ERR, usReturnPrimId);
+        PS_LOG(WUEPS_PID_OM, 0, PS_PRINT_WARNING, "OM_QueryPaTempByPhyChan: VOS_MemAlloc.\n");
+        return VOS_ERR;
+    }
+
+    pstPaAttribute = (OM_APP_PA_ATTRIBUTE_STRU*)(pstOmToAppMsg->aucPara);
+    usChannelNo = *pusData;
+
+    /*调用底软接口，获取PA属性*/
+    for (ulIndex = 0; ulIndex < ulNum; ulIndex++)
+    {
+        usChannelNo = *pusData;
+        lResult = drv_hkadc_get_phy_temp(usChannelNo, VOS_NULL_PTR, &sTempValue, HKADC_CONV_DELAY);
+        lStatus = sTempValue;
+        /*查询失败*/
+        if (VOS_OK != lResult)
+        {
+            /*Just for PcLint*/
+            ulResult = (VOS_UINT32)lResult;
+            ulResult <<= 16;
+            ulResult |= usChannelNo;
+            VOS_MemFree(WUEPS_PID_OM, pstOmToAppMsg);
+            OM_SendResultChannel((OM_LOGIC_CHANNEL_ENUM_UINT32)pstAppToOmMsg->ucCpuId, pstAppToOmMsg->ucFuncType, (VOS_UINT32)VOS_ERR, usReturnPrimId);
+            PS_LOG1(WUEPS_PID_OM, 0, PS_PRINT_ERROR,
+                      "OM_QueryPaTempByPhyChan:Failed type.\n", (VOS_INT32)ulResult);
+            return VOS_ERR;
+        }
+        /*填写查询的结果*/
+        pstPaAttribute->aPaItem[ulIndex].usQueryType  = usChannelNo;/* [false alarm]: 屏蔽Fortify错误 */
+        pstPaAttribute->aPaItem[ulIndex].sQueryResult = (VOS_INT16)lStatus;/* [false alarm]: 屏蔽Fortify错误 */
+        pusData++;
+    }
+    /*Assign the length field.*/
+    pstOmToAppMsg->usLength = (VOS_UINT16)(ulTotalSize - VOS_OM_HEADER_LEN);
+    pstPaAttribute->ulResult = VOS_OK;
+
+    OM_SendContentChannel((OM_LOGIC_CHANNEL_ENUM_UINT32)pstAppToOmMsg->ucCpuId, pstAppToOmMsg->ucFuncType, pstOmToAppMsg, usReturnPrimId);
+    VOS_MemFree(WUEPS_PID_OM, pstOmToAppMsg);
+    return VOS_OK;
+}
 VOS_UINT32 OM_QueryPA(APP_OM_MSG_EX_STRU *pstAppToOmMsg,
                                            VOS_UINT16 usReturnPrimId)
 {
@@ -2975,8 +3110,8 @@ VOS_UINT32 OM_QueryPA(APP_OM_MSG_EX_STRU *pstAppToOmMsg,
             return VOS_ERR;
         }
         /*填写查询的结果*/
-        pstPaAttribute->aPaItem[ulIndex].usQueryType  = usQueryType;
-        pstPaAttribute->aPaItem[ulIndex].sQueryResult = (VOS_INT16)lStatus;
+        pstPaAttribute->aPaItem[ulIndex].usQueryType  = usQueryType;/* [false alarm]: 屏蔽Fortify错误 */
+        pstPaAttribute->aPaItem[ulIndex].sQueryResult = (VOS_INT16)lStatus;/* [false alarm]: 屏蔽Fortify错误 */
         pusData++;
     }
     /*Assign the length field.*/
@@ -3022,7 +3157,7 @@ VOS_UINT32 OM_GetVersion(APP_OM_MSG_EX_STRU *pstAppToOmMsg,
     VOS_MemSet(&stFactoryVersion, 0, sizeof(OM_FACTORY_VER_STRU));
 
     /*获取软件版本信息*/
-    lResult = DRV_MEM_VERCTRL((VOS_INT8*)(stFactoryVersion.aucSoftwareVersion),
+    lResult = DRV_MEM_VERCTRL((VOS_CHAR*)(stFactoryVersion.aucSoftwareVersion),
                     OM_FACTORY_VER_LEN - 1, VER_SOFTWARE, VERIONREADMODE);
 
     /*对外部版本进行特殊处理*/
@@ -3040,11 +3175,11 @@ VOS_UINT32 OM_GetVersion(APP_OM_MSG_EX_STRU *pstAppToOmMsg,
         }
 
         /*硬件版本*/
-        DRV_MEM_VERCTRL((VOS_INT8*)(stFactoryVersion.aucHardwareVersion),
+        DRV_MEM_VERCTRL((VOS_CHAR*)(stFactoryVersion.aucHardwareVersion),
                 OM_FACTORY_VER_LEN - 1, VER_HARDWARE, VERIONREADMODE);
 
         /*获取产品信息*/
-        DRV_MEM_VERCTRL((VOS_INT8*)(stFactoryVersion.aucProductVersion),
+        DRV_MEM_VERCTRL((VOS_CHAR*)(stFactoryVersion.aucProductVersion),
                     OM_FACTORY_VER_LEN - 1, VER_PRODUCT_ID, VERIONREADMODE);
     }
     /*对内部版本进行特殊处理*/
@@ -3622,6 +3757,7 @@ OM_MSG_FUN_STRU g_astOmMsgFunTbl[] =
     {OM_CtrlAptReq,                APP_OM_CTRL_APT_REQ,               OM_APP_CTRL_APT_CNF},
     {OM_QueryModemNumReq,          APP_OM_QUERY_MODEM_NUM_REQ,        OM_APP_QUERY_MODEM_NUM_CNF},
     {OM_QuerySliceReq,             APP_OM_QUERY_SLICE_REQ,            OM_APP_QUERY_SLICE_CNF},
+    {OM_QueryPaTempByPhyChan,      APP_OM_PA_TEMP_PHY_CHAN_REQ,       OM_APP_PA_TEMP_PHY_CHAN_IND},
 };
 VOS_VOID OM_QueryMsgProc(OM_REQ_PACKET_STRU *pRspPacket, OM_RSP_FUNC *pRspFuncPtr)
 {

@@ -27,7 +27,7 @@
 #include <linux/mfd/hi6402_irq.h>
 #include <linux/hisi/hi6402_hifi_misc.h>
 #include <linux/irq.h>
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #ifndef NO_IRQ
 #define NO_IRQ 0
 #endif
@@ -47,6 +47,9 @@
 #define HI6402_REG_IRQM_3	(HI6402_IRQ_CFG_BASE_ADDR + 0x2C)
 
 #define HI6402_IRQ_PLL_UNLOCK_BIT	4
+
+#define PLL_NOTLOCK_REG_START	(HI6402_IRQ_CFG_BASE_ADDR + 0xA0)
+#define PLL_NOTLOCK_REG_END		(HI6402_IRQ_CFG_BASE_ADDR + 0xF8)
 
 #define HI6402_REG_IRQ_OFFSET		(24)
 
@@ -127,6 +130,8 @@
 #define HI6402_DSP_APB_CLK_INIT			(0x71)
 #define HI6402_CODEC_MAINPGA_SEL	(HI6402_IRQ_CFG_BASE_ADDR + 0x0AA)
 #define HI6402_CODEC_MAINPGA_SEL_BIT		(1)
+#define HI6402_CODEC_ADC0_MUX_SEL      (0x20007294)
+#define HI6402_CODEC_ADCL0_MAINMIC             (0)
 
 /* PLL */
 #define HI6402_ANA_REG47		(HI6402_IRQ_CFG_BASE_ADDR + 0x0D0)
@@ -738,12 +743,13 @@ static void hi6402_irq_autoclk_enable(struct hi6402_irq *irq, bool enable)
 	BUG_ON(NULL == irq);
 
 	if(enable) {
-		/* clr sc_mad_mic_bp only when mainpga selected mainmic. */
-		if(hi6402_irq_read(irq, HI6402_CODEC_MAINPGA_SEL) & (1<<HI6402_CODEC_MAINPGA_SEL_BIT)) {
-			/* mainpga selected hsmic. */
+		/* clr sc_mad_mic_bp only when soundtrigger use mainmic. */
+		if(hi6402_irq_read(irq, HI6402_CODEC_MAINPGA_SEL) & (1<<HI6402_CODEC_MAINPGA_SEL_BIT)
+                || (HI6402_CODEC_ADCL0_MAINMIC != (hi6402_irq_read(irq, HI6402_CODEC_ADC0_MUX_SEL) & 0x0f))) {
+			/* soundtrigger does not use mainmic */
 			hi6402_irq_write(irq, HI6402_SC_MAD_CTRL0, 0x4d);
 		} else {
-			/* mainpga selected mainmic. */
+			/* soundtrigger use mainmic. */
 			hi6402_irq_write(irq, HI6402_SC_MAD_CTRL0, 0x45);
 		}
 	} else {
@@ -1117,11 +1123,12 @@ extern struct dsm_client *dsm_audio_client;
 void hi6402_irq_set_pll_mode(struct hi6402_irq *irq)
 {
 	bool need_notify_dsp = false;
-	u32 irq_state = 0;
 	/* max pll start time */
 	unsigned int pll_lock_retry = 5;
 	/* max pll judge time */
 	unsigned int pll_lock_counter = 5;
+
+	unsigned int i = 0;
 
 	enum hi6402_pll_status pll_current_status;
 
@@ -1202,9 +1209,7 @@ void hi6402_irq_set_pll_mode(struct hi6402_irq *irq)
 				pr_info("%s : pll lock retry time is %d\n", __FUNCTION__, (5 - pll_lock_retry));
 				/* unmask pll unlock irq */
 				mutex_lock(&irq->irq_lock);
-				irq_state = hi6402_irq_read(irq,HI6402_REG_IRQ_2);
-				if(irq_state & (0x1 << HI6402_IRQ_PLL_UNLOCK_BIT))
-					hi6402_reg_set_bit(irq, HI6402_REG_IRQ_2, HI6402_IRQ_PLL_UNLOCK_BIT);
+				hi6402_irq_write(irq, HI6402_REG_IRQ_2, 1<<HI6402_IRQ_PLL_UNLOCK_BIT);
 				hi6402_reg_clr_bit(irq, HI6402_REG_IRQM_2, HI6402_IRQ_PLL_UNLOCK_BIT);
 				irq->mask2 &= 0xEF;
 				mutex_unlock(&irq->irq_lock);
@@ -1212,9 +1217,7 @@ void hi6402_irq_set_pll_mode(struct hi6402_irq *irq)
 				break;
 			}
 		} else {
-			irq_state = hi6402_irq_read(irq,HI6402_REG_IRQ_2);
-			if(irq_state & (0x1 << HI6402_IRQ_PLL_UNLOCK_BIT))
-				hi6402_reg_set_bit(irq, HI6402_REG_IRQ_2, HI6402_IRQ_PLL_UNLOCK_BIT);
+			hi6402_irq_write(irq, HI6402_REG_IRQ_2, 1<<HI6402_IRQ_PLL_UNLOCK_BIT);
 			break;
 		}
 
@@ -1226,6 +1229,9 @@ void hi6402_irq_set_pll_mode(struct hi6402_irq *irq)
 		if (!dsm_client_ocuppy(dsm_audio_client)) {
 			dsm_client_record(dsm_audio_client, "DSM_HI6402_PLL_CANNOT_LOCK\n");
 			dsm_client_notify(dsm_audio_client, DSM_HI6402_PLL_CANNOT_LOCK);
+		}
+		for (i = PLL_NOTLOCK_REG_START; i<= PLL_NOTLOCK_REG_END; i++) {
+			pr_err("%s(%u): %x is %x \n", __FUNCTION__, __LINE__, i, hi6402_irq_read(irq, i));
 		}
 		return;
 	}
@@ -2030,8 +2036,10 @@ static int hi6402_irq_probe(struct platform_device *pdev)
 		return 0;
 	}
 
+#ifdef ENABLE_HI6402_IRQ_DEBUG
 	if (!debugfs_create_file("rr", 0644, debug_dir, NULL, &hi6402_rr_fops))
 		pr_err("hi6402: Failed to create hi6402 rr debugfs file\n");
+#endif
 
 	/* register history */
 	if (!debugfs_create_file("rh", 0644, debug_dir, NULL, &hi6402_rh_fops))
@@ -2279,7 +2287,7 @@ static int hi6402_irq_resume(struct platform_device *pdev)
 	struct hi6402_irq *irq = dev_get_drvdata(dev);
 	int ret = 0;
 
-	bool dsp_running = false;
+    bool dsp_running = false;
 	BUG_ON(NULL == irq);
 
 	ret = codec_ssi_iomux_default(irq);

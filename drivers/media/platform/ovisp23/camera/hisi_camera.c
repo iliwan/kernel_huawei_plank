@@ -26,17 +26,18 @@
 #include <linux/iommu.h>
 #include <linux/platform_device.h>
 #include <linux/hisi/hisi-iommu.h>
+#include <media/v4l2-ioctl.h>
 #include <media/v4l2-fh.h>
 
 #include "hisi_camera.h"
 #include "../hisi_cam_module.h"
 #include "isp_ops.h"
 
-#include <linux/hisi/hi3xxx/global_ddr_map.h>
-
 u32 cam_debug_mask = CAM_DEBUG_EMERG|CAM_DEBUG_ALERT|CAM_DEBUG_CRIT| \
 									CAM_DEBUG_ERR|CAM_DEBUG_WARING | CAM_DEBUG_NOTICE;
 #define CAM_DEBUG_MASK_LENGTH    32
+
+extern bool camera_open;
 
 static ssize_t camera_debug_set_mask(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -81,7 +82,68 @@ static struct device_attribute camera_thermal_adjust_fps=
 static int camera_v4l2_g_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *arg)
 {
 	u32 cid_idx;
-	int ret							= 0;
+	int ret	= 0;
+    if (NULL == arg) {
+        cam_err("camera_v4l2_g_ext_ctrls arg is NULL");
+        return -EINVAL;
+    }
+
+	struct v4l2_ext_controls *ext_ctls	= arg;
+	struct v4l2_ext_control *controls	= NULL;
+	cam_debug("enter %s", __func__);
+
+	if (ext_ctls->ctrl_class != V4L2_CTRL_CLASS_CAMERA) {
+		cam_err("unsupported ctrl class!");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	controls = (struct v4l2_ext_control *) ext_ctls->controls;
+    if (NULL == controls) {
+        cam_err("camera_v4l2_g_ext_ctrls ext_ctls->controls is NULL");
+        return -EINVAL;
+    }
+
+	for (cid_idx = 0; cid_idx < ext_ctls->count; cid_idx++) {
+		switch (controls[cid_idx].id) {
+
+		case V4L2_CID_MEM_INFO:
+		{
+			controls[cid_idx].value = k3_get_isp_base_addr()>>4;
+			controls[cid_idx].size = k3_get_isp_mem_size();
+			break;
+		}
+
+		case V4L2_CID_MMU_INFO:
+		{
+			u32 ptba = 0, ptva = 0;
+			if (0 != hisi_iommu_get_info(&ptva,&ptba)){
+			    cam_err("ptba and ptva fail to get valid value");
+			    return;
+			}
+			controls[cid_idx].value = ptba;
+			controls[cid_idx].size = ptva;
+			break;
+		}
+
+		default:
+			break;
+		}
+	}
+out:
+	return ret;
+}
+
+static int camera_v4l2_s_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *arg)
+{
+	u32 cid_idx;
+	int ret	= 0;
+
+    if (NULL == arg) {
+        cam_err("camera_v4l2_s_ext_ctrls arg is NULL");
+        return -EINVAL;
+    }
+
 	struct v4l2_ext_controls *ext_ctls	= arg;
 	struct v4l2_ext_control *controls	= NULL;
 	cam_debug("enter %s", __func__);
@@ -94,21 +156,17 @@ static int camera_v4l2_g_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_
 
 	controls = (struct v4l2_ext_control *) ext_ctls->controls;
 
+    if (NULL == controls) {
+        cam_err("camera_v4l2_s_ext_ctrls ext_ctls->controls is NULL");
+        return -EINVAL;
+    }
+
 	for (cid_idx = 0; cid_idx < ext_ctls->count; cid_idx++) {
 		switch (controls[cid_idx].id) {
-
-		case V4L2_CID_MEM_INFO:
+		case V4L2_CID_FIX_DDR_FREQ:
 		{
-			controls[cid_idx].value = k3_get_isp_base_addr();
-			controls[cid_idx].size = k3_get_isp_mem_size();
-			break;
-		}
-
-		case V4L2_CID_MMU_INFO:
-		{
-			//controls[cid_idx].value = HISI_RESERVED_SMMU_PHYMEM_BASE;
-			//controls[cid_idx].value = HISI_IOMMU_PTABLE_ADDR;
-			hisi_iommu_get_info(&controls[cid_idx].size, &controls[cid_idx].value);
+			k3_isp_update_ddrfreq(DDR_BANDWITH(controls[cid_idx].value));
+			cam_debug("%s %d", __func__, controls[cid_idx].value);
 			break;
 		}
 
@@ -120,9 +178,9 @@ out:
 	return ret;
 }
 
-
 static const struct v4l2_ioctl_ops camera_v4l2_ioctl_ops = {
 	.vidioc_g_ext_ctrls = camera_v4l2_g_ext_ctrls,
+	.vidioc_s_ext_ctrls = camera_v4l2_s_ext_ctrls,
 };
 
 
@@ -144,9 +202,13 @@ static int camera_v4l2_open(struct file *filep)
 			return rc;
 		}
 
+		k3_isp_fix_ddrfreq(DDR_BANDWITH(DDR_BACK_FREQ));
+
 		rc = k3_isp_poweron();
 		if(rc) {
 			cam_err("%s failed to power on isp.\n", __func__);
+			k3_isp_release_ddrfreq();
+			k3_isp_deinit();
 			return rc;
 		}
 	} else {
@@ -154,6 +216,7 @@ static int camera_v4l2_open(struct file *filep)
 	}
 
 	atomic_add(1, &pvdev->opened);
+	camera_open = true;
 	return rc;
 }
 
@@ -177,6 +240,11 @@ ssize_t camera_v4l2_read(struct file *filp, char __user *buf, size_t size, loff_
 
 	k3_query_irq(&irq_buf);
 
+    if (size > sizeof(struct irq_reg_t)) {
+        cam_err("invalid size, limit it to irq_reg_t");
+        size = sizeof(struct irq_reg_t);
+    }
+
 	if (copy_to_user(buf, &irq_buf, size)) {
 		cam_err("failed to query irq info!");
 		return -EFAULT;
@@ -198,21 +266,18 @@ static int camera_v4l2_close(struct file *filep)
 
 	if (atomic_dec_and_test(&pvdev->opened)) {
 		rc = k3_isp_poweroff();
-		if (rc) {
+		if (rc)
 			cam_err("failed to poweroff isp!");
-			return rc;
-		}
 
 		rc = k3_isp_deinit();
-		if (rc) {
+		if (rc)
 			cam_err("failed to deinit isp!");
-			return rc;
-		}
-
+	    k3_isp_release_ddrfreq();
 	} else {
 		cam_err("camera dev has been closed!");
 	}
 
+	camera_open = false;
 	return rc;
 }
 
@@ -220,11 +285,25 @@ static int camera_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	unsigned long size;
 	int ret = 0;
+	unsigned long isp_phy_base_addr = 0;
+	unsigned long isp_mem_size = 0;
+	unsigned long phys_page_addr = 0;
 
+	isp_phy_base_addr = k3_get_isp_base_addr();
+	isp_mem_size = k3_get_isp_mem_size();
+	phys_page_addr = isp_phy_base_addr >> PAGE_SHIFT;
+	
 	size = vma->vm_end - vma->vm_start;
+
+	if (phys_page_addr !=  (vma->vm_pgoff<<4) || size > isp_mem_size) {
+		cam_err("%s, bad address or memory size!!, vma->vm_pgoff:%lu, mem_size:%lu",
+			__func__, vma->vm_pgoff<<4, (vma->vm_end - vma->vm_start));
+		return -EFAULT;
+	}
+
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	if (remap_pfn_range(vma, vma->vm_start,
-			    vma->vm_pgoff, size, vma->vm_page_prot)) {
+			    vma->vm_pgoff<<4, size, vma->vm_page_prot)) {
 		cam_err("%s, remap_pfn_range fail", __func__);
 		ret = -ENOBUFS;
 	} else {
@@ -243,7 +322,9 @@ static struct v4l2_file_operations camera_v4l2_fops = {
 	.mmap	= camera_v4l2_mmap,
 	.release = camera_v4l2_close,
 	.ioctl   = video_ioctl2,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl32 = video_ioctl2,
+#endif
 };
 
 int camera_init_v4l2(struct platform_device *pdev)
@@ -312,19 +393,20 @@ int camera_init_v4l2(struct platform_device *pdev)
 	if (WARN_ON(rc < 0))
 		goto video_register_fail;
 
+#ifdef DEBUG_HISI_CAMERA
 	rc = device_create_file(&pvdev->vdev->dev, &camera_for_debug);
 	if (WARN_ON(rc < 0))
 	{
 		cam_err("camera_for_debug node create  failed %d\n", rc);
 		goto video_register_fail;
 	}
-
 	rc = device_create_file(&pvdev->vdev->dev, &camera_thermal_adjust_fps);
 	if (WARN_ON(rc < 0))
 	{
 		cam_err("camera_thermal_adjust_fps node create failed %d\n", rc);
 		goto video_register_fail;
 	}
+#endif
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	pvdev->vdev->entity.name = video_device_node_name(pvdev->vdev);
@@ -332,7 +414,7 @@ int camera_init_v4l2(struct platform_device *pdev)
 
 	atomic_set(&pvdev->opened, 0);
 	video_set_drvdata(pvdev->vdev, pvdev);
-	goto init_end;
+	return rc;
 
 video_register_fail:
 	v4l2_device_unregister(pvdev->vdev->v4l2_dev);

@@ -55,6 +55,10 @@ hwcam_user_release(
         struct kref* r)
 {
     hwcam_user_t* user = REF2USER(r);
+    if (NULL == user){
+        HWCAM_CFG_ERR("REF2USER returns null. \n");
+        return;
+    }
 
     HWCAM_CFG_INFO("instance(0x%p)", &user->intf);
 
@@ -178,7 +182,12 @@ hwcam_user_vb2q_queue_setup(
         void* alloc_ctxs[])
 {
     int i = 0;
-    hwcam_user_t* user = q->drv_priv;
+    hwcam_user_t* user = NULL;
+    if (NULL == q){
+        HWCAM_CFG_ERR("%s() input parameter q is null. \n", __func__);
+        return -1;
+    }
+    user = q->drv_priv;
     *num_planes = user->format.fmt.pix_mp.num_planes;
     for (; i != user->format.fmt.pix_mp.num_planes; i++) {
         sizes[i] = user->format.fmt.pix_mp.plane_fmt[i].sizeimage;
@@ -192,7 +201,12 @@ static void
 hwcam_user_vb2q_wait_prepare(
         struct vb2_queue* q)
 {
-    hwcam_user_t* user = q->drv_priv;
+    hwcam_user_t* user = NULL;
+    if (NULL == q){
+        HWCAM_CFG_ERR("%s() input parameter q is null. \n", __func__);
+        return;
+    }
+    user = q->drv_priv;
     mutex_unlock(&user->cam->lock);
 }
 
@@ -200,7 +214,12 @@ static void
 hwcam_user_vb2q_wait_finish(
         struct vb2_queue* q)
 {
-    hwcam_user_t* user = q->drv_priv;
+    hwcam_user_t* user = NULL;
+    if (NULL == q){
+        HWCAM_CFG_ERR("%s() input parameter q is null. \n", __func__);
+        return;
+    }
+    user = q->drv_priv;
     mutex_lock(&user->cam->lock);
 }
 
@@ -209,7 +228,12 @@ hwcam_user_vb2q_start_streaming(
         struct vb2_queue *q,
         unsigned int count)
 {
-    hwcam_user_t* user = q->drv_priv;
+    hwcam_user_t* user = NULL;
+    if (NULL == q){
+        HWCAM_CFG_ERR("%s() input parameter q is null. \n", __func__);
+        return -1;
+    }
+    user = q->drv_priv;
     return user->stream
         ? hwcam_cfgstream_intf_start(user->stream)
         : -ENOENT;
@@ -219,7 +243,12 @@ static int
 hwcam_user_vb2q_stop_streaming(
         struct vb2_queue *q)
 {
-    hwcam_user_t* user = q->drv_priv;
+    hwcam_user_t* user = NULL;
+    if (NULL == q){
+        HWCAM_CFG_ERR("%s() input parameter q is null. \n", __func__);
+        return -1;
+    }
+    user = q->drv_priv;
     return user->stream
         ? hwcam_cfgstream_intf_stop(user->stream)
         : -ENOENT;
@@ -297,7 +326,10 @@ hwcam_dev_vo_querycap(
 {
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
     if (user->f_pipeline_owner) {
         return hwcam_cfgpipeline_intf_query_cap(
                 cam->pipeline, &user->intf);
@@ -316,7 +348,10 @@ hwcam_dev_vo_s_crop(
 	int rc = 0;
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(filep->private_data);
-	BUG_ON(!cam || !user);
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
 
     HWCAM_CFG_INFO("TODO. \n");
 
@@ -335,7 +370,10 @@ hwcam_dev_vo_g_crop(
 	int rc = 0;
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
 
     HWCAM_CFG_INFO("TODO. \n");
 
@@ -354,7 +392,10 @@ hwcam_dev_vo_queryctrl(
 	int rc = 0;
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
 
     HWCAM_CFG_INFO("TODO. \n");
 
@@ -373,7 +414,11 @@ hwcam_dev_vo_g_ctrl(
 	int rc = -EINVAL;
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
+
     switch (ctrl->id)
     {
     case HWCAM_V4L2_CID_PIPELINE_PARAM:
@@ -404,7 +449,12 @@ hwcam_dev_vo_s_ctrl(
 	int rc = -EINVAL;
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
+
     switch (ctrl->id)
     {
     case HWCAM_V4L2_CID_PIPELINE_PARAM:
@@ -434,7 +484,12 @@ hwcam_dev_vo_reqbufs(
 {
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
+
     return vb2_reqbufs(&user->vb2q, req);
 }
 
@@ -446,7 +501,12 @@ hwcam_dev_vo_querybuf(
 {
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
+
     return vb2_querybuf(&user->vb2q, pb);
 }
 
@@ -458,7 +518,12 @@ hwcam_dev_vo_qbuf(
 {
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
+
     return vb2_qbuf(&user->vb2q, pb);
 }
 
@@ -470,7 +535,12 @@ hwcam_dev_vo_dqbuf(
 {
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
+
     return vb2_dqbuf(&user->vb2q, pb,
             filep->f_flags & O_NONBLOCK);
 }
@@ -483,7 +553,12 @@ hwcam_dev_vo_streamon(
 {
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
+
     return vb2_streamon(&user->vb2q, buf_type);
 }
 
@@ -495,7 +570,12 @@ hwcam_dev_vo_streamoff(
 {
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
+
     return vb2_streamoff(&user->vb2q, buf_type);
 }
 
@@ -508,7 +588,12 @@ hwcam_dev_vo_enum_fmt_vid_cap(
 	int rc = -EINVAL;
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
+
     return rc;
 }
 
@@ -521,7 +606,12 @@ hwcam_dev_vo_g_fmt_vid_cap(
 	int rc = -EINVAL;
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
+
 	if (pfmt->type == V4L2_BUF_TYPE_VIDEO_CAPTURE
             && user->stream && user->f_format_valid) {
         *pfmt = user->format;
@@ -539,7 +629,12 @@ hwcam_dev_vo_s_fmt_vid_cap(
 	int rc = -EINVAL;
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
+
 	if (pfmt->type == V4L2_BUF_TYPE_VIDEO_CAPTURE
             && user->stream) {
         rc = hwcam_cfgstream_intf_try_fmt(
@@ -561,7 +656,12 @@ hwcam_dev_vo_try_fmt_vid_cap(
 	int rc = 0;
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
+
 	if (pfmt->type == V4L2_BUF_TYPE_VIDEO_CAPTURE
             && user->stream) {
         rc = hwcam_cfgstream_intf_try_fmt(user->stream, pfmt);
@@ -578,7 +678,11 @@ hwcam_dev_vo_enum_fmt_vid_out_mplane(
 	int rc = -EINVAL;
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
     return rc;
 }
 
@@ -591,7 +695,11 @@ hwcam_dev_vo_g_fmt_vid_out_mplane(
 	int rc = -EINVAL;
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
 	if (pfmt->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE
             && user->stream) {
         *pfmt = user->format;
@@ -609,7 +717,12 @@ hwcam_dev_vo_s_fmt_vid_out_mplane(
 	int rc = -EINVAL;
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
+
 	if (pfmt->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE
             && user->stream) {
         rc = hwcam_cfgstream_intf_try_fmt(user->stream, pfmt);
@@ -630,7 +743,12 @@ hwcam_dev_vo_try_fmt_vid_out_mplane(
 	int rc = 0;
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
+
 	if (pfmt->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE
             && user->stream) {
         rc = hwcam_cfgstream_intf_try_fmt(user->stream, pfmt);
@@ -647,7 +765,11 @@ hwcam_dev_vo_g_parm(
 	int rc = 0;
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
 
     HWCAM_CFG_INFO("TODO. \n");
 
@@ -663,7 +785,11 @@ hwcam_dev_vo_s_parm(
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(fh);
     hwcam_stream_info_t* info = (hwcam_stream_info_t*)parm->parm.raw_data;
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
 
     if (cam->pipeline && !user->stream) {
         user->stream = hwcam_cfgpipeline_intf_mount_stream(
@@ -772,7 +898,11 @@ hwcam_dev_vo_ioctl_default(
     long rc = -EINVAL;
     hwcam_dev_t* cam = video_drvdata(file);
 	hwcam_user_t* user = VO2USER(fh);
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
 
     switch (cmd)
     {
@@ -848,7 +978,11 @@ hwcam_dev_vo_poll(
 	unsigned int rc = 0;
     hwcam_dev_t* cam = video_drvdata(filep);
 	hwcam_user_t* user = VO2USER(filep->private_data);
-	BUG_ON(!cam || !user);
+
+    if (!cam || !user) {
+        HWCAM_CFG_ERR("%s(%d): cam or user is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
 
     if (user->f_format_valid) {
         rc = vb2_poll(&user->vb2q, filep, wait);
@@ -871,7 +1005,11 @@ hwcam_dev_vo_close(
 
     cam = (hwcam_dev_t*)video_drvdata(filep);
     swap(filep->private_data, eq);
-	BUG_ON(!cam || !eq);
+
+    if (!cam || !eq) {
+        HWCAM_CFG_ERR("%s(%d): cam or eq is NULL!", __func__, __LINE__);
+        return -EINVAL;
+    }
 
 	if (eq) {
         hwcam_cfgstream_intf_t* stm = NULL;

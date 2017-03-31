@@ -15,6 +15,10 @@
 
 #define DEVICE_NAME "drv2605"
 #define DRIVER_VERSION "130"
+#define CDEVIE_NAME  "haptics"
+
+#define STANDBY_WAKE_DELAY      1
+#define WAKE_STANDBY_DELAY      3
 
 /* Commands */
 #define HAPTIC_CMDID_PLAY_SINGLE_EFFECT     0x01
@@ -22,6 +26,13 @@
 #define HAPTIC_CMDID_PLAY_TIMED_EFFECT      0x03
 #define HAPTIC_CMDID_GET_DEV_ID             0x04
 #define HAPTIC_CMDID_RUN_DIAG               0x05
+#define HAPTIC_CMDID_AUDIOHAPTIC_ENABLE     0x06
+#define HAPTIC_CMDID_AUDIOHAPTIC_DISABLE    0x07
+#define HAPTIC_CMDID_AUDIOHAPTIC_GETSTATUS  0x08
+
+#define HAPTIC_CMDID_REG_WRITE  	0x09
+#define HAPTIC_CMDID_REG_READ   	0x0a
+#define HAPTIC_CMDID_REG_SETBIT  	0x0b
 #define HAPTIC_CMDID_STOP                   0xFF
 
 /* Command size */
@@ -59,6 +70,9 @@
 #define MODE_REG            0x01
 #define MODE_DEFAULT        0x40
 
+#define MODE_STANDBY        0x40
+#define MODE_DEVICE_READY   0x00
+
 #define DRV260X_MODE_MASK           0x07
 #define MODE_INTERNAL_TRIGGER       0
 #define MODE_EXTERNAL_TRIGGER_EDGE  1
@@ -74,6 +88,20 @@
 #define MODE_SOFT_STANDBY           0
 
 #define MODE_RESET                  0x80
+
+#define SW_STATE_IDLE				0x00
+#define SW_STATE_AUDIO2HAPTIC			0x01
+#define SW_STATE_SEQUENCE_PLAYBACK		0x02
+#define SW_STATE_RTP_PLAYBACK			0x04
+
+#define WORK_IDLE		      0x00
+#define WORK_RTP			0x01
+#define WORK_VIBRATOR		0x02
+#define WORK_SEQ_PLAYBACK    0x03
+
+#define DEV_IDLE	                0 // default
+#define DEV_STANDBY	  1
+#define DEV_READY		  2
 
 /*
 ** Real Time Playback
@@ -299,4 +327,33 @@
 
 #define DEFAULT_DRIVE_TIME      0x17
 
+/*immersion begin*/
+
+/*
+** Frequency constant parameters to control force output values and signals.
+*/
+#define VIBE_KP_CFG_FREQUENCY_PARAM1        85
+#define VIBE_KP_CFG_FREQUENCY_PARAM2        86
+#define VIBE_KP_CFG_FREQUENCY_PARAM3        87
+#define VIBE_KP_CFG_FREQUENCY_PARAM4        88
+#define VIBE_KP_CFG_FREQUENCY_PARAM5        89
+#define VIBE_KP_CFG_FREQUENCY_PARAM6        90
+
+#ifdef __KERNEL__
+typedef int8_t		VibeInt8;
+typedef u_int8_t	VibeUInt8;
+typedef int16_t		VibeInt16;
+typedef u_int16_t	VibeUInt16;
+typedef int32_t		VibeInt32;
+typedef u_int32_t	VibeUInt32;
+typedef u_int8_t	VibeBool;
+typedef VibeInt32	VibeStatus;
+#endif
+
+extern int ImmVibeSPI_ForceOut_AmpDisable(VibeUInt8 nActuatorIndex);
+extern int ImmVibeSPI_ForceOut_AmpEnable(VibeUInt8 nActuatorIndex);
+extern int ImmVibeSPI_ForceOut_SetSamples(VibeUInt8 nActuatorIndex, VibeUInt16 nOutputSignalBitDepth, VibeUInt16 nBufferSizeInBytes, VibeInt8* pForceOutputBuffer);
+extern int ImmVibeSPI_ForceOut_SetFrequency(VibeUInt8 nActuatorIndex, VibeUInt16 nFrequencyParameterID, VibeUInt32 nFrequencyParameterValue);
+extern int ImmVibeSPI_Device_GetName(VibeUInt8 nActuatorIndex, char *szDevName, int nSize);
+/*immersion end*/
 #endif /*_DRV2605_H*/

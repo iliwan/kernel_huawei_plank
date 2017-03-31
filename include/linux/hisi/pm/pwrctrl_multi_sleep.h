@@ -47,6 +47,7 @@ extern "C" {
 #define PERI_SLEEP_STATE_MAX        (16)
 #define PERI_SLEEP_CUR_STATE_NUM    (5)
 #define ACPU_CPUIDLE_CUR_CPU_NUM    (8)
+#define ACPU_CLUSTER_CUR_CPU_NUM    (2)
 
 /*****************************************************************************
   3 Ã¶¾Ù¶¨Òå
@@ -181,11 +182,19 @@ typedef struct PWC_TELE_MNTN_CPUIDLEPUPD_STRU_S
     u32_t  status;
 }PWC_TELE_MNTN_CPUIDLEPUPD_STRU;
 
+typedef struct PWC_TELE_MNTN_CPUIDLEWFIFAIL_STRU_S
+{
+    u32_t  WFIFailCount;
+    u32_t  cpuId;
+}PWC_TELE_MNTN_CPUIDLEWFIFAIL_STRU;
+
 typedef struct PWC_TELE_MNTN_CPUIDLE_STRU_S
 {
     PWC_TELE_MNTN_CPUIDLEPUPD_STRU cpuStat;
+    PWC_TELE_MNTN_CPUIDLEWFIFAIL_STRU WFIFailStat;
     u32_t  sleepSliceTime;
     u32_t  wakeSliceTime;
+    u32_t  WFIFailSliceTime;
 }PWC_TELE_MNTN_CPUIDLE_STRU;
 
 typedef struct PWC_TELE_MNTN_VOTESTAT_STRU_S
@@ -277,7 +286,7 @@ typedef struct PWC_MCU_LOG_STRU_S
     PWC_TELE_MNTN_PUPD_STRU acpu;
     PWC_TELE_MNTN_PUPD_STRU hifi;
     PWC_TELE_MNTN_SLEEPWAKE_STRU mcu;
-    PWC_TELE_MNTN_CPUIDLE_STRU cpuIdle[ACPU_CPUIDLE_CUR_CPU_NUM];
+    PWC_TELE_MNTN_CPUIDLE_STRU cpuIdle[ACPU_CPUIDLE_CUR_CPU_NUM+ACPU_CLUSTER_CUR_CPU_NUM];
     PWC_TELE_MNTN_VOTE_STRU vote[PERI_SLEEP_CUR_STATE_NUM];
     PWC_TELE_MNTN_DFS_DDR_STRU dfsDdr;
     PWC_TELE_MNTN_DFS_ACPU_STRU dfsAcpu;

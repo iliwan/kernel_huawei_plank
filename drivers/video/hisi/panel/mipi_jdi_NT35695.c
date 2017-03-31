@@ -21,6 +21,8 @@
 #define DTS_COMP_JDI_NT35695 "hisilicon,mipi_jdi_NT35695"
 #define LCD_VDDIO_TYPE_NAME	"lcd-vddio-type"
 #define PLK_RF_REG_FLAG		"rf-workaround-flag"
+#define PLK_ESD_ENABLE_FLAG "plk-esd-flag"
+#define PLK_CABC_DIMING_MODE "plk-cabc-dimming-mode"
 #define CABC_OFF 0
 #define CABC_UI_MODE 1
 #define CABC_STILL_MODE 2
@@ -34,6 +36,8 @@ static bool checksum_enable_ctl = false;
 static bool g_debug_enable = false;
 static int g_cabc_mode = 1;
 static uint32_t g_rf_flag = 0;
+static uint32_t g_esd_flag = 0;
+static uint32_t g_cabc_diming_flag = 0;
 
 extern int fastboot_set_needed;
 extern bool gesture_func;
@@ -190,6 +194,26 @@ static char enter_sleep[] = {
 	0x10,
 };
 
+static char vdd_boost1[] = {
+	0xff,
+	0x20,
+};
+
+static char vdd_boost2[] = {
+	0xfb,
+	0x01,
+};
+
+static char vdd_boost3[] = {
+	0x10,
+	0x02,
+};
+
+static char vdd_boost4[] = {
+	0xff,
+	0x10,
+};
+
 static struct dsi_cmd_desc jdi_display_on_cmds[] = {
 	{DTYPE_DCS_WRITE1, 0,10, WAIT_TYPE_US,
 		sizeof(tear_on), tear_on},
@@ -221,6 +245,14 @@ static struct dsi_cmd_desc jdi_display_on_cmds[] = {
 		sizeof(bl_enable), bl_enable},
 	{DTYPE_GEN_LWRITE, 0, 200, WAIT_TYPE_US,
 		sizeof(te_line), te_line},
+	{DTYPE_DCS_WRITE1, 0,10, WAIT_TYPE_US,
+		sizeof(vdd_boost1), vdd_boost1},
+	{DTYPE_DCS_WRITE1, 0,10, WAIT_TYPE_US,
+		sizeof(vdd_boost2), vdd_boost2},
+	{DTYPE_DCS_WRITE1, 0,10, WAIT_TYPE_US,
+		sizeof(vdd_boost3), vdd_boost3},
+	{DTYPE_DCS_WRITE1, 0,10, WAIT_TYPE_US,
+		sizeof(vdd_boost4), vdd_boost4},
 	{DTYPE_DCS_WRITE, 0, 115, WAIT_TYPE_MS,
 		sizeof(exit_sleep), exit_sleep},
 	{DTYPE_DCS_WRITE, 0, 50, WAIT_TYPE_MS,
@@ -255,7 +287,6 @@ static char gamma_dither_0x68[] = {
 	0x03,
 };
 
-#if 0
 //R(+) MCR cmd
 static char gamma_r_positive_0x75[] = {
 	0x75,
@@ -2068,7 +2099,6 @@ static char gamma_b_negative_0xEA[] = {
 	0xEA,
 	0xDA,
 };
-#endif
 
 static char page_selection_0xFF_0x22[] = {
 	0xFF,
@@ -2495,6 +2525,16 @@ static char cabc_off[] = {
 	0x90,
 };
 
+static char cabc_set_mode_dimming_on[] = {
+      0x53,
+      0x2c,
+};
+
+static char cabc_set_mode_dimming_off[] = {
+      0x53,
+      0x24,
+};
+
 static char cabc_set_mode_UI[] = {
 	0x55,
 	0x91,
@@ -2510,16 +2550,6 @@ static char cabc_set_mode_MOVING[] = {
 	0x93,
 };
 
-static char cabc_set_mode_dimming_on[] = {
-	0x53,
-	0x2c,
-};
-
-static char cabc_set_mode_dimming_off[] = {
-	0x53,
-	0x24,
-};
-
 #ifdef CONFIG_BACKLIGHT_10000
 static char PWM_OUT_0x51[] = {
 	0x51,
@@ -2527,20 +2557,14 @@ static char PWM_OUT_0x51[] = {
 };
 #endif
 
-static char cabc_set_enable_threshold[] = {
-	0x5E,
-	0x28,
-};
-
 static struct dsi_cmd_desc jdi_display_effect_on_cmds[] = {
 	//diplay effect
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(page_selection_0xFF_0x20), page_selection_0xFF_0x20},
-	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
-		sizeof( non_reload_0xFB),  non_reload_0xFB},
+	//{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
+	//	sizeof( non_reload_0xFB),  non_reload_0xFB},
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(gamma_dither_0x68), gamma_dither_0x68},
-	#if 0
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(gamma_r_positive_0x75), gamma_r_positive_0x75},
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
@@ -2807,8 +2831,8 @@ static struct dsi_cmd_desc jdi_display_effect_on_cmds[] = {
 		sizeof(gamma_g_positive_0xFA), gamma_g_positive_0xFA},
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(page_selection_0xFF_0x21), page_selection_0xFF_0x21},
-	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
-		sizeof( non_reload_0xFB),  non_reload_0xFB},
+	//{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
+	//	sizeof( non_reload_0xFB),  non_reload_0xFB},
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(gamma_g_positive_0x00), gamma_g_positive_0x00},
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
@@ -3265,7 +3289,6 @@ static struct dsi_cmd_desc jdi_display_effect_on_cmds[] = {
 		sizeof(gamma_b_negative_0xE9), gamma_b_negative_0xE9},
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(gamma_b_negative_0xEA), gamma_b_negative_0xEA},
-	#endif
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(page_selection_0xFF_0x22), page_selection_0xFF_0x22},
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
@@ -3440,8 +3463,6 @@ static struct dsi_cmd_desc jdi_display_effect_on_cmds[] = {
 		sizeof(cmd1_0xFF), cmd1_0xFF},
 	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
 		sizeof(cabc_set_mode_UI), cabc_set_mode_UI},
-	{DTYPE_DCS_WRITE1, 0, 10, WAIT_TYPE_US,
-		sizeof(cabc_set_enable_threshold), cabc_set_enable_threshold},
 };
 
 static struct dsi_cmd_desc cabc_dimming_on_cmds[] = {
@@ -3470,23 +3491,28 @@ static struct dsi_cmd_desc jdi_cabc_off_cmds[] = {
 static struct dsi_cmd_desc jdi_cabc_ui_on_cmds[] = {
 	{DTYPE_DCS_LWRITE, 0, 10, WAIT_TYPE_US,
 		sizeof(cabc_set_mode_UI), cabc_set_mode_UI},
-	{DTYPE_DCS_LWRITE, 0, 10, WAIT_TYPE_US,
-		sizeof(cabc_set_mode_dimming_off), cabc_set_mode_dimming_off},
 };
 
 static struct dsi_cmd_desc jdi_cabc_still_on_cmds[] = {
 	{DTYPE_DCS_LWRITE, 0, 10, WAIT_TYPE_US,
 		sizeof(cabc_set_mode_STILL), cabc_set_mode_STILL},
-	{DTYPE_DCS_LWRITE, 0, 10, WAIT_TYPE_US,
-		sizeof(cabc_set_mode_dimming_off), cabc_set_mode_dimming_off},
 };
 
 static struct dsi_cmd_desc jdi_cabc_moving_on_cmds[] = {
 	{DTYPE_DCS_LWRITE, 0, 10, WAIT_TYPE_US,
 		sizeof(cabc_set_mode_MOVING), cabc_set_mode_MOVING},
+};
+
+static struct dsi_cmd_desc jdi_cabc_diming_on_cmds[] = {
 	{DTYPE_DCS_LWRITE, 0, 10, WAIT_TYPE_US,
 		sizeof(cabc_set_mode_dimming_on), cabc_set_mode_dimming_on},
 };
+static struct dsi_cmd_desc jdi_cabc_diming_off_cmds[] = {
+	{DTYPE_DCS_LWRITE, 0, 10, WAIT_TYPE_US,
+		sizeof(cabc_set_mode_dimming_off), cabc_set_mode_dimming_off},
+};
+
+
 /*******************************************************************************
 ** LCD VCC
 */
@@ -4167,6 +4193,30 @@ static ssize_t mipi_jdi_panel_lcd_cabc_mode_store(struct platform_device *pdev,
                                ARRAY_SIZE(jdi_cabc_moving_on_cmds),\
                                mipi_dsi0_base);
 	}
+
+    if(g_cabc_diming_flag)
+    {
+        //plk need set 0x53 to 0x2c when cabc moving mode.
+        if(g_cabc_mode == CABC_MOVING_MODE)
+        {
+            mipi_dsi_cmds_tx(jdi_cabc_diming_on_cmds, \
+                            ARRAY_SIZE(jdi_cabc_diming_on_cmds),\
+                            mipi_dsi0_base);
+            HISI_FB_INFO("set cabc mode %d diming on",g_cabc_mode);
+        }
+        else
+        {
+            //plk need set 0x53 to 0x24 when cabc ui and still mode.
+            if(g_cabc_mode != CABC_OFF)
+            {
+                mipi_dsi_cmds_tx(jdi_cabc_diming_off_cmds, \
+                                ARRAY_SIZE(jdi_cabc_diming_off_cmds),\
+                                mipi_dsi0_base);
+                HISI_FB_INFO("set cabc mode %d diming off",g_cabc_mode);
+            }
+        }
+
+    }
 	return snprintf((char *)buf, count, "%d\n", g_cabc_mode);
 }
 
@@ -4502,7 +4552,8 @@ static ssize_t mipi_jdi_panel_lcd_bist_check(struct platform_device *pdev,
 #else
 	j = 5;
 #endif
-	for (i = j; i<ARRAY_SIZE(jdi_display_bist_check_cmds); i++) {
+//	for (i = j; i<ARRAY_SIZE(jdi_display_bist_check_cmds); i++) {
+	for (i = 0; i < 5; i++) {	//only first 4 steps
 		HISI_FB_INFO("TEST %d\n", i+1);
 		mipi_dsi_cmds_tx(jdi_display_bist_check_cmds[i], \
 			bist_check_cmds_size[i], mipi_dsi0_base);
@@ -4568,6 +4619,51 @@ static int mipi_jdi_panel_set_display_region(struct platform_device *pdev,
 
 	return 0;
 }
+static int g_support_mode = 0;
+static ssize_t mipi_jdi_panel_lcd_support_mode_show(struct platform_device *pdev,
+     char *buf)	
+{
+       struct hisi_fb_data_type *hisifd = NULL;
+       ssize_t ret = 0;
+
+
+       BUG_ON(pdev == NULL);
+       hisifd = platform_get_drvdata(pdev);
+       BUG_ON(hisifd == NULL);
+
+       HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
+
+       ret = snprintf(buf, PAGE_SIZE, "%d\n", g_support_mode);
+
+       HISI_FB_DEBUG("fb%d, -.\n", hisifd->index);
+
+       return ret;
+}
+
+static ssize_t mipi_jdi_panel_lcd_support_mode_store(struct platform_device *pdev,
+       const char *buf, size_t count)
+{
+       int ret = 0;
+       unsigned long val = 0;
+       int flag = -1;
+       struct hisi_fb_data_type *hisifd = NULL;
+       BUG_ON(pdev == NULL);
+       hisifd = platform_get_drvdata(pdev);
+       BUG_ON(hisifd == NULL);
+
+       ret = strict_strtoul(buf, 0, &val);
+       if (ret)	
+               return ret;
+
+       HISI_FB_DEBUG("fb%d, +.\n", hisifd->index);
+
+       flag = (int)val;
+
+       g_support_mode = flag;
+       HISI_FB_DEBUG("fb%d, -.\n", hisifd->index);
+      return snprintf((char *)buf, count, "%d\n", g_support_mode);
+}
+
 /*for esd check*/
 static int mipi_jdi_panel_check_esd(struct platform_device* pdev)
 {
@@ -4584,7 +4680,7 @@ static int mipi_jdi_panel_check_esd(struct platform_device* pdev)
 
 	struct dsi_cmd_desc lcd_check_reg[] = {
 		{DTYPE_DCS_READ, 0, 10, WAIT_TYPE_US,
-			sizeof(lcd_reg_0a), lcd_reg_0a},
+		sizeof(lcd_reg_0a), lcd_reg_0a},
 	};
 
 	struct mipi_dsi_read_compare_data data = {
@@ -4597,25 +4693,21 @@ static int mipi_jdi_panel_check_esd(struct platform_device* pdev)
 		.cnt = ARRAY_SIZE(lcd_check_reg),
 	};
 
-
 	BUG_ON(pdev == NULL);
 	hisifd = (struct hisi_fb_data_type*)platform_get_drvdata(pdev);
 	BUG_ON(hisifd == NULL);
-
 	HISI_FB_ERR("fb%d, +.\n", hisifd->index);
-	if (!mipi_dsi_read_compare(&data, hisifd->mipi_dsi0_base)) 
+	if (!mipi_dsi_read_compare(&data, hisifd->mipi_dsi0_base))
 	{
 		err = 0;
-	} 
-	else 
+	}
+	else
 	{
 		err = 1;
 	}
-        
 	HISI_FB_ERR("fb%d, -.\n", hisifd->index);
-        
-           return err;
-}       
+	return err;
+}
 
 static struct hisi_panel_info jdi_panel_info = {0};
 static struct hisi_fb_panel_data jdi_panel_data = {
@@ -4637,6 +4729,8 @@ static struct hisi_fb_panel_data jdi_panel_data = {
 	.lcd_gram_check_store = mipi_jdi_panel_lcd_gram_check_store,
 	.lcd_bist_check = mipi_jdi_panel_lcd_bist_check,
 	.set_display_region = mipi_jdi_panel_set_display_region,
+	.lcd_support_mode_show = mipi_jdi_panel_lcd_support_mode_show,
+	.lcd_support_mode_store = mipi_jdi_panel_lcd_support_mode_store,
 	.esd_handle = mipi_jdi_panel_check_esd,
 	.set_display_resolution = NULL,
 };
@@ -4729,6 +4823,22 @@ static int mipi_jdi_probe(struct platform_device *pdev)
 	}
 	HISI_FB_INFO("get g_rf_flag: %d\n", g_rf_flag);
 
+    ret = of_property_read_u32(np,PLK_ESD_ENABLE_FLAG, &g_esd_flag);
+    if (ret) 
+    {
+        HISI_FB_ERR("get g_esd_flag failed!\n");
+        g_esd_flag = 0;
+    }
+    HISI_FB_INFO("get g_esd_flag: %d\n", g_esd_flag);
+
+    ret = of_property_read_u32(np,PLK_CABC_DIMING_MODE, &g_cabc_diming_flag);
+    if (ret) 
+    {
+        HISI_FB_ERR("get g_cabc_diming_flag failed!\n");
+        g_cabc_diming_flag = 0;
+    }
+    HISI_FB_INFO("get g_cabc_diming_flag: %d\n", g_cabc_diming_flag);
+
 	pdev->id = 1;
 	/* init lcd panel info */
 	pinfo = jdi_panel_data.panel_info;
@@ -4749,7 +4859,7 @@ static int mipi_jdi_probe(struct platform_device *pdev)
 		VSYNC_CTRL_MIPI_ULPS);
 
 	pinfo->frc_enable = 0;
-	pinfo->esd_enable = 1;
+	pinfo->esd_enable = 0;
 	pinfo->dirty_region_updt_support = 0;
     pinfo->dirty_region_info.left_align = -1;
     pinfo->dirty_region_info.right_align = -1;
@@ -4768,6 +4878,8 @@ static int mipi_jdi_probe(struct platform_device *pdev)
 		pinfo->acm_support = 0;
 		pinfo->prefix_sharpness_support = 0;
 	} else {
+	    if(g_esd_flag)
+            pinfo->esd_enable = 1;
 		pinfo->sbl_support = 1;
 		pinfo->dsi_bit_clk_upt_support = 1;
 		pinfo->acm_support = 1;
@@ -4775,6 +4887,8 @@ static int mipi_jdi_probe(struct platform_device *pdev)
 	}
 
 	pinfo->color_temperature_support = 1;
+	pinfo->comform_mode_support = 1;
+	g_support_mode = COMFORM_MODE | LED_RG_COLOR_TEMP_MODE;
 	pinfo->smart_bl.strength_limit = 128;
 	pinfo->smart_bl.calibration_a = 60;
 	pinfo->smart_bl.calibration_b = 95;

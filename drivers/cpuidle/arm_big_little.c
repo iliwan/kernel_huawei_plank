@@ -29,6 +29,8 @@
 #include <linux/of.h>
 #include <asm/smp_plat.h>
 #include <asm/cputype.h>
+#include <linux/slab.h>
+#include <asm/cpu.h>
 
 #ifndef CONFIG_ARCH_HI3630FPGA
 #define MAX_CPU_NR		8
@@ -48,13 +50,6 @@ extern void get_resource_lock(unsigned int cluster, unsigned int core);
 extern void put_resource_lock(unsigned int cluster, unsigned int core);
 extern void set_cluster_idle_bit(unsigned int cluster);
 
-static int bl_cpuidle_simple_enter(struct cpuidle_device *dev,
-		struct cpuidle_driver *drv, int index)
-{
-	cpu_do_idle();
-	return index;
-}
-
 static int bl_enter_powerdown(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv, int idx);
 
@@ -63,58 +58,55 @@ static int bl_enter_cluster_powerdown(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv, int idx);
 #endif
 
-static struct cpuidle_state bl_cpuidle_set[] __initdata = {
-	[0] = {
-		.enter                  = bl_cpuidle_simple_enter,
-		.exit_latency           = 1,
-		.target_residency       = 1,
-		.power_usage		= UINT_MAX,
-		.flags                  = CPUIDLE_FLAG_TIME_VALID,
-		.name                   = "WFI",
-		.desc                   = "ARM WFI",
-	},
-	[1] = {
+static struct cpuidle_driver bl_idle_little_driver = {
+	.name = "little_idle",
+	.owner = THIS_MODULE,
+	.states[0] = ARM_CPUIDLE_WFI_STATE,
+	.states[1] = {
 		.enter			= bl_enter_powerdown,
-		.exit_latency		= 500,
-		.target_residency	= 3000,
+		.exit_latency		= 700,
+		.target_residency	= 2500,
 		.flags			= CPUIDLE_FLAG_TIME_VALID |
 					  CPUIDLE_FLAG_TIMER_STOP,
 		.name			= "C1",
-		.desc			= "ARM power down",
+		.desc			= "little-cluster core pwrdn",
 	},
-#ifdef CLUSTER_DOWN_ENABLE
-	/* the exit_latency & target_residency is test value. */
-	[2] = {
+	.states[2] = {
 		.enter			= bl_enter_cluster_powerdown,
 		.exit_latency		= 5000,
 		.target_residency	= 100000,
 		.flags			= CPUIDLE_FLAG_TIME_VALID |
 					  CPUIDLE_FLAG_TIMER_STOP,
 		.name			= "C2",
-		.desc			= "cluster power down",
+		.desc			= "little-cluster cluster pwrdn",
 	},
-#endif
-#ifdef CLUSTER_SLEEP_ENABLE
-	/* the exit_latency & target_residency is test value. */
-	[3] = {
-		.enter			= bl_enter_cluster_powerdown,
-		.exit_latency		= 10000,
-		.target_residency	= 40000,
+	.state_count = 3,
+};
+
+static struct cpuidle_driver bl_idle_big_driver = {
+	.name = "big_idle",
+	.owner = THIS_MODULE,
+	.states[0] = ARM_CPUIDLE_WFI_STATE,
+	.states[1] = {
+		.enter			= bl_enter_powerdown,
+		.exit_latency		= 500,
+		.target_residency	= 2000,
 		.flags			= CPUIDLE_FLAG_TIME_VALID |
 					  CPUIDLE_FLAG_TIMER_STOP,
-		.name			= "C3",
-		.desc			= "cluster sleep",
+		.name			= "C1",
+		.desc			= "big-cluster core pwrdn",
 	},
-#endif
+	.states[2] = {
+		.enter			= bl_enter_cluster_powerdown,
+		.exit_latency		= 4000,
+		.target_residency	= 80000,
+		.flags			= CPUIDLE_FLAG_TIME_VALID |
+					  CPUIDLE_FLAG_TIMER_STOP,
+		.name			= "C2",
+		.desc			= "big-cluster cluster pwrdn",
+	},
+	.state_count = 3,
 };
-
-struct cpuidle_driver bl_idle_driver = {
-	.name = "bl_idle",
-	.owner = THIS_MODULE,
-	.safe_state_index = 0
-};
-
-static DEFINE_PER_CPU(struct cpuidle_device, bl_idle_dev);
 
 #ifdef CLUSTER_DOWN_ENABLE
 static int notrace bl_finisher(unsigned long arg)
@@ -156,9 +148,10 @@ static int check_other_cpus(ktime_t when, struct cpuidle_driver *drv, int idx)
 		/* if not cpudown, bail out */
 		if (bl_cpuidle_cpu_desired_state[i] < CLUSTER_DOWN_IDX)
 			return -EPERM;
-
+#if 0
 		if (ktime_compare(when, menu_state_ok_until(i)) > 0)
 			return -EPERM;
+#endif
 	}
 
 	return 0;
@@ -198,9 +191,10 @@ static int bl_enter_cluster_powerdown(struct cpuidle_device *dev,
 
 static int notrace bl_powerdown_finisher(unsigned long arg)
 {
+	/* MCPM works with HW CPU identifiers */
 	unsigned int mpidr = read_cpuid_mpidr();
-	unsigned int cluster = (mpidr >> 8) & 0xf;
-	unsigned int cpu = mpidr & 0xf;
+	unsigned int cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+	unsigned int cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 
 	mcpm_set_entry_vector(cpu, cluster, cpu_resume);
 	mcpm_cpu_suspend(0);  /* 0 AFFINITY0 */
@@ -219,16 +213,13 @@ static int notrace bl_powerdown_finisher(unsigned long arg)
 static int bl_enter_powerdown(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv, int idx)
 {
-	int ret;
 	int cpuid = smp_processor_id();
 
 	BUG_ON(!irqs_disabled());
 
 	cpu_pm_enter();
 
-	ret = cpu_suspend((unsigned long) dev, bl_powerdown_finisher);
-	if (ret)
-		BUG();
+	cpu_suspend(0, bl_powerdown_finisher);
 
 	bl_cpuidle_cpu_desired_state[cpuid] = RUNNING_STATE_IDX;
 
@@ -239,51 +230,72 @@ static int bl_enter_powerdown(struct cpuidle_device *dev,
 	return idx;
 }
 
-/*
- * bl_idle_init
- *
- * Registers the bl specific cpuidle driver with the cpuidle
- * framework with the valid set of states.
- */
-int __init bl_idle_init(void)
+static int __init bl_idle_driver_init(struct cpuidle_driver *drv, int cpu_id)
 {
-	struct cpuidle_device *dev;
-	int i, cpu_id;
-	struct cpuidle_driver *drv = &bl_idle_driver;
+	struct cpuinfo_arm *cpu_info;
+	struct cpumask *cpumask;
+	unsigned long cpuid;
+	int cpu;
 
-	if (!of_find_compatible_node(NULL, NULL, "arm,generic")) {
-		pr_info("%s: No compatible node found\n", __func__);
-		return -ENODEV;
+	cpumask = kzalloc(cpumask_size(), GFP_KERNEL);
+	if (!cpumask)
+		return -ENOMEM;
+
+	for_each_possible_cpu(cpu) {
+		cpu_info = &per_cpu(cpu_data, cpu);
+		cpuid = is_smp() ? cpu_info->cpuid : read_cpuid_id();
+
+		/* read cpu id part number */
+		if ((cpuid & 0xff00fff0) == cpu_id)
+			cpumask_set_cpu(cpu, cpumask);
 	}
 
-	drv->state_count = (sizeof(bl_cpuidle_set) /
-				       sizeof(struct cpuidle_state));
-
-	for (i = 0; i < MAX_CPU_NR; i++)
-		bl_cpuidle_cpu_desired_state[i] = RUNNING_STATE_IDX;
-
-	for (i = 0; i < drv->state_count; i++) {
-		memcpy(&drv->states[i], &bl_cpuidle_set[i],
-				sizeof(struct cpuidle_state));
-	}
-
-	cpuidle_register_driver(drv);
-
-	for_each_cpu(cpu_id, cpu_online_mask) {
-		pr_err("CPUidle for CPU%d registered\n", cpu_id);
-		dev = &per_cpu(bl_idle_dev, cpu_id);
-		dev->cpu = cpu_id;
-
-		dev->state_count = drv->state_count;
-
-		if (cpuidle_register_device(dev)) {
-			printk(KERN_ERR "%s: Cpuidle register device failed\n",
-			       __func__);
-			return -EIO;
-		}
-	}
+	drv->cpumask = cpumask;
 
 	return 0;
 }
+static int __init bl_idle_init(void)
+{
+	int ret;
 
+	/*
+	 * For now the differentiation between little and big cores
+	 * is based on the part number. A7 cores are considered little
+	 * cores, A15 are considered big cores. This distinction may
+	 * evolve in the future with a more generic matching approach.
+	 */
+	ret = bl_idle_driver_init(&bl_idle_little_driver,
+				  ARM_CPU_PART_CORTEX_A7);
+	if (ret)
+		return ret;
+
+	ret = bl_idle_driver_init(&bl_idle_big_driver, ARM_CPU_PART_CORTEX_A15);
+	if (ret)
+		goto out_uninit_little;
+
+	pr_err("%s bl_idle_driver_init sucessfully!\n", __func__);
+	ret = cpuidle_register(&bl_idle_little_driver, NULL);
+	if (ret)
+		goto out_uninit_big;
+
+	pr_err("%s reigster  little driver sucessfully!\n", __func__);
+
+	ret = cpuidle_register(&bl_idle_big_driver, NULL);
+	if (ret)
+		goto out_unregister_little;
+
+	pr_err("%s reigster  big driver sucessfully!\n", __func__);
+
+	return 0;
+out_unregister_little:
+	cpuidle_unregister(&bl_idle_little_driver);
+out_uninit_big:
+	kfree(bl_idle_big_driver.cpumask);
+out_uninit_little:
+	kfree(bl_idle_little_driver.cpumask);
+
+	pr_err("%s fail!!!\n", __func__);
+
+	return ret;
+}
 device_initcall(bl_idle_init);

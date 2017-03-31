@@ -164,6 +164,16 @@ static int imx219_i2c_read (hwsensor_intf_t* intf, void * data)
 	return ret;
 }
 
+static int imx219_i2c_read_otp (hwsensor_intf_t* intf, void * data)
+{
+	sensor_t* sensor = NULL;
+	int ret = 0;
+
+	sensor= I2S(intf);
+	ret = hw_sensor_i2c_read_otp(sensor,data);
+
+	return ret;
+}
 
 static int
 imx219_match_id(
@@ -245,6 +255,7 @@ s_imx219_vtbl =
 	.i2c_write = imx219_i2c_write,
 	.i2c_read_seq = imx219_i2c_read_seq,
 	.i2c_write_seq = imx219_i2c_write_seq,
+	.i2c_read_otp = imx219_i2c_read_otp,
 	//.ioctl = imx219_ioctl,
 	.match_id = imx219_match_id,
 	//.set_expo_gain = imx219_set_expo_gain,
@@ -286,7 +297,13 @@ imx219_config(
 	static bool csi_enable = false;
 	data = (struct sensor_cfg_data *)argp;
 	cam_debug("imx219 cfgtype = %d",data->cfgtype);
-	switch(data->cfgtype){
+
+	if(!imx219_power_on && (data->cfgtype != SEN_CONFIG_POWER_ON))
+	{
+		cam_err("%s POWER_ON must be done before other CMD %d",__func__,data->cfgtype);
+		return ret;
+	}
+    switch(data->cfgtype){
 		case SEN_CONFIG_POWER_ON:  // 0
 			if (!imx219_power_on) {
 				ret = si->vtbl->power_up(si);
@@ -327,6 +344,9 @@ imx219_config(
 			break;
 		case SEN_CONFIG_MATCH_ID:     // 8
 			ret = si->vtbl->match_id(si,argp);
+			break;
+		case SEN_CONFIG_READ_REG_OTP:     // 9
+			ret = si->vtbl->i2c_read_otp(si,argp);
 			break;
 		default:
 			break;

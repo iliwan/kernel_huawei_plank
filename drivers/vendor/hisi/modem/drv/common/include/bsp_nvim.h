@@ -129,6 +129,7 @@ enum
     NV_CRC32_DDR_CRC_CHECK = 38,
     NV_CRC32_DDR_RESUME_IMG = 39,
 
+    /* added by yangzhi for muti-carrier, End! */
     NV_FUN_MAX_ID,
 };
 /*file ops*/

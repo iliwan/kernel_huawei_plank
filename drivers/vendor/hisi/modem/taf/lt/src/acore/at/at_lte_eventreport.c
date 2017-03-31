@@ -565,9 +565,9 @@ VOS_UINT32 atLcacellCnfProc(VOS_VOID *pMsgBlock)
     L4A_READ_LCACELL_CNF_STRU *pstLcacell = NULL;
     VOS_UINT16 usLength = 0;
     VOS_UINT32 ulStatCnt = 0;
-    
+
     pstLcacell = (L4A_READ_LCACELL_CNF_STRU *)pMsgBlock;
-    
+
     usLength += (VOS_UINT16)At_sprintf( AT_CMD_MAX_LEN,
                 (VOS_CHAR *)pgucLAtSndCodeAddr,
                 (VOS_CHAR *)pgucLAtSndCodeAddr+usLength,
@@ -584,7 +584,7 @@ VOS_UINT32 atLcacellCnfProc(VOS_VOID *pMsgBlock)
     }
 
     usLength--;
-    
+
     CmdErrProc((VOS_UINT8)(pstLcacell->usClientId), pstLcacell->ulErrorCode, usLength, pgucLAtSndCodeAddr);
 
     return AT_FW_CLIENT_STATUS_READY;
@@ -820,21 +820,37 @@ VOS_VOID atLcacellInd(VOS_VOID *pMsgBlock)
 
     pstLcacell = (L4A_READ_LCACELL_IND_STRU *)pMsgBlock;
 
+    /* ¥À√¸¡ÓÕ∑Œ≤ÃÌº”\r\n */
     usLength += (VOS_UINT16)At_sprintf( AT_CMD_MAX_LEN,
                 (VOS_CHAR *)pgucLAtSndCodeAddr,
                 (VOS_CHAR *)pgucLAtSndCodeAddr+usLength,
-                "^LCACELLURC: ");
+                "%s^LCACELLURC: ",
+                gaucAtCrLf);
+
 
     for(ulStatCnt=0;ulStatCnt<CA_MAX_CELL_NUM;ulStatCnt++)
     {
+        if (0 != ulStatCnt)
+        {
+            usLength += (VOS_UINT16)At_sprintf( AT_CMD_MAX_LEN,
+                    (VOS_CHAR *)pgucLAtSndCodeAddr,
+                    (VOS_CHAR *)pgucLAtSndCodeAddr+usLength,
+                    ",");
+        }
+
         usLength += (VOS_UINT16)At_sprintf( AT_CMD_MAX_LEN,
                 (VOS_CHAR *)pgucLAtSndCodeAddr,
                 (VOS_CHAR *)pgucLAtSndCodeAddr+usLength,
-                "\"%d %d %d %d\",",ulStatCnt, pstLcacell->stLcacellInfo[ulStatCnt].ucUlConfigured,
+                "\"%d %d %d %d\"",ulStatCnt, pstLcacell->stLcacellInfo[ulStatCnt].ucUlConfigured,
                 pstLcacell->stLcacellInfo[ulStatCnt].ucDlConfigured,
                 pstLcacell->stLcacellInfo[ulStatCnt].ucActived);
     }
-    usLength --;
+
+    usLength += (VOS_UINT16)At_sprintf( AT_CMD_MAX_LEN,
+                (VOS_CHAR *)pgucLAtSndCodeAddr,
+                (VOS_CHAR *)pgucLAtSndCodeAddr+usLength,
+                "%s",
+                gaucAtCrLf);
 
     At_SendResultData(AT_BROADCAST_CLIENT_INDEX_MODEM_0, pgucLAtSndCodeAddr, usLength);
 }

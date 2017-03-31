@@ -374,7 +374,7 @@ static ssize_t lm3642_lightness_show(struct device *dev,
         int rc=0;
 
         snprintf(buf, MAX_ATTRIBUTE_BUFFER_SIZE, "mode=%d, data=%d.\n",
-		lm3642_ctrl.state.mode, lm3642_ctrl.state.mode);
+		lm3642_ctrl.state.mode, lm3642_ctrl.state.data);
         rc = strlen(buf)+1;
         return rc;
 }
@@ -474,7 +474,7 @@ static void lm3642_torch_brightness_set(struct led_classdev *cdev,
 	struct flash_cfg_data cdata;
 	int rc;
 
-	if (STANDBY_MODE == (int)brightness) {
+	if (STANDBY_MODE == (flash_mode)brightness) {
 		rc = lm3642_off(&lm3642_ctrl);
 		if (rc < 0) {
 			cam_err("%s pmu_led off error.", __func__);
@@ -516,6 +516,7 @@ static int lm3642_register_attribute(struct hisi_flash_ctrl_t *flash_ctrl, struc
 		goto err_out;
 	}
 
+#ifdef DEBUG_HISI_CAMERA
 	rc = device_create_file(dev, &lm3642_lightness);
 	if (rc < 0) {
 		cam_err("%s failed to creat lightness attribute.", __func__);
@@ -531,6 +532,9 @@ static int lm3642_register_attribute(struct hisi_flash_ctrl_t *flash_ctrl, struc
 err_create_flash_mask_file:
 	device_remove_file(dev, &lm3642_lightness);
 err_create_lightness_file:
+#else
+    return 0;
+#endif
 	led_classdev_unregister(&flash_ctrl->cdev_torch);
 err_out:
 	return rc;
@@ -547,7 +551,7 @@ static int lm3642_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lm3642_id[] = {
-	{"lm3642", (unsigned long)&lm3642_ctrl},
+	{"lm3642", (int)&lm3642_ctrl},
 	{}
 };
 

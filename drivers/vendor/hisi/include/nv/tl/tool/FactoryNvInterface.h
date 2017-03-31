@@ -358,6 +358,11 @@ typedef struct
     VOS_INT16 asTxApcGainThrd[4];
 }NV_ID_LTE_TX_APC_GAIN_THRESHHOLD_STRU;
 
+typedef struct
+{
+    VOS_INT16  ssPhyHkadcCh;
+    VOS_INT16  ssRsv;
+}NV_LTE_PA_TEMP_DET_CHANNEL_STRU;
 
 typedef struct
 {

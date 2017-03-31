@@ -35,19 +35,19 @@ static vcm_t s_ad5816 =
 	.intf = { .vtbl = &s_ad5816_vtbl, },
 };
 
-int ad5816_get_otp_af(hw_vcm_intf_t *vcm_intf, void *data)
+static int ad5816_get_otp_af(hw_vcm_intf_t *vcm_intf, void *data)
 {
 	/* todo */
 	return 0;
 }
 
-int ad5816_i2c_read(hw_vcm_intf_t *vcm_intf, void *data)
+static int ad5816_i2c_read(hw_vcm_intf_t *vcm_intf, void *data)
 {
 	/* todo */
 	return VCM_ID_CODE;
 }
 
-int ad5816_i2c_write(hw_vcm_intf_t *vcm_intf, void *data)
+static int ad5816_i2c_write(hw_vcm_intf_t *vcm_intf, void *data)
 {
 	struct hw_vcm_cfg_data *cdata = (struct hw_vcm_cfg_data *)data;
 	int   rc = 0;
@@ -64,7 +64,7 @@ int ad5816_i2c_write(hw_vcm_intf_t *vcm_intf, void *data)
 	return rc;
 }
 
-int ad5816_ioctl(hw_vcm_intf_t *vcm_intf, void *data)
+static int ad5816_ioctl(hw_vcm_intf_t *vcm_intf, void *data)
 {
 	struct hw_vcm_cfg_data *cdata = (struct hw_vcm_cfg_data*)data;
 	int rc = 0;

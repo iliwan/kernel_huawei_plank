@@ -32,15 +32,19 @@
 #include "hwifi_dev_err.h"
 
 #include "hwifi_config.h"
-
-
+#ifdef CONFIG_HWCONNECTIVITY
+#include <linux/huawei/hw_connectivity.h>
+#endif
 #define DTS_COMP_WIFI_POWER_NAME "hisilicon,hi1101_wifi"
-
+#define SDIO_CFG_CHECK_FILE      "/system/vendor/firmware/sdio_recover_cfg"
+/* SDIO ½Ó¿ÚÏÂÔØpatch */
+#define INFO_SDIO_DOWN_PATCH     0
 
 /*
  * 2 Global Variable Definition
  */
 int32 g_lCpuId = 0;
+int32 g_dev_err_subcnt = 0;
 STATIC  struct completion  sdio_driver_complete;
 #ifdef CONFIG_USE_OF
 STATIC  struct completion  wifi_dev_complete;
@@ -625,9 +629,23 @@ int32 hi110x_sdio_msg_irq(struct hi110x_sdio *hi_sdio)
 
         if(sbmsg & 1)
         {
-            hi_sdio->dev_err_subcnt++;
-            HWIFI_WARNING("Wlan dev normal exception, %d times,sub type:%u",
-                          hi_sdio->dev_err_subcnt,sbmsg);
+            g_dev_err_subcnt ++;
+            hi_sdio->dev_err_subcnt ++;
+            HWIFI_WARNING("Wlan dev normal exception, %d times,sub type:%u, global times: %d",
+                          hi_sdio->dev_err_subcnt,sbmsg,g_dev_err_subcnt);
+
+            if(g_dev_err_subcnt > 1)
+            {
+                ret = patch_get_cfg(SDIO_CFG_CHECK_FILE,INFO_SDIO_DOWN_PATCH);
+                if(ret == -EFAIL)
+                {
+                    HWIFI_WARNING("Wlan dev normal exception,fail to read sdio_recover_cfg");
+                } else {
+                    HWIFI_WARNING("Wlan dev normal exception,succ to read sdio_recover_cfg");
+                    create_recover_flag();
+                    g_dev_err_subcnt = 0;
+                }
+            }
             hwifi_exception_force_submit(hi110x_dev->hcc,
                                         "Normal");
         }else{
@@ -2493,7 +2511,7 @@ int32 hsdio_sdio_iocfg(char* state)
 }
 #endif
 
-STATIC  int32 __init hi110x_sdio_init_module(void)
+STATIC  int32 hi110x_sdio_init_module(void)
 {
     int ret;
 
@@ -2614,8 +2632,11 @@ STATIC struct platform_driver hi110x_wifi_power_driver = {
     .remove     = hi110x_wifi_power_remove,
 };
 #endif
+#define WIFI_IS_START 1
+uint32          g_wifi_start = 0;
+struct mutex    wifi_enable_write_mutex;
 
-STATIC  int32 __init hi110x_wifi_init_module(void)
+int32 wifi_start(void)
 {
     int ret;
 #ifdef CONFIG_USE_OF
@@ -2644,16 +2665,84 @@ STATIC  int32 __init hi110x_wifi_init_module(void)
 
     return ret;
 }
+static ssize_t wifi_start_write(struct file *filp, const char __user *buffer, size_t len, loff_t *off)
+{
+    HWIFI_DEBUG("wifi_start_write enter!");
+    mutex_lock(&wifi_enable_write_mutex);
+    if (WIFI_IS_START == g_wifi_start) {
+        HWIFI_ERROR("wifi has started!");
+        mutex_unlock(&wifi_enable_write_mutex);
+        return -EINVAL;
+    }
+
+    g_wifi_start = WIFI_IS_START;
+    mutex_unlock(&wifi_enable_write_mutex);
+
+    HWIFI_INFO("wifi start begin\n");
+    if (0 != wifi_start())
+    {
+        HWIFI_ERROR("wifi start fail!");
+        return -EINVAL;
+    }
+
+	HWIFI_INFO("wifi start ok\n");
+    return len;
+}
+
+static const struct file_operations wifi_proc_start = {
+	.owner = THIS_MODULE,
+	.write = wifi_start_write,
+};
+
+
+#define WIFI_START_PROC_DIR "wifi_enable"
+#define WIFI_START_PROC_FILE "wifi_start"
+STATIC  int32 __init hi110x_wifi_init_module(void)
+{
+    int ret = 0;
+    struct proc_dir_entry *wifi_start_dir = NULL;
+    struct proc_dir_entry *wifi_start_file = NULL;
+
+#ifdef CONFIG_HWCONNECTIVITY
+    if (!isMyConnectivityChip(CHIP_TYPE_HI110X)) {
+        HWIFI_ERROR("cfg wifi chip type is not match, skip driver init");
+        return -EINVAL;
+    } else {
+        HWIFI_INFO("cfg wifi type is matched with hi110x, continue");
+    }
+#endif
+
+    wifi_start_dir = proc_mkdir(WIFI_START_PROC_DIR, NULL);
+    if (!wifi_start_dir) {
+		HWIFI_ERROR("wifi start create proc dir failed.\n");	
+		ret = -ENOMEM;
+        return ret;
+    }
+
+	wifi_start_file = proc_create(WIFI_START_PROC_FILE, S_IWUSR|S_IWGRP, wifi_start_dir, &wifi_proc_start);
+    if (!wifi_start_file) {
+		HWIFI_ERROR("wifi start create proc file failed.\n");	
+		ret = -ENOMEM;
+        return ret;
+    }
+
+    mutex_init(&wifi_enable_write_mutex);
+
+    HWIFI_INFO("wifi start create proc file ok.\n");	
+	return ret;
+}
 
 STATIC  void __exit hi110x_wifi_exit_module(void)
 {
+	if (WIFI_IS_START == g_wifi_start)
+	{
 #ifdef CONFIG_USE_OF
-    platform_driver_unregister(&hi110x_wifi_power_driver);
+		platform_driver_unregister(&hi110x_wifi_power_driver);
 #else
-    hi110x_sdio_exit_module();
+		hi110x_sdio_exit_module();
 #endif
+	}
 }
-
 module_init(hi110x_wifi_init_module);
 module_exit(hi110x_wifi_exit_module);
 

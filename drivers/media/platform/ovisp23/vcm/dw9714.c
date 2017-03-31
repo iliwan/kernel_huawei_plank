@@ -15,7 +15,7 @@
 
 #define VCM_ID_CODE		0x9714
 
-int dw9714_get_otp_af(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
+static int dw9714_get_otp_af(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
 {
 	struct vcm_cfg_data *cdata = (struct vcm_cfg_data *)data;
 	struct hisi_sd_req_sd vcm_req_sd = {0};
@@ -28,10 +28,16 @@ int dw9714_get_otp_af(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
 	snprintf(sd_name, sizeof(sd_name), "hisi_sensor_%d", vcm_ctrl->index);
 	vcm_req_sd.name = sd_name;
 	v4l2_subdev_notify(&vcm_ctrl->hisi_sd.sd, HISI_SD_NOTIFY_GET_SD, &vcm_req_sd);
-
+	if (NULL == vcm_req_sd.subdev) {
+		cam_err("%s failed %d.",__func__,__LINE__);
+		return -1;
+	}
 	s_ctrl = container_of(container_of(vcm_req_sd.subdev, struct hisi_sd_subdev, sd),
 				struct hisi_sensor_ctrl_t, hisi_sd);
-
+	if (NULL == s_ctrl) {
+		cam_err("%s failed to get s_ctrl %d.",__func__,__LINE__);
+		return -1;
+	}
 	if (s_ctrl->sensor->sensor_otp.af_otp.af_otp_succeed) {
 		cam_info("%s succeed to get otp af.", __func__);
 		memcpy(&cdata->cfg.af_otp, &s_ctrl->sensor->sensor_otp.af_otp,
@@ -45,17 +51,15 @@ int dw9714_get_otp_af(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
 	return rc;
 }
 
-int dw9714_ioctl(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
+static int dw9714_ioctl(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
 {
-	struct vcm_cfg_data cdata;
+	struct vcm_cfg_data *cdata = (struct vcm_cfg_data*)data;
 	long   rc = 0;
 
 	cam_debug("%s enter.\n", __func__);
 
-	if (copy_from_user(&cdata, (void *)data, sizeof(struct vcm_cfg_data)))
-		return -EFAULT;
 
-	switch (cdata.cfgtype) {
+	switch (cdata->cfgtype) {
 	case CFG_VCM_SET_CFG:
 		break;
 	case CFG_VCM_GET_OTP_AF:
@@ -69,7 +73,7 @@ int dw9714_ioctl(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
 	return rc;
 }
 
-int dw9714_i2c_read(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
+static int dw9714_i2c_read(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
 {
 	struct vcm_cfg_data *cdata = (struct vcm_cfg_data *)data;
 	//struct vcm_i2c_reg reg;
@@ -81,7 +85,7 @@ int dw9714_i2c_read(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
 	return rc;
 }
 
-int dw9714_i2c_write(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
+static int dw9714_i2c_write(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
 {
 	struct vcm_cfg_data *cdata = (struct vcm_cfg_data *)data;
 	int   rc = 0;
@@ -91,7 +95,8 @@ int dw9714_i2c_write(struct hisi_vcm_ctrl_t *vcm_ctrl, void *data)
 	cam_debug("%s: address=0x%x, value=0x%x\n", __func__,
 		cdata->cfg.reg.address, cdata->cfg.reg.value);
 
-	rc = isp_write_vcm(vcm_ctrl->vcm->vcm_info->slave_address,
+	rc = isp_write_vcm(vcm_ctrl->vcm->vcm_info->index,
+			vcm_ctrl->vcm->vcm_info->slave_address,
 			(u16)cdata->cfg.reg.address,
 			(u16)cdata->cfg.reg.value,
 			vcm_ctrl->vcm->vcm_info->data_type);
@@ -179,7 +184,7 @@ static int __init dw9714_module_init(void)
 	rc = platform_driver_probe(&dw9714_platform_driver,
 		dw9714_platform_probe);
 	if (rc < 0) {
-		cam_err("%s platform_driver_probe error.\n", __func__);
+		cam_notice("%s platform_driver_probe error.\n", __func__);
 	}
 	return rc;
 }

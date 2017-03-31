@@ -167,27 +167,26 @@ static int32_t imx135_sensor_probe(struct platform_device *pdev)
 		rc = hisi_sensor_get_dt_data(pdev, sensor);
 		if (rc < 0) {
 			cam_err("%s failed line %d\n", __func__, __LINE__);
-			kfree(sensor);
-			sensor = NULL;
-			return rc;
+			goto imx135_fail;
 		}
 	} else {
 		cam_err("%s imx135 of_node is NULL.\n", __func__);
-		kfree(sensor);
-		sensor = NULL;
-		return rc;
+		goto imx135_fail;
 	}
 
 	rc = hisi_sensor_add(sensor);
 	if (rc < 0) {
 		cam_err("%s fail to add sensor into sensor array.\n", __func__);
-		kfree(sensor);
-		sensor = NULL;
-		return rc;
+		goto imx135_fail;
 	}
 	if (!dev_get_drvdata(&pdev->dev)) {
 		dev_set_drvdata(&pdev->dev, (void *)sensor);
 	}
+	return rc;
+imx135_fail:
+	cam_err("%s error exit.\n", __func__);
+	kfree(sensor);
+	sensor = NULL;
 	return rc;
 }
 
@@ -223,7 +222,7 @@ static int __init imx135_module_init(void)
 	rc = platform_driver_probe(&imx135_platform_driver,
 		imx135_platform_probe);
 	if (rc < 0) {
-		cam_err("%s platform_driver_probe error.\n", __func__);
+		cam_notice("%s platform_driver_probe error.\n", __func__);
 	}
 	return rc;
 }

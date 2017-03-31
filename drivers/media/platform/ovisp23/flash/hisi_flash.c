@@ -21,6 +21,49 @@
 
 static unsigned int flash_led_state = 0;
 
+static struct flash_cmd_state g_flash_cmd = {false, {0}, NULL};
+
+struct hisi_flash_ctrl_t *hisi_flash_ctrl = NULL;
+
+void hisi_set_flash_ctrl(struct hisi_flash_ctrl_t *flash_ctrl)
+{
+	hisi_flash_ctrl = flash_ctrl;
+}
+
+struct hisi_flash_ctrl_t * hisi_get_flash_ctrl(void)
+{
+	return hisi_flash_ctrl;
+}
+
+
+struct flash_cmd_state* hisi_flash_get_cmd_state(void)
+{
+	return &g_flash_cmd;
+}
+
+bool hisi_flash_get_turn_on(void)
+{
+	struct flash_cmd_state* flash_cmd = hisi_flash_get_cmd_state();
+	return flash_cmd->flash_to_turn_on;
+}
+
+void hisi_flash_state_turn_on(struct hisi_flash_ctrl_t *flash_ctrl, void *cdata)
+{
+	struct flash_cmd_state* flash_cmd = hisi_flash_get_cmd_state();
+	flash_cmd->flash_to_turn_on = true;
+	flash_cmd->flash_ctrl = flash_ctrl;
+	memcpy(&flash_cmd->cdata, cdata, sizeof(struct flash_cfg_data));
+}
+
+void hisi_flash_actual_turn_on(void)
+{
+	struct flash_cmd_state* flash_cmd = hisi_flash_get_cmd_state();
+	struct hisi_flash_ctrl_t *flash_ctrl = flash_cmd->flash_ctrl;
+	void *cdata = &flash_cmd->cdata;
+	flash_cmd->flash_to_turn_on = false;
+	flash_ctrl->func_tbl->flash_on(flash_ctrl, cdata);
+}
+
 
 unsigned int hisi_flash_get_state(void)
 {
@@ -64,15 +107,60 @@ static ssize_t hisi_flash_thermal_protect_show(struct device *dev,
 static ssize_t hisi_flash_thermal_protect_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
+	struct hisi_flash_ctrl_t *flash_ctrl = NULL;
+	int rc=0;
+
 	if ('0' == buf[0]) {
 		cam_notice("%s disable thermal protect.", __func__);
 		hisi_flash_clear_state(FLASH_LED_THERMAL_PROTECT_ENABLE);
 	} else {
 		cam_notice("%s enable thermal protect.", __func__);
 		hisi_flash_set_state(FLASH_LED_THERMAL_PROTECT_ENABLE);
+		flash_ctrl = hisi_get_flash_ctrl();
+		cam_notice("%s flash mode=%d.", __func__, flash_ctrl->state.mode);
+		if (flash_ctrl->state.mode != STANDBY_MODE) {
+			cam_notice("%s turn off flash.", __func__);
+			rc = flash_ctrl->func_tbl->flash_off(flash_ctrl);
+			if (rc < 0) {
+				cam_err("%s failed to turn off flash.", __func__);
+			}
+		}
 	}
 
 	return count;
+}
+
+/* check flash led open or short*/
+static ssize_t hisi_flash_led_fault_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct hisi_flash_ctrl_t *flash_ctrl = NULL;
+	int status = -1;
+	int rc = 0;
+	//get flash controller
+	flash_ctrl = hisi_get_flash_ctrl();
+	if(flash_ctrl == NULL) {
+		cam_err("%s: flash ctrl is NULL", __func__);
+		return -1;
+	}
+
+	if(flash_ctrl->func_tbl->flash_check) {
+		status = flash_ctrl->func_tbl->flash_check(flash_ctrl);
+		snprintf(buf, MAX_ATTRIBUTE_BUFFER_SIZE, "%d", status);
+	} else {
+		cam_err("%s: flash check is NULL", __func__);
+		snprintf(buf, MAX_ATTRIBUTE_BUFFER_SIZE, "%d", FLASH_LED_ERROR);
+	}
+
+	rc = strlen(buf) + 1;
+	return rc;
+}
+
+static ssize_t hisi_flash_led_fault_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	//fake store function
+	return 0;
 }
 
 static ssize_t hisi_flash_lowpower_protect_show(struct device *dev,
@@ -105,9 +193,14 @@ static struct device_attribute hisi_flash_lowpower_protect =
 
 static struct device_attribute hisi_flash_thermal_protect =
     __ATTR(flash_thermal_protect, 0664, hisi_flash_thermal_protect_show, hisi_flash_thermal_protect_store);
+/* check flash led open or short */
+static struct device_attribute hisi_flash_led_fault =
+	__ATTR(flash_led_fault, 0664, hisi_flash_led_fault_show, hisi_flash_led_fault_store);
+
 
 static int hisi_flash_register_attribute(struct hisi_flash_ctrl_t *flash_ctrl, struct device *dev)
 {
+#ifdef DEBUG_HISI_CAMERA
 	int rc = 0;
 
 	if ((NULL == flash_ctrl) || (NULL == dev)) {
@@ -126,7 +219,14 @@ static int hisi_flash_register_attribute(struct hisi_flash_ctrl_t *flash_ctrl, s
 		cam_err("%s failed to creat flash lowpower protect attribute.", __func__);
 		return rc;
 	}
-
+	/* check flash led open or short*/
+	cam_notice("create node: flash led fault");
+	rc = device_create_file(flash_ctrl->cdev_torch.dev, &hisi_flash_led_fault);
+	if(rc < 0) {
+		cam_err("%s failed to create flash led fault attribute.", __func__);
+		return rc;
+	}
+#endif
 	return 0;
 }
 
@@ -193,6 +293,11 @@ static struct hisi_flash_ctrl_t *get_sctrl(struct v4l2_subdev *sd)
 
 int hisi_flash_config(struct hisi_flash_ctrl_t *flash_ctrl, void *arg)
 {
+    if (NULL == arg) {
+        cam_err("%s: arg is NULL", __func__);
+        return -EFAULT;
+    }
+
 	struct flash_cfg_data *cdata = (struct flash_cfg_data *)arg;
 	int rc = 0;
 	unsigned int state;
@@ -205,7 +310,11 @@ int hisi_flash_config(struct hisi_flash_ctrl_t *flash_ctrl, void *arg)
 	case CFG_FLASH_TURN_ON:
 		state = hisi_flash_get_state();
 		if (0 == state) {
-			rc = flash_ctrl->func_tbl->flash_on(flash_ctrl, arg);
+			if (cdata->mode == FLASH_MODE) {
+				hisi_flash_state_turn_on(flash_ctrl, arg);
+			} else {
+				rc = flash_ctrl->func_tbl->flash_on(flash_ctrl, arg);
+			}
 		} else {
 			cam_notice("%s flashe led is disable(0x%x).", __func__, state);
 			rc = -1;
@@ -216,6 +325,7 @@ int hisi_flash_config(struct hisi_flash_ctrl_t *flash_ctrl, void *arg)
 		break;
 	case CFG_FLASH_GET_FLASH_NAME:
 		mutex_lock(flash_ctrl->hisi_flash_mutex);
+        memset(cdata->cfg.name, 0, sizeof(cdata->cfg.name));
 		strncpy(cdata->cfg.name, flash_ctrl->flash_info.name,
 			sizeof(cdata->cfg.name) - 1);
 		mutex_unlock(flash_ctrl->hisi_flash_mutex);
@@ -260,6 +370,20 @@ static long hisi_flash_subdev_ioctl(struct v4l2_subdev *sd,
 	}
 }
 
+static int hisi_flash_subdev_internal_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+{
+	struct hisi_flash_ctrl_t *flash_ctrl = get_sctrl(sd);
+	int rc=0;
+	struct flash_cfg_data arg;
+	arg.cfgtype = CFG_FLASH_TURN_OFF;
+
+	if (flash_ctrl == NULL)
+		return 0;
+	rc = flash_ctrl->func_tbl->flash_config(flash_ctrl, (void *)(&arg));
+	return rc;
+}
+
+
 static struct v4l2_subdev_core_ops hisi_flash_subdev_core_ops = {
 	.ioctl = hisi_flash_subdev_ioctl,
 };
@@ -267,6 +391,11 @@ static struct v4l2_subdev_core_ops hisi_flash_subdev_core_ops = {
 static struct v4l2_subdev_ops hisi_flash_subdev_ops = {
 	.core = &hisi_flash_subdev_core_ops,
 };
+
+static struct v4l2_subdev_internal_ops hisi_flash_subdev_internal_ops = {
+	.close = &hisi_flash_subdev_internal_close,
+};
+
 
 int32_t hisi_flash_platform_probe(struct platform_device *pdev,
 	void *data)
@@ -307,6 +436,8 @@ int32_t hisi_flash_platform_probe(struct platform_device *pdev,
 	v4l2_subdev_init(&flash_ctrl->hisi_sd.sd,
 			flash_ctrl->flash_v4l2_subdev_ops);
 
+	flash_ctrl->hisi_sd.sd.internal_ops = &hisi_flash_subdev_internal_ops;
+
 	snprintf(flash_ctrl->hisi_sd.sd.name,
 		sizeof(flash_ctrl->hisi_sd.sd.name), "%s",
 		flash_ctrl->flash_info.name);
@@ -336,6 +467,7 @@ int32_t hisi_flash_platform_probe(struct platform_device *pdev,
 		cam_err("%s failed to register hisi flash attribute node.", __func__);
 		return rc;
 	}
+	hisi_set_flash_ctrl(flash_ctrl);
 	return rc;
 }
 
@@ -394,6 +526,8 @@ int32_t hisi_flash_i2c_probe(struct i2c_client *client,
 	v4l2_subdev_init(&flash_ctrl->hisi_sd.sd,
 			flash_ctrl->flash_v4l2_subdev_ops);
 
+	flash_ctrl->hisi_sd.sd.internal_ops = &hisi_flash_subdev_internal_ops;
+
 	snprintf(flash_ctrl->hisi_sd.sd.name,
 		sizeof(flash_ctrl->hisi_sd.sd.name), "%s",
 		flash_ctrl->flash_info.name);
@@ -426,5 +560,6 @@ int32_t hisi_flash_i2c_probe(struct i2c_client *client,
 	/* detect current device successful, set the flag as present */
 	set_hw_dev_flag(DEV_I2C_TPS);
 #endif
+	hisi_set_flash_ctrl(flash_ctrl);
 	return rc;
 }

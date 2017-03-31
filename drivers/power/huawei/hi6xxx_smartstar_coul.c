@@ -21,6 +21,7 @@
 #define HWLOG_TAG smartstar
 HWLOG_REGIST();
 
+extern int hisi_nv_init_ok;
 extern struct blocking_notifier_head notifier_list;
 extern int hisi_coul_ops_register (struct hisi_coul_ops *coul_ops,
                                enum HISI_COULOMETER_TYPE coul_type);
@@ -164,7 +165,7 @@ static int batt_id_voltage_ops_get(char *buffer, const struct kernel_param *kp)
 {
     // TODO: HKADC batt_id_voltage
 
-    sprintf(buffer, "%d mV", batt_id_voltage);
+    snprintf(buffer, PAGE_SIZE, "%d mV", batt_id_voltage);
 	return strlen(buffer);
 }
 static struct kernel_param_ops batt_id_voltage_ops={
@@ -177,7 +178,7 @@ static int batt_voltage_uv;			// in uv
 static int batt_voltage_uv_ops_get(char *buffer, const struct kernel_param *kp)
 {
     int vol = smartstar_battery_voltage_uv();
-	sprintf(buffer, "%d", vol);
+	snprintf(buffer, PAGE_SIZE, "%d", vol);
 	return strlen(buffer);
 }
 
@@ -200,7 +201,7 @@ static int batt_init_ocv_ops_get(char *buffer, const struct kernel_param *kp)
 
 	ocv = convert_regval2uv(ocvreg - volreg_offset);
 
-	sprintf(buffer, "%d uv", ocv);
+	snprintf(buffer, PAGE_SIZE, "%d uv", ocv);
 	return strlen(buffer);
 }
 
@@ -237,7 +238,7 @@ static int coul_state_ops_set(const char *buffer,
 
 static int coul_state_ops_get(char *buffer, const struct kernel_param *kp)
 {
-	sprintf(buffer, "%d", coul_running);
+	snprintf(buffer, PAGE_SIZE, "%d", coul_running);
 	return strlen(buffer);
 }
 
@@ -252,7 +253,7 @@ static int batt_soc_with_uuc_ops_get(char *buffer,
 										const struct kernel_param *kp)
 {
 	struct smartstar_coul_device *di = g_smartstar_coul_dev;
-	sprintf(buffer, "%d", di->batt_soc_with_uuc);
+	snprintf(buffer, PAGE_SIZE, "%d", di->batt_soc_with_uuc);
 	return strlen(buffer);
 }
 
@@ -445,8 +446,8 @@ static int convert_uah2regval(unsigned int reg_val)
 
     temp = reg_val;
 
-    temp = temp * c_offset_a;
-    temp = div_s64(temp, 1000000);
+    temp = temp * 1000000;
+    temp = div_s64(temp, c_offset_a);
 
     temp = temp * 10000000;
     if( (g_coul_work_mode & PMU_WORK_MODE_MSK) == TCXO_MODE  )
@@ -1900,7 +1901,7 @@ static int save_nv_info(struct smartstar_coul_device *di)
     int refresh_fcc_success = 1;
     struct hisi_nve_info_user nve;
     struct ss_coul_nv_info *pinfo = &di->nv_info;
-    if( NULL == di )
+    if( NULL == di || !hisi_nv_init_ok)
     {
         hwlog_info("NULL point in [%s]\n", __func__);
    	 return -1;
@@ -2907,6 +2908,7 @@ static int get_calc_ocv(struct smartstar_coul_device *di)
 ********************************************************/
 static void get_initial_ocv(struct smartstar_coul_device *di)
 {
+    char val = 0;
     unsigned short ocvreg = 0;
     unsigned short volreg_offset = 0;
     int ocv = 0;
@@ -2966,6 +2968,12 @@ static void get_initial_ocv(struct smartstar_coul_device *di)
 
         hwlog_info("regval to write [ 0x%x ]\n", ocvreg);
         SMARTSTAR_REGS_WRITE(SMARTSTAR_SAVE_OCV_ADDR,&ocvreg,2);
+        val = SMARTSTAR_REG_READ(SMARTSTAR_NV_SAVE_SUCCESS);
+        udelay(110);
+        SMARTSTAR_REG_WRITE(SMARTSTAR_NV_SAVE_SUCCESS, (val & (~NV_SAVE_BITMASK)));
+        if (val & NV_READ_BITMASK) {
+            di->is_nv_need_save = 1;
+        }
     }
     else{
         hwlog_info("using save ocv.\n");
@@ -2990,7 +2998,7 @@ static void get_initial_ocv(struct smartstar_coul_device *di)
 
     di->batt_ocv = ocv;
     //di->cc_start_value = 0;
-    hwlog_info("initial OCV = %d\n", di->batt_ocv);
+    hwlog_info("initial OCV = %d, ocv_temp=%d\n", di->batt_ocv, di->batt_ocv_temp);
 }
 
 #define INT_OFFSET 10 /* mv */
@@ -4416,31 +4424,34 @@ void refresh_fcc(struct smartstar_coul_device *di)
             || (di->batt_ocv>3800000 && di->batt_ocv <3900000)
             )
         )
-	{
-		int fcc_uah, new_fcc_uah, delta_fcc_uah, max_delta_fcc_uah;
-		new_fcc_uah = calculate_real_fcc_uah(di, &fcc_uah);
-        max_delta_fcc_uah = interpolate_fcc(di, di->batt_temp)*DELTA_FCC_PERCENT*10;
-		delta_fcc_uah = new_fcc_uah - fcc_uah;
-		if (delta_fcc_uah < 0)
-			delta_fcc_uah = -delta_fcc_uah;
-		if (delta_fcc_uah > max_delta_fcc_uah)
-		{
-			/* new_fcc_uah is outside the scope limit it */
-			if (new_fcc_uah > fcc_uah)
-				new_fcc_uah = (fcc_uah + max_delta_fcc_uah);
-			else
-				new_fcc_uah = (fcc_uah - max_delta_fcc_uah);
-			hwlog_info("delta_fcc=%d > %d percent of fcc=%d"
-							   "restring it to %d\n",
-							   delta_fcc_uah, DELTA_FCC_PERCENT,
-							   fcc_uah, new_fcc_uah);
-		}
+    {
+        int fcc_uah, fcc_tbl_uah, new_fcc_uah, delta_fcc_uah, max_delta_fcc_uah;
+
+        new_fcc_uah = calculate_real_fcc_uah(di, &fcc_uah);
+        fcc_tbl_uah = interpolate_fcc(di, di->batt_temp)*1000;
+        
+        max_delta_fcc_uah = fcc_tbl_uah*DELTA_FCC_PERCENT/100;
+        delta_fcc_uah = new_fcc_uah - fcc_tbl_uah;
+        if (delta_fcc_uah < 0)
+            delta_fcc_uah = -delta_fcc_uah;
+        if (delta_fcc_uah > max_delta_fcc_uah)
+        {
+            /* new_fcc_uah is outside the scope limit it */
+            if (new_fcc_uah > fcc_tbl_uah)
+                new_fcc_uah = (fcc_tbl_uah + max_delta_fcc_uah);
+            else
+                new_fcc_uah = (fcc_tbl_uah - max_delta_fcc_uah);
+            hwlog_info("delta_fcc=%d > %d percent of fcc=%d"
+                "restring it to %d\n",
+                delta_fcc_uah, DELTA_FCC_PERCENT,
+                fcc_tbl_uah, new_fcc_uah);
+        }
         di->fcc_real_mah = new_fcc_uah / 1000;
-        hwlog_info("refresh_fcc, start soc=%d, new fcc=%d \n",
-            di->charging_begin_soc, di->fcc_real_mah);
+        hwlog_info("refresh_fcc, start soc=%d, new fcc=%d, fcc_tbl_uah=%d,  delta_fcc_uah=%d, max_delta_fcc_uah=%d\n",
+            di->charging_begin_soc, di->fcc_real_mah, fcc_tbl_uah, delta_fcc_uah, max_delta_fcc_uah);
         /* update the temp_fcc lookup table */
-	readjust_fcc_table(di);
-	}
+        readjust_fcc_table(di);
+    }
 }
 
 /*******************************************************
@@ -4638,7 +4649,7 @@ static ssize_t smartstar_show_gaugelog(struct device_driver *driver, char *buf)
     }
 
     if (di == NULL)
-        return sprintf(buf, "%s", "Smartstar coulometer probe failed!");
+        return snprintf(buf, PAGE_SIZE, "%s", "Smartstar coulometer probe failed!");
 
     uf_temp = smartstar_battery_uf_temperature();
     temp =  smartstar_battery_temperature();
@@ -4659,7 +4670,7 @@ static ssize_t smartstar_show_gaugelog(struct device_driver *driver, char *buf)
     ocv = smartstar_battery_ocv();
     rbatt = smartstar_battery_resistance();
 
-    sprintf(buf, "%-6d  %-6d  %-8d  %-6d  %-3d  %-5d  %-6d  %-6d  %-5d  %-6d  %-5d  %-4d  %-7d  %-5d  %-5d  ",
+    snprintf(buf, PAGE_SIZE, "%-6d  %-6d  %-8d  %-6d  %-3d  %-5d  %-6d  %-6d  %-5d  %-6d  %-5d  %-4d  %-7d  %-5d  %-5d  ",
                 voltage,  (signed short)cur, ufcapacity, capacity, afcapacity, rm, fcc, uuc, cc, delta_rc, uf_temp, temp, ocv, rbatt, di->batt_limit_fcc/1000);
 
     return strlen(buf);
@@ -4681,7 +4692,7 @@ static ssize_t smartstar_show_hand_chg_capacity_flag(struct device_driver *drive
     unsigned int val;
 
     val = hand_chg_capacity_flag;
-    return sprintf(buf, "%d\n", val);
+    return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 static ssize_t smartstar_set_input_capacity(struct device_driver *driver, const char *buf, size_t count)
@@ -4700,7 +4711,7 @@ static ssize_t smartstar_show_input_capacity(struct device_driver *driver, char 
     unsigned int val;
 
     val = input_capacity;
-    return sprintf(buf, "%d\n", val);
+    return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 static ssize_t smartstar_show_abs_cc(struct device_driver *driver, char *buf)
@@ -4708,7 +4719,7 @@ static ssize_t smartstar_show_abs_cc(struct device_driver *driver, char *buf)
     int val = 0;
 
     val = hisi_saved_abs_cc_mah + (calculate_cc_uah() / 1000);
-    return sprintf(buf, "%d\n", val);
+    return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 static ssize_t smartstar_show_battery_brand_name(struct device_driver *driver, char *buf)
@@ -4719,7 +4730,7 @@ static ssize_t smartstar_show_battery_brand_name(struct device_driver *driver, c
         return -1;
     }
 
-    sprintf(buf, "%s\n",di->batt_data->batt_brand);
+    snprintf(buf, PAGE_SIZE, "%s\n",di->batt_data->batt_brand);
 
     return strlen(buf);
 }
@@ -4732,7 +4743,7 @@ static ssize_t smartstar_show_battery_id_voltage(struct device_driver *driver, c
         return -1;
     }
 
-    sprintf(buf, "%d\n",di->batt_id_vol);
+    snprintf(buf, PAGE_SIZE, "%d\n",di->batt_id_vol);
 
     return strlen(buf);
 }
@@ -4809,7 +4820,7 @@ static int hisi_get_irqs(struct platform_device *pdev, struct smartstar_coul_dev
 
 static ssize_t hisi_coul_show_pl_v_offset_a(struct device *dev, struct device_attribute *attr, char *buf)
 {
-    return sprintf(buf, "%d\n", pl_v_offset_a);
+    return snprintf(buf, PAGE_SIZE, "%d\n", pl_v_offset_a);
 }
 static ssize_t hisi_coul_set_pl_v_offset_a(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -4827,7 +4838,7 @@ static ssize_t hisi_coul_set_pl_v_offset_a(struct device *dev, struct device_att
 
 static ssize_t hisi_coul_show_pl_v_offset_b(struct device *dev, struct device_attribute *attr, char *buf)
 {
-    return sprintf(buf, "%d\n", pl_v_offset_b);
+    return snprintf(buf, PAGE_SIZE, "%d\n", pl_v_offset_b);
 }
 static ssize_t hisi_coul_set_pl_v_offset_b(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -4845,7 +4856,7 @@ static ssize_t hisi_coul_set_pl_v_offset_b(struct device *dev, struct device_att
 
 static ssize_t hisi_coul_show_pl_c_offset_a(struct device *dev, struct device_attribute *attr, char *buf)
 {
-    return sprintf(buf, "%d\n", pl_c_offset_a);
+    return snprintf(buf, PAGE_SIZE, "%d\n", pl_c_offset_a);
 }
 static ssize_t hisi_coul_set_pl_c_offset_a(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -4863,7 +4874,7 @@ static ssize_t hisi_coul_set_pl_c_offset_a(struct device *dev, struct device_att
 
 static ssize_t hisi_coul_show_pl_c_offset_b(struct device *dev, struct device_attribute *attr, char *buf)
 {
-    return sprintf(buf, "%d\n", pl_c_offset_b);
+    return snprintf(buf, PAGE_SIZE, "%d\n", pl_c_offset_b);
 }
 static ssize_t hisi_coul_set_pl_c_offset_b(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -4886,13 +4897,13 @@ static ssize_t hisi_coul_show_ate_v_offset_a(struct device *dev, struct device_a
 
     v_offset_regval = SMARTSTAR_REG_READ(SMARTSTAR_VOL_OFFSET_ADDR);
     ate_v_offset_a = get_vol_offset(v_offset_regval)==0? DEFAULT_V_OFF_A:get_vol_offset(v_offset_regval);
-    return sprintf(buf, "%d\n", ate_v_offset_a);
+    return snprintf(buf, PAGE_SIZE, "%d\n", ate_v_offset_a);
 }
 
 static int do_save_offset_ret;
 static ssize_t hisi_coul_show_do_save_offset_ret(struct device *dev, struct device_attribute *attr, char *buf)
 {
-    return sprintf(buf, "%d\n", do_save_offset_ret);
+    return snprintf(buf, PAGE_SIZE, "%d\n", do_save_offset_ret);
 }
 static ssize_t hisi_coul_do_save_offset(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -4912,7 +4923,7 @@ static ssize_t hi6521_show_gaugelog_head(struct device *dev,
                   struct device_attribute *attr,
                   char *buf)
 {
-    return sprintf(buf,"ss_VOL  ss_CUR  ss_ufSOC  ss_SOC  SOC  ss_RM  ss_FCC  ss_UUC  ss_CC  ss_dRC  ufTemp Temp  ss_OCV   rbatt  fcc    ");
+    return snprintf(buf, PAGE_SIZE, "ss_VOL  ss_CUR  ss_ufSOC  ss_SOC  SOC  ss_RM  ss_FCC  ss_UUC  ss_CC  ss_dRC  ufTemp Temp  ss_OCV   rbatt  fcc    ");
 }
 static ssize_t hi6521_show_gaugelog(struct device *dev,
                   struct device_attribute *attr,
@@ -4928,7 +4939,7 @@ static ssize_t hi6521_show_gaugelog(struct device *dev,
     }
 
     if (di == NULL)
-        return sprintf(buf, "%s", "Smartstar coulometer probe failed!");
+        return snprintf(buf, PAGE_SIZE, "%s", "Smartstar coulometer probe failed!");
 
     uf_temp = smartstar_battery_uf_temperature();
     temp =  smartstar_battery_temperature();
@@ -4949,7 +4960,7 @@ static ssize_t hi6521_show_gaugelog(struct device *dev,
     ocv = smartstar_battery_ocv();
     rbatt = smartstar_battery_resistance();
 
-    sprintf(buf, "%-6d  %-6d  %-8d  %-6d  %-3d  %-5d  %-6d  %-6d  %-5d  %-6d  %-5d  %-4d  %-7d  %-5d  %-5d  ",
+    snprintf(buf, PAGE_SIZE, "%-6d  %-6d  %-8d  %-6d  %-3d  %-5d  %-6d  %-6d  %-5d  %-6d  %-5d  %-4d  %-7d  %-5d  %-5d  ",
                 voltage,  (signed short)cur, ufcapacity, capacity, afcapacity, rm, fcc, uuc, cc, delta_rc, uf_temp, temp, ocv, rbatt, di->batt_limit_fcc/1000);
 
     return strlen(buf);
@@ -5269,7 +5280,7 @@ static int  hisi_smartstar_coul_probe(struct platform_device *pdev)
 
     /*schedule calculate_soc_work*/
     schedule_delayed_work(&di->calculate_soc_delayed_work,
-                        round_jiffies_relative(msecs_to_jiffies(di->soc_work_interval)));
+                        round_jiffies_relative(msecs_to_jiffies(4000)));
 
     /* Init interrupt notifier work */
     INIT_DELAYED_WORK(&di->notifier_work,

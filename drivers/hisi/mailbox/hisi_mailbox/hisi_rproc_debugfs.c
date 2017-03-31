@@ -272,6 +272,17 @@ rproc_debugfs_write(struct file *filp, const char __user *ubuf,
 	rproc_msg_len_t len;
 	int times = 0;
 
+	if ((NULL == ubuf) || (0 == cnt)) {
+		cnt = -EINVAL;
+		goto out;
+	}
+
+	/*to avoid overflow*/
+	if (sizeof(buf)/sizeof(char) < cnt) {
+		cnt = -EINVAL;
+		goto out;
+	}
+
 	if (copy_from_user(buf, ubuf, cnt - 1)) {
 		pr_err("[DDR DEVFREQ DEBUGFS] can not copy from user\n");
 		cnt = -EINVAL;

@@ -249,7 +249,11 @@ static ssize_t imx328_powerctrl_show(struct device *dev,
 static ssize_t imx328_powerctrl_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	int state = simple_strtol(buf, NULL, 10);
+#ifndef DEBUG_HISI_CAMERA
+    return count;
+#else
+    int state  = 0;
+    state = simple_strtol(buf, NULL, 10);
 	cam_info("enter %s, state %d", __func__, state);
 
 	if (state == POWER_ON)
@@ -258,6 +262,7 @@ static ssize_t imx328_powerctrl_store(struct device *dev,
 		imx328_power_down(&s_imx328.intf);
 
 	return count;
+#endif
 }
 
 
@@ -333,14 +338,14 @@ imx328_config(
 
 			break;
 		case SEN_CONFIG_ENABLE_CSI:
-			if(!csi_enable)
+			if(imx328_power_on && !csi_enable)
 			{
 				ret = si->vtbl->csi_enable(si);
 				csi_enable = true;
 			}
 			break;
 		case SEN_CONFIG_DISABLE_CSI:
-			if(csi_enable)
+			if(imx328_power_on && csi_enable)
 			{
 				ret = si->vtbl->csi_disable(si);
 				csi_enable = false;

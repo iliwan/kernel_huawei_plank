@@ -36,6 +36,7 @@ static int __cpuinit mcpm_boot_secondary(unsigned int cpu, struct task_struct *i
 		 __func__, cpu, pcpu, pcluster);
 
 	mcpm_set_entry_vector(pcpu, pcluster, NULL);
+#if 0	
 #if !defined (CONFIG_HISILICON_PLATFORM_PM_SLEEP)
     /*由于hisi_pm_init函数未实现，mcpm的上电接口会失败，故先打桩*/
     ret = 0;
@@ -44,6 +45,12 @@ static int __cpuinit mcpm_boot_secondary(unsigned int cpu, struct task_struct *i
 	if (ret)
 		return ret;
 #endif
+#endif
+
+	ret = mcpm_cpu_power_up(pcpu, pcluster);
+	if (ret)
+		return ret;
+
 	mcpm_set_entry_vector(pcpu, pcluster, secondary_startup);
 	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
 	dsb_sev();
@@ -78,7 +85,7 @@ static void mcpm_cpu_die(unsigned int cpu)
 }
 
 #endif
-
+#if 0
 #if defined (CHIP_BB_HI6210)
 /*需要将从核跳转的入口地址(函数secondary_startup的地址)写到SRAM的标志单元中*/
 extern void secondary_startup(void);
@@ -110,6 +117,7 @@ static void mcpm_smp_prepare_cpus(unsigned int cpu)
     return;
 }
 #endif
+#endif 
 
 static struct smp_operations __initdata mcpm_smp_ops = {
 	.smp_init_cpus		= simple_smp_init_cpus,
@@ -119,8 +127,10 @@ static struct smp_operations __initdata mcpm_smp_ops = {
 	.cpu_disable		= mcpm_cpu_disable,
 	.cpu_die		= mcpm_cpu_die,
 #endif
+#if 0
 #if defined (CHIP_BB_HI6210)
     .smp_prepare_cpus = mcpm_smp_prepare_cpus
+#endif
 #endif
 };
 

@@ -8,6 +8,9 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#ifdef CONFIG_HISI_SEC_PERICRG_ENABLE
+#include <linux/hisi/hisi_sec_pericrg.h>
+#endif
 #ifdef CONFIG_HISI_RPROC
 #include <linux/huawei/hisi_rproc.h>
 #elif defined(CONFIG_HI3XXX_RPROC)
@@ -243,6 +246,7 @@ void let_modem_master_in_idle(void)
 {
 	u32 regval = 0;
 
+#ifndef CONFIG_HISI_SEC_PERICRG_ENABLE
 	/* nmi开关 */
 	regval = readl((volatile const void *)(g_modem_reset_ctrl.crg_base + 0x12c));
 	reset_print_debug("org ccore nmi regval[%p]=0x%x\n", (g_modem_reset_ctrl.crg_base + 0x12c), regval);
@@ -250,7 +254,15 @@ void let_modem_master_in_idle(void)
 	writel(regval,(volatile void *)(g_modem_reset_ctrl.crg_base + 0x12c));
 	regval = readl((volatile const void *)(g_modem_reset_ctrl.crg_base + 0x12c));
 	reset_print_debug("(%d) ccore nmi regval: 0x%x\n", ++g_reset_debug.main_stage, regval);
-
+#else
+	/* nmi开关 */
+	regval = hisi_sec_pericrg_offset_readl((unsigned long)0x12c);
+	reset_print_debug("org ccore nmi offset 0x12c =0x%x\n", regval);
+	regval &= (~((u32)1 << 12));
+	hisi_sec_pericrg_offset_writel(regval,(unsigned long)0x12c);
+	regval = hisi_sec_pericrg_offset_readl((unsigned long)0x12c);
+	reset_print_debug("(%d) ccore nmi regval: 0x%x\n", ++g_reset_debug.main_stage, regval);
+#endif
 	return;
 }
 
@@ -802,8 +814,9 @@ s32 bsp_reset_ccpu_status_get(void)
 int __init bsp_reset_init(void)
 {
 	s32 ret = RESET_ERROR;
+	#ifndef CONFIG_HISI_SEC_PERICRG_ENABLE
 	struct device_node *np = NULL;
-
+	#endif
 	memset(&(g_modem_reset_ctrl), 0, sizeof(g_modem_reset_ctrl));
 	memset(&g_reset_debug, 0, sizeof(g_reset_debug));
 	g_reset_debug.print_sw = 1;
@@ -813,7 +826,7 @@ int __init bsp_reset_init(void)
 	{
 		reset_print_err("nv read fail, use default value\n");
 	}
-
+	#ifndef CONFIG_HISI_SEC_PERICRG_ENABLE
 	np = of_find_compatible_node(NULL, NULL, "hisilicon,crgctrl");
 	g_modem_reset_ctrl.crg_base =  of_iomap(np, 0);
 	if (!g_modem_reset_ctrl.crg_base)
@@ -821,7 +834,7 @@ int __init bsp_reset_init(void)
 		reset_print_err("get crg_base fail!\n");
 		return RESET_ERROR;
 	}
-
+	#endif
 	bsp_reset_bootflag_set(CCORE_BOOT_NORMAL);
 
 	/* 置上acore与ccore之间通信状态可用标识 */

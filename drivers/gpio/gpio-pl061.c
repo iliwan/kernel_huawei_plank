@@ -34,9 +34,9 @@
 #define GPIOIBE 0x408
 #define GPIOIEV 0x40C
 #define GPIOIE  0x410
-/*lint -esym(750,*)*/
-#define GPIORIS 0x414
-/*lint +esym(750,*)*/
+/* lint -esym(750,*) */
+/* #define GPIORIS 0x414 */
+/* lint +esym(750,*) */
 #define GPIOMIS 0x418
 #define GPIOIC  0x41C
 

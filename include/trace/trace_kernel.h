@@ -55,7 +55,11 @@ enum  {
 /*****************************************************************************
   3 º¯ÊýÊµÏÖ
 *****************************************************************************/
+#ifdef CONFIG_TRACE_DOT
 void trace_dot(unsigned int id, const char* point, int value);
+#else
+static void trace_dot(unsigned int id, const char* point, int value) { return; }
+#endif
 void trace_begin(int tag, const char* name);
 void trace_end(int tag);
 void trace_counter(int tag, const char* name, int value);

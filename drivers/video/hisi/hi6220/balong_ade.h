@@ -62,9 +62,11 @@
 #define ADE_OVERLAY_SELF_REFS       _IOW(ADE_IOCTL_MAGIC, 140, unsigned int)
 #define ADE_OVERLAY_LAYER_SET       _IOW(ADE_IOCTL_MAGIC, 141, struct overlay_layer_info)
 
+#if 0
 #if ADE_MEM_SHARE_EN
 /* test for mem share to codec */
 #define ADE_MEM_SHARE_CODEC_PROC    _IOW(ADE_IOCTL_MAGIC, 160, struct mem_share_test)
+#endif
 #endif
 
 #if PARTIAL_UPDATE
@@ -514,6 +516,10 @@ enum INVERSION_TYPE {
     INVERSION_TYPE_NUM,
 };
 #endif
+enum SCAN_TYPE {
+    SCAN_TYPE_FORWORD = 0,
+    SCAN_TYPE_REVERT,
+};
 #if ADE_MEM_SHARE_EN
 struct mem_share_test {
     int     event_flag;

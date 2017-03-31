@@ -19,7 +19,11 @@ void ov_cmd_list_output_32(struct hisi_fb_data_type *hisifd, char __iomem *base_
 	uint32_t value, uint8_t bw, uint8_t bs)
 {
 	int index;
+#ifdef CONFIG_FB_3630
+	uint32_t item_addr = 0;
+#else
 	uint64_t item_addr;
+#endif
 	uint32_t mask = (1 << bw) - 1;
 	dss_cmdlist_node_t * cmdlist_node = NULL;
 	uint32_t wb_chn;
@@ -43,8 +47,13 @@ void ov_cmd_list_output_32(struct hisi_fb_data_type *hisifd, char __iomem *base_
 	}
 
 	index = cmdlist_node->item_index;
+#ifdef CONFIG_FB_3630
+	item_addr = (uint32_t)(base_addr - hisifd->dss_base + hisifd->dss_base_phy);
+	item_addr = (item_addr >> 2) & CMDLIST_ADDR_OFFSET;
+#else
 	item_addr = (uint64_t) base_addr >> 2;
 	item_addr = item_addr & CMDLIST_ADDR_OFFSET;
+#endif
 
 	do {
 		uint32_t old_addr= cmdlist_node->list_item[index].reg_addr.ul32 & CMDLIST_ADDR_OFFSET;

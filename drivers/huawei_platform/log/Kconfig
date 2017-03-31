@@ -2,6 +2,7 @@
 # Logger extend configuration
 #
 source "drivers/huawei_platform/log/goldeneye/Kconfig"
+source "drivers/huawei_platform/log/log_usertype/Kconfig"
 
 menu "Logger extend configuration"
 

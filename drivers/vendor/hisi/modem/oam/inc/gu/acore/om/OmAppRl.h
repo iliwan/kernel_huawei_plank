@@ -25,6 +25,7 @@
 *****************************************************************************/
 #include "vos.h"
 #include "omrl.h"
+/* Modify by H59254 */
 #if (FEATURE_ON == FEATURE_MERGE_OM_CHAN)
 #include "OmHdlcInterface.h"
 #endif
@@ -38,6 +39,7 @@ extern "C" {
 
 #pragma pack(4)
 
+/* Modify by H59254 */
 #if (FEATURE_OFF == FEATURE_MERGE_OM_CHAN)
 /*****************************************************************************
   2 ∫Í∂®“Â

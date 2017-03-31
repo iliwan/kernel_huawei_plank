@@ -20,7 +20,7 @@
 
 #include <linux/usb/composite.h>
 #include <asm/unaligned.h>
-#include <huawei_platform/usb/hw_rwswitch.h>
+#include <chipset_common/hwusb/hw_usb_rwswitch.h>
 #include "user_interface_id.c"
 /*
  * The code in this file is utility code, used to build a gadget driver
@@ -1446,8 +1446,8 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 			INFO(cdev, "vendor request: %d index: %d value: %d length: %d\n",
 				ctrl->bRequest, w_index, w_value, w_length);
 
-			mode = usb_port_mode_get();
-			state = usb_port_switch_request(w_value);  //manual switch USB mode
+			mode = hw_usb_port_mode_get();
+			state = hw_usb_port_switch_request(w_value);  //manual switch USB mode
 			value = min(w_length, (u16)(sizeof(mode)+sizeof(state)));
 			memcpy(req->buf, &state, value/2);
 			memcpy(req->buf+value/2, &mode, value/2);

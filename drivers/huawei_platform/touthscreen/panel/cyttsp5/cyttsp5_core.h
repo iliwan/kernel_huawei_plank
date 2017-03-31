@@ -40,6 +40,11 @@
 #define CY_DRIVER_MINOR 04
 
 #define CY_DRIVER_REVCTRL 721053
+/* if wakeup fail,will try CY_WAKEUP_RETRY_TIMES to wake */
+#define CY_WAKEUP_RETRY_TIMES 2
+
+#define FW_UPDATE_TO_HIGH 0
+#define FW_UPDATE_DIFF 1
 
 #define CY_DRIVER_VERSION            \
 __stringify(CY_DRIVER_NAME)            \
@@ -211,6 +216,8 @@ struct cyttsp5_core_platform_data {
     int dtz_x1;
     int dtz_y1;
     struct cyttsp5_wakeup_keys *wakeup_keys;
+    unsigned int support_sec_upgrd_firmware;
+    int fw_update_logic;
 };
 
 struct touch_framework {

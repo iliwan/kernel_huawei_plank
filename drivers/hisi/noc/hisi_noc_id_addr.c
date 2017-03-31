@@ -1054,7 +1054,8 @@ unsigned int noc_find_addr_from_routeid(unsigned int idx, int initflow, int targ
     }
     return 0;
 }
-#elif defined(CONFIG_HISI_NOC_HI3635_PLATFORM)
+// add 3630 platform data. Noc is the same with 3635
+#elif defined(CONFIG_HISI_NOC_HI3635_PLATFORM) || defined(CONFIG_HISI_NOC_HI3630_PLATFORM)
 
 const ROUTE_ID_ADDR_STRU hi3635_cfgsys_routeid_addr_tbl[] = {
    {0x00, 0x00, 0x0, 0xe8090000               },
@@ -1073,8 +1074,11 @@ const ROUTE_ID_ADDR_STRU hi3635_cfgsys_routeid_addr_tbl[] = {
    {0x00, 0x0C, 0x1, 0xff080000               },
    {0x00, 0x0D, 0x0, 0xffde0000               },
    {0x00, 0x0E, 0x0, 0xffe00000               },
+   {0x00, 0x0E, 0x1, 0xed000000               },
+   {0x00, 0x0E, 0x2, 0xec000000             	},   
    {0x00, 0x0F, 0x0, 0xe0000000               },
    {0x00, 0x10, 0x0, 0xff17e000               },
+   {0x00, 0x11, 0x0, 0xff010000               },   
    {0x00, 0x12, 0x0, 0xff020000               },
    {0x00, 0x13, 0x0, 0xff030000               },
    {0x00, 0x14, 0x0, 0xc0000000               },
@@ -1089,8 +1093,8 @@ const ROUTE_ID_ADDR_STRU hi3635_cfgsys_routeid_addr_tbl[] = {
    {0x00, 0x19, 0x0, 0x1c000000               },
    {0x00, 0x19, 0x1, 0x18000000               },
    {0x00, 0x19, 0x0, 0x10000000               },
-   {0x00, 0x20, 0x0, 0xfe000000               },
-   {0x00, 0x21, 0x0, 0xe8100000               },
+   {0x00, 0x2a, 0x0, 0xfe000000               },
+   {0x00, 0x2b, 0x0, 0xe8100000               },
 };
 
 /* vivo_bus */

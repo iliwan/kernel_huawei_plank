@@ -742,11 +742,11 @@ VOS_UINT32 At_ChgMnErrCodeToAt(
 }
 
 
-TAF_UINT32 At_ChgTafErrorCode(TAF_UINT8 ucIndex,TAF_UINT16 usTafErrorCode)
+TAF_UINT32 At_ChgTafErrorCode(TAF_UINT8 ucIndex, TAF_ERROR_CODE_ENUM_UINT32 enTafErrorCode)
 {
     TAF_UINT32 ulRtn = 0;
 
-    switch(usTafErrorCode)
+    switch(enTafErrorCode)
     {
     case TAF_ERR_GET_CSQLVL_FAIL:
     case TAF_ERR_USIM_SVR_OPLMN_LIST_INAVAILABLE:
@@ -847,6 +847,20 @@ TAF_UINT32 At_ChgTafErrorCode(TAF_UINT8 ucIndex,TAF_UINT16 usTafErrorCode)
     case TAF_ERR_MISSING_RESOURCE:
         ulRtn = AT_CME_MISSING_RESOURCE;
         break;
+    /* Added by zwx247453 for VOLTE SWITCH, 2015-02-02, Begin */
+    case TAF_ERR_IMS_NOT_SUPPORT:
+        ulRtn = AT_CME_IMS_NOT_SUPPORT;
+        break;
+    case TAF_ERR_IMS_SERVICE_EXIST:
+        ulRtn = AT_CME_IMS_SERVICE_EXIST;
+        break;
+    case TAF_ERR_IMS_VOICE_DOMAIN_PS_ONLY:
+        ulRtn = AT_CME_IMS_VOICE_DOMAIN_PS_ONLY;
+        break;
+    case TAF_ERR_IMS_STACK_TIMEOUT:
+        ulRtn = AT_CME_IMS_STACK_TIMEOUT;
+        break;
+    /* Added by zwx247453 for VOLTE SWITCH, 2015-02-02, end */
 
     default:
         if (VOS_NULL_PTR == g_stParseContext[ucIndex].pstCmdElement)
@@ -2288,13 +2302,9 @@ TAF_VOID At_CsIncomingEvtOfIncomeStateIndProc(
 
     At_SendResultData(ucIndex,pgucAtSndCodeAddr,usLength);
 
-    /* PC VOICE和VP场景需要关闭自动接听功能 */
-    if ((MN_CALL_TYPE_VIDEO == pstCallInfo->enCallType))
-    {
-        pstCcCtx->stS0TimeInfo.ucS0TimerLen = 0;
-    }
-
-    if (0 != pstCcCtx->stS0TimeInfo.ucS0TimerLen)
+    /* 只有呼叫类型为voice时才支持自动接听功能，其他场景暂时不支持自动接听 */
+    if ((MN_CALL_TYPE_VOICE  == pstCallInfo->enCallType)
+     && (0 != pstCcCtx->stS0TimeInfo.ucS0TimerLen))
     {
         /* 如果自动接听功能没启动，收到RING事件后启动 */
         if (TAF_TRUE != pstCcCtx->stS0TimeInfo.bTimerStart)
@@ -3086,7 +3096,6 @@ VOS_VOID AT_ProcCsCallConnectInd(
     MODEM_ID_ENUM_UINT16                enModemId;
     VOS_UINT32                          ulRslt;
     VOS_UINT16                          usLength;
-    VOS_UINT32                          ulResult = AT_FAILURE;
 
     usLength  = 0;
     enModemId = MODEM_ID_0;
@@ -3107,45 +3116,22 @@ VOS_VOID AT_ProcCsCallConnectInd(
     /* CS呼叫成功, 清除CS域错误码 */
     AT_SetCsCallErrCause(ucIndex, TAF_CS_CAUSE_SUCCESS);
 
-    if (AT_EVT_IS_VIDEO_CALL(pstCallInfo->enCallType))
+    if (VOS_TRUE == AT_CheckRptCmdStatus(pstCallInfo->aucCurcRptCfg, AT_CMD_RPT_CTRL_BY_CURC, AT_RPT_CMD_CONN))
     {
-        gastAtClientTab[ucIndex].ucCsRabId = pstCallInfo->ucRabId;
-        ulResult = AT_CONNECT;
-
-        /* 如果是PCUI口发起的拨打可视电话的操作，则不迁到数据态，只有MODEM口发起的VP操作才需迁到数据态  */
-        if (AT_MODEM_USER == gastAtClientTab[ucIndex].UserType)
-        {
-#if( FEATURE_ON == FEATURE_CSD )
-            /* 注册Modem端口VIDEO PHONE的流控点 */
-            AT_RegModemVideoPhoneFCPoint(ucIndex, FC_ID_MODEM);
-
-            AT_SendCsdCallStateInd(ucIndex, AT_CSD_CALL_STATE_ON);
-#endif
-
-            At_SetMode(ucIndex, AT_DATA_MODE, AT_CSD_DATA_MODE);   /* 开始数传 */
-        }
-
-        gstAtSendData.usBufLen = usLength;
-        At_FormatResultData(ucIndex, ulResult);
-    }
-    else
-    {
-        if (VOS_TRUE == AT_CheckRptCmdStatus(pstCallInfo->aucCurcRptCfg, AT_CMD_RPT_CTRL_BY_CURC, AT_RPT_CMD_CONN))
-        {
-            usLength += (VOS_UINT16)At_sprintf(AT_CMD_MAX_LEN,
-                                               (VOS_CHAR *)pgucAtSndCodeAddr,
-                                               (VOS_CHAR *)pgucAtSndCodeAddr + usLength,
-                                                "%s^CONN:%d,%d%s",
-                                                gaucAtCrLf,
-                                                pstCallInfo->callId,
-                                                pstCallInfo->enCallType,
-                                                gaucAtCrLf);
-            At_SendResultData(ucIndex,pgucAtSndCodeAddr,usLength);
-        }
+        usLength += (VOS_UINT16)At_sprintf(AT_CMD_MAX_LEN,
+                                           (VOS_CHAR *)pgucAtSndCodeAddr,
+                                           (VOS_CHAR *)pgucAtSndCodeAddr + usLength,
+                                            "%s^CONN:%d,%d%s",
+                                            gaucAtCrLf,
+                                            pstCallInfo->callId,
+                                            pstCallInfo->enCallType,
+                                            gaucAtCrLf);
+        At_SendResultData(ucIndex,pgucAtSndCodeAddr,usLength);
     }
 
     return;
 }
+
 TAF_VOID At_CsIndProc(
     TAF_UINT8                           ucIndex,
     MN_CALL_EVENT_ENUM_U32              enEvent,
@@ -3179,10 +3165,7 @@ TAF_VOID At_CsIndProc(
         case MN_CALL_EVT_RELEASED:
 
             /* 记录cause值 */
-            if (TAF_CS_CAUSE_SUCCESS != pstCallInfo->enCause)
-            {
-                AT_SetCsCallErrCause(ucIndex, pstCallInfo->enCause);
-            }
+            AT_SetCsCallErrCause(ucIndex, pstCallInfo->enCause);
 
             /* 如果是可视电话，因为在INCOMING的时候拉高了DCD的管脚信号，现在拉低DCD的管脚信号 */
             if (AT_EVT_IS_CS_VIDEO_CALL(pstCallInfo->enCallType, pstCallInfo->enVoiceDomain))
@@ -19994,11 +19977,13 @@ VOS_VOID AT_RcvMmaRssiChangeInd(
     {
 
 
+        /* Modified by l00305157 for for Service_State_Optimize_PhaseI, 2014-11-29, begin */
         sRsrp = pEvent->RssiValue.aRssi[0].u.stLCellSignInfo.sRsrp;
         sRsrq = pEvent->RssiValue.aRssi[0].u.stLCellSignInfo.sRsrq;
         sRssi = pEvent->RssiValue.aRssi[0].u.stLCellSignInfo.sRssi;
 
         AT_CalculateLTESignalValue(&sRssi,&ucLevel,&sRsrp,&sRsrq);
+        /* Modified by l00305157 for for Service_State_Optimize_PhaseI, 2014-11-29, end */
 
         usLength += (VOS_UINT16)At_sprintf(AT_CMD_MAX_LEN,
                                            (VOS_CHAR *)pgucAtSndCodeAddr,

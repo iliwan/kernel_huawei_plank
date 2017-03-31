@@ -159,7 +159,8 @@ typedef struct
     VOS_UINT32                          bitOpIpv6SecDns   : 1;
     VOS_UINT32                          bitOpIpv6PriPCSCF : 1;
     VOS_UINT32                          bitOpIpv6SecPCSCF : 1;
-    VOS_UINT32                          bitOpIpv6Spare    : 28;
+    VOS_UINT32                          bitOpIpv6ThiPCSCF : 1;
+    VOS_UINT32                          bitOpIpv6Spare    : 27;
 
     VOS_UINT8                           ucRabId;                                /* RAB标识，取值范围:[5,15] */
     VOS_UINT8                           aucRsv[3];
@@ -169,6 +170,7 @@ typedef struct
     VOS_UINT8                           aucIpv6SecDNS[TAF_IPV6_ADDR_LEN];    /* 从 PDP上下文带来的IPV6副DNS长度，不包括":" */
     VOS_UINT8                           aucPrimPcscfAddr[TAF_IPV6_ADDR_LEN]; /* IPV6的主P-CSCF，主机序 */
     VOS_UINT8                           aucSecPcscfAddr[TAF_IPV6_ADDR_LEN];  /* IPV6的副P-CSCF，主机序 */
+    VOS_UINT8                           aucThiPcscfAddr[TAF_IPV6_ADDR_LEN];  /* IPV6的第三P-CSCF，主机序 */
 }AT_IPV6_DHCP_PARAM_STRU;
 
 /*****************************************************************************
@@ -185,10 +187,11 @@ typedef struct
     VOS_UINT32                          bitOpIpv4SecWINNS : 1;
     VOS_UINT32                          bitOpIpv4PriPCSCF : 1;
     VOS_UINT32                          bitOpIpv4Secpcscf : 1;
-    VOS_UINT32                          bitOpSpare        : 26;
+    VOS_UINT32                          bitOpIpv4Thipcscf : 1;
+    VOS_UINT32                          bitOpSpare        : 25;
 
     VOS_UINT8                           ucRabId;                                /* RAB标识，取值范围:[5,15] */
-    VOS_UINT8                           aucRsv[3];
+    VOS_UINT8                           aucRsv1[3];
     VOS_UINT32                          ulIpv4Addr;                             /* IPV4的IP地址，主机序 */
     VOS_UINT32                          ulIpv4NetMask;                          /* IPV4的掩码，主机序 */
     VOS_UINT32                          ulIpv4GateWay;                          /* IPV4的网关地址，主机序 */
@@ -199,11 +202,10 @@ typedef struct
     VOS_UINT32                          ulIpv4PrimWINNS;                        /* IPV4的主WINNS，主机序 */
     VOS_UINT32                          ulIpv4SecWINNS;                         /* IPV4的副WINNS，主机序 */
     VOS_UINT32                          ulIpv4PrimPCSCF;                        /* IPV4的主P-CSCF，主机序 */
-    VOS_UINT32                          ulIpv4SecPCSCF;                         /* IPV4的副P-CSCF   ，主机序 */
+    VOS_UINT32                          ulIpv4SecPCSCF;                         /* IPV4的副P-CSCF，主机序 */
+    VOS_UINT32                          ulIpv4ThiPCSCF;                         /* IPV4的第三P-CSCF，主机序 */
+    VOS_UINT8                           aucRsv2[4];
 }AT_IPV4_DHCP_PARAM_STRU;
-
-
-
 typedef struct
 {
     AT_CLIENT_TAB_INDEX_UINT8           enPortIndex;

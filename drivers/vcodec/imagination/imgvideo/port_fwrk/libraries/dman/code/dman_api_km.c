@@ -1502,6 +1502,8 @@ IMG_VOID DMANKM_SuspendDevice(
     {
 		return;
 	}
+/* Take mutex */
+      SYSOSKM_LockMutex(((DMANKM_sDevContext *) hDevHandle)->hMutexHandle);
 
 	psDevContext = (DMANKM_sDevContext *) hDevHandle;
 
@@ -1519,6 +1521,9 @@ IMG_VOID DMANKM_SuspendDevice(
 					!"APM off Called while core is off by either APM or PPM");
 		}
 	}
+/* Release mutex */
+	SYSOSKM_UnlockMutex(((DMANKM_sDevContext *) hDevHandle)->hMutexHandle);
+
 }
 
 IMGVIDEO_EXPORT_SYMBOL(DMANKM_SuspendDevice)
@@ -1530,7 +1535,8 @@ IMGVIDEO_EXPORT_SYMBOL(DMANKM_SuspendDevice)
 
  ******************************************************************************/
 IMG_VOID DMANKM_ResumeDevice(
-		IMG_HANDLE hDevHandle) 
+		IMG_HANDLE hDevHandle,
+		IMG_BOOL   bEnableLock)
 {
 	DMANKM_sDevContext * psDevContext;
 
@@ -1538,6 +1544,13 @@ IMG_VOID DMANKM_ResumeDevice(
     {
 		return;
 	}
+
+	if(IMG_TRUE == bEnableLock)
+	{
+	      /* Take mutex */
+	      SYSOSKM_LockMutex(((DMANKM_sDevContext *) hDevHandle)->hMutexHandle);
+	}
+
 	psDevContext = (DMANKM_sDevContext *) hDevHandle;
 
 	if ((psDevContext->sDevRegister.ui32DevFlags & DMAN_DFLAG_PSEUDO_DEVICE)
@@ -1552,6 +1565,11 @@ IMG_VOID DMANKM_ResumeDevice(
 		} else {
 			IMG_ASSERT( !"APM On Called while core is on or is off by PPM");
 		}
+	}
+	if(IMG_TRUE == bEnableLock)
+	{
+	       /* Release mutex */
+		SYSOSKM_UnlockMutex(((DMANKM_sDevContext *) hDevHandle)->hMutexHandle);
 	}
 }
 

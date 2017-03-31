@@ -66,6 +66,7 @@ char *hisi_peripheral_chanel[] = {
 	[DETECT_BOARD2_CHANEL]		= "board2",
 	[DETECT_BOARD3_CHANEL]		= "board3",
 };
+
 #define TSENSOR_USED_NUM		5
 #define TSENSOR_BUFFER_LENGTH		40
 extern int hisi_peripheral_get_temp(struct periph_tsens_tm_device_sensor *chip, unsigned long *temp);
@@ -130,7 +131,7 @@ static int get_equipment_tree_data(struct platform_device *pdev, int sensor_num)
         }
 
 	/*get detect equipment thermal HKADC chanel, name and state*/
-	for (i = DETECT_SYSTEM_H_CHANEL, j = DETECT_SYSTEM_H_CHANEL; i < sensor_num; i++, j++) {
+	for (i = 0, j = 0; i < sensor_num; i++, j++) {
 		memset(temp_buffer, 0, TSENSOR_BUFFER_LENGTH);
 		sprintf(temp_buffer, "hisi,detect_%s_tm_chanel", hisi_peripheral_chanel[i]);
 		rc = of_property_read_u32(of_node, temp_buffer, &equipment_chanel_value);
@@ -186,7 +187,7 @@ kmalloc_fail:
 read_name_fail:
 read_state_fail:
 read_chanel_fail:
-	for (i = DETECT_SYSTEM_H_CHANEL; i < j; i++) {
+	for (i = 0; i < j; i++) {
 		kfree(gtm_dev->sensor[i].ntc_name);
 	}
 	kfree(temp_buffer);
@@ -301,7 +302,7 @@ static int hisi_peripheral_tm_probe(struct platform_device *pdev)
                 pr_err("%s:Failed to alloc memory for temp buffer!\n", __func__);
                 return -ENOMEM;
 	}
-	for (i = DETECT_SYSTEM_H_CHANEL, flag = DETECT_SYSTEM_H_CHANEL; i < (gtm_dev->tsens_num_sensor + DETECT_SYSTEM_H_CHANEL); i++) {
+	for (i = 0, flag = 0; i < (gtm_dev->tsens_num_sensor + 0); i++) {
 		if (gtm_dev->sensor[i].state == 0)
 			continue;
 		memset(temp_buffer1, 0, TSENSOR_BUFFER_LENGTH);
@@ -325,7 +326,7 @@ static int hisi_peripheral_tm_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, gtm_dev);
 	return 0;
 fail:
-	for (i = DETECT_SYSTEM_H_CHANEL; i < flag; i++) {
+	for (i = 0; i < flag; i++) {
 		thermal_zone_device_unregister(gtm_dev->sensor[i].tz_dev);
 	}
 	return rc;
@@ -338,7 +339,7 @@ static int hisi_peripheral_tm_remove(struct platform_device *pdev)
 
 	if (chip) {
 		platform_set_drvdata(pdev, NULL);
-		for (i = DETECT_SYSTEM_H_CHANEL; i < (gtm_dev->tsens_num_sensor + DETECT_SYSTEM_H_CHANEL); i++) {
+		for (i = 0; i < (gtm_dev->tsens_num_sensor + 0); i++) {
 			kfree(gtm_dev->sensor[i].ntc_name);
 			thermal_zone_device_unregister(gtm_dev->sensor[i].tz_dev);
 		}

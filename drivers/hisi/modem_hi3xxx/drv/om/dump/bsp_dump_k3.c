@@ -39,16 +39,17 @@
 
 struct rdr_struct_s * pbb = NULL;
 
-s32 rdr_dump_register_hook(int field_id, void * func)
-{
-    printk("rdr_dump_register_hook is stub, no rdr.\n");
-    return -1;
-}
-
 u32 *rdr_core_addr_fun(char *daddr, int core_id)
 {
     printk("rdr_core_addr_fun is stub, no rdr.\n");
 	return 0;
+}
+
+#ifndef CONFIG_HISI_3635
+s32 rdr_dump_register_hook(int field_id, void * func)
+{
+    printk("rdr_dump_register_hook is stub, no rdr.\n");
+    return -1;
 }
 
 u8 *rdr_balong_reg_field(u32 field_id, u32 len)
@@ -56,7 +57,6 @@ u8 *rdr_balong_reg_field(u32 field_id, u32 len)
     printk("rdr_balong_reg_field is stub, no rdr.\n");
 	return 0;
 }
-
 void hisi_system_error(enum rdr_modid_e mod_id,
 			u32 arg1, u32 arg2, char *data, u32 length)
 {
@@ -64,9 +64,24 @@ void hisi_system_error(enum rdr_modid_e mod_id,
 	return;
 }
 #endif
+#endif
 
-#define RDR_CCORE_ADDR \
-	((struct dump_area_t *)(rdr_core_addr(pbb, RDR_CCORE)))
+/* AP AREA */
+#define DUMP_AP_SECTION_ADDR                (DDR_MNTN_ADDR_VIRT+0x200) 
+#define DUMP_AP_SECTION_SIZE                (0x80000)
+
+/* CP AREA */
+#define DUMP_COMM_SECTION_OFFSET            (0x480000)
+#define DUMP_COMM_SECTION_ADDR              (DDR_MNTN_ADDR_VIRT+DUMP_COMM_SECTION_OFFSET) 
+#define DUMP_COMM_SECTION_SIZE              (0x180000)
+
+/* Modem Share */
+#define DUMP_SHARE_ADDR                     (DDR_MNTN_ADDR_VIRT+DUMP_COMM_SECTION_OFFSET-0x80000)
+#define DUMP_SHARE_SIZE                     (0x80000)
+
+/* LPM3 AREA */
+#define DUMP_LPM3_SECTION_ADDR              (DDR_MNTN_ADDR_VIRT+0x700000) 
+#define DUMP_LPM3_SECTION_SIZE              (0x80000)
 
 typedef struct
 {
@@ -93,7 +108,7 @@ s32 bsp_dump_get_cp_field(u32 field_id, char** buffer, u32* length)
     *buffer = NULL;
     *length = 0;
     
-    pCPArea = (dump_area_t*)RDR_CCORE_ADDR;
+    pCPArea = (dump_area_t*)DUMP_COMM_SECTION_ADDR;
 
     if(pCPArea == 0 )
     {
@@ -101,7 +116,7 @@ s32 bsp_dump_get_cp_field(u32 field_id, char** buffer, u32* length)
         return BSP_ERROR; 
     }
     
-    prdr_global = (dump_global_internal_t *)(RDR_AREA_RESERVE_ADDR->ap_cp_share.content.rdr_global_internal);
+    prdr_global = (dump_global_internal_t *)(((struct rdr_a1_reserve_s *)DUMP_SHARE_ADDR)->ap_cp_share.content.rdr_global_internal);
 
     if(prdr_global->comm_internal.init_flag != DUMP_INIT_FLAG)
     {
@@ -143,7 +158,6 @@ EXPORT_SYMBOL_GPL(bsp_dump_print);
 char* bsp_dump_get_buffer_addr(dump_save_modid_t mod_id)
 {
     char* addr = 0;
-    dump_save_t * top_head = (dump_save_t *)pbb;
     dump_area_t * area_head;
     u32 i;
 
@@ -157,19 +171,19 @@ char* bsp_dump_get_buffer_addr(dump_save_modid_t mod_id)
     if((mod_id & 0x0F000000) == 0x01000000)
     {
         /* AP对应area 0 */
-        area_head = (dump_area_t *)((char*)pbb + top_head->area_info[0].offset);
+        area_head = (dump_area_t *)(DUMP_AP_SECTION_ADDR);
     }
     /* 获取CP buffer */
     else if((mod_id & 0x0F000000) == 0x02000000)
     {
         /* CP对应area 2 */
-        area_head = (dump_area_t *)((char*)pbb + top_head->area_info[2].offset);
+        area_head = (dump_area_t *)(DUMP_COMM_SECTION_ADDR);
     }
     /* 获取LPM3 buffer */
     else if((mod_id & 0x0F000000) == 0x04000000)
     {
         /* LPM3对应area 5 */
-        area_head = (dump_area_t *)((char*)pbb + top_head->area_info[5].offset);
+        area_head = (dump_area_t *)(DUMP_LPM3_SECTION_ADDR);
         if(area_head->head.magic_num != 0x88118811)
         {
             printk("%s: LPM3 rdr filed is not inited\n", __FUNCTION__);

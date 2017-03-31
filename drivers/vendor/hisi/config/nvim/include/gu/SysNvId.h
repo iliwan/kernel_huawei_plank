@@ -162,7 +162,35 @@ enum SYS_NV_ID_ENUM
 
 /*  2319 */     en_NV_Item_Roam_Display_Cfg = 2319,                /* 漫游显示配置 */
 
+/*   2320*/     en_NV_Item_Rat_Frequently_Switch_Chr_Rpt_Cfg = 2320,
+
 /*  2321 */     en_NV_Item_NVWR_SEC_CTRL            = 2321,                     /* NVWR命令安全控制 */
+
+/* Add by l00305157 for Service_State_Optimize_PhaseII, 2015-02-11, begin */
+/*   2322*/     en_NV_Item_DELAY_REPORT_SERVICE_STATUS_CFG = 2322,
+/* Add by l00305157 for Service_State_Optimize_PhaseII, 2015-02-11, end */
+/* 2324 */      en_NV_Item_Protect_Mt_Csfb_Paging_Procedure_Len = 2324,         /* csmt 保护时长 */
+
+/* Added by c00318887 for file refresh需要触发背景搜, 2015-4-28, begin */
+/* 2325 */      en_NV_Item_HIGH_PRIO_PLMN_REFRESH_TRIGGER_BG_SEARCH_CFG   = 2325,
+/* Added by c00318887 for file refresh需要触发背景搜, 2015-4-28, end */
+
+                en_NV_Item_SMS_PS_CTRL              = 2326,
+/* Added by c00318887 for DPlmn扩容和优先接入HPLMN, 2015-5-18, begin */
+/* 2327  */      en_NV_Item_CMCC_Cfg_Dplmn_Nplmn_Info = 2327,
+/* 2328  */      en_NV_Item_UNICOM_Cfg_Dplmn_Nplmn_Info = 2328,
+/* 2329  */      en_NV_Item_CT_Cfg_Dplmn_Nplmn_Info = 2329,
+/* Added by c00318887 for DPlmn扩容和优先接入HPLMN, 2015-5-18, begin */
+
+/* Added by c00318887 for 移植T3402 , 2015-6-17, begin */
+/* 2334 */      en_NV_Item_DISABLE_LTE_START_T3402_ENABLE_LTE_CFG   = 2334,
+/* Added by c00318887 for 移植T3402 , 2015-6-17, end */
+
+/*   2335*/     en_NV_Item_LTE_OOS_2G_PREF_PLMN_SEL_CFG = 2335,
+
+/*  2336 */     en_NV_Item_Ipv6_Address_Test_Mode_Cfg = 2336,                   /* IPV6地址测试模式配置，0x55AA55AA为测试模式，其他值为正常模式 */
+/*  2340 */     en_NV_Item_Ccwa_Ctrl_Mode                   = 2340,
+/*  2354 */     en_NV_Item_ADS_WAKE_LOCK_CFG = 2354,                            /* ADS WAKELOCK 配置 */
 
 /*   3000*/      en_NV_Item_ErrLog_CsHo_Len = 3000,
 
@@ -172,13 +200,21 @@ enum SYS_NV_ID_ENUM
 /* 3008 */      en_NV_Item_Csfb_Mcc_Band_Info            = 3008,
 
 /* 3009 */     en_NV_Item_GAS_GSM_BAND_CUSTOMIZE_CFG    = 3009,
+
+/* 3010 */     en_NV_Item_Was_Ac_CHECK_Ctrl_Info    = 3010,
+
                en_NV_Item_Was_Csfb_Search_Ctr_Info = 3012,
 
 /* 3015 */      en_NV_Item_GAS_FAST_AREA_LOST_CFG = 3015,
 
 /* 3016 */      en_NV_Item_Inter_Rat_Resel_H_PRIO_Customization      = 3016,
-
 /* 3017 */     en_NV_Item_Was_Eutra_Cell_Resel_Ctr_Info = 3017,
+/* 3018 */      en_NV_Item_GAS_AUTO_FR_CFG      = 3018,
+
+/* 3024 */   en_NV_Item_Was_Capbility_FddList_Ctr_Info = 3024,
+
+/* 3021 */      en_NV_Item_GAS_INTER_RAT_RESEL_CFG     = 3021,
+
 /*   4000 */     en_NV_Item_DDR_ADJUST_CFG  = 4000,
 /*   4900  */    en_NV_Item_Bastet_CONFIG = 4900,
 
@@ -378,6 +414,9 @@ enum SYS_NV_ID_ENUM
 /* 16029 */       en_NV_Item_FEATURE_XPASS_EN                   = 16029,
 
 /* 16042  */     en_NV_Item_W_T313_BACK_CTRL  = 16042,
+
+/* 16044  */     en_NV_Item_W_SYNC_MODULE_OPTIMIZE_PARA = 16044,
+
 
 /* 50009 */      en_NV_Item_TRAFFIC_CLASS_Type = GU_CUSTOM_EXTEND_NV_ID_MIN + 9,
 /* 50012 */      en_NV_Item_WIFI_KEY = GU_CUSTOM_EXTEND_NV_ID_MIN + 12,

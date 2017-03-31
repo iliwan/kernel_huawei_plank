@@ -44,7 +44,7 @@ const struct _sensor_reg_t ov5648_foxconn_chm_init_regs[] = {
     {0x3022, 0x00},
     {0x3034, 0x1a}, // 10-bit mode
     {0x3035, 0x11}, // PLL                  //kenxu @ 20130912 to reduce preview SCLK to 56M
-    {0x3036, 0x42}, // PLL                  //kenxu @ 20130912 to reduce preview SCLK to 56M
+    {0x3036, 0x3f}, // PLL                  //kenxu @ 20130912 to reduce preview SCLK to 56M
     {0x3037, 0x03}, // PLL
     {0x3038, 0x00}, // PLL
     {0x3039, 0x00}, // PLL
@@ -110,8 +110,8 @@ const struct _sensor_reg_t ov5648_foxconn_chm_init_regs[] = {
     {0x380b, 0xc0}, // y output size
     {0x380c, 0x08}, // 0x858, hts = 2136  //kenxu @ 20130912 to reduce preview SCLK to 56M
     {0x380d, 0x58},                       //kenxu @ 20130912 to reduce preview SCLK to 56M
-    {0x380e, 0x05}, // 0x58e, vts = 1422  //kenxu @ 20130912 to reduce preview SCLK to 56M
-    {0x380f, 0x8e},                       //kenxu @ 20130912 to reduce preview SCLK to 56M
+    {0x380e, 0x05}, // 0x550, vts = 1360  //kenxu @ 20130912 to reduce preview SCLK to 56M
+    {0x380f, 0x50},                       //kenxu @ 20130912 to reduce preview SCLK to 56M
     {0x3810, 0x00}, // isp x win = 16
     {0x3811, 0x10}, // isp x win
     {0x3812, 0x00}, // isp y win = 10
@@ -205,7 +205,7 @@ const struct _sensor_reg_t ov5648_foxconn_chm_init_regs[] = {
     //kenxu @ 20130913 for strong DPC update -- End
 
  //   {0x0100, 0x01},
-    {0x4837, 0x16}, //0x16        //kenxu @ 20130913 to update mipi global timing
+    {0x4837, 0x17}, //0x16        //kenxu @ 20130913 to update mipi global timing
 
 //	{0x301a, 0xf1},
 //	{0x301c, 0xd6},
@@ -225,14 +225,14 @@ const struct _sensor_reg_t ov5648_foxconn_chm_init_regs[] = {
 
 /*1280x960*/
 static const struct _sensor_reg_t ov5648_foxconn_chm_framesize_quarter[] = {
-    // 1280x960 29.798fps 2 lane MIPI 452.54Mbps/lane
+    // 1280x960 29.74fps 2 lane MIPI 431.97Mbps/lane sysclk 86.394MHz
     {0x0100, 0x00},
 //	{0x301a, 0xf1},
 //	{0x301c, 0xd6},
     //{0x3501, 0x3d}, // exposure
     //{0x3502, 0x00}, // exposure
     {0x3035, 0x11}, // PLL                 //kenxu @ 20130912 to reduce preview SCLK to 56M
-    {0x3036, 0x42}, // PLL                 //kenxu @ 20130912 to reduce preview SCLK to 56M
+    {0x3036, 0x3f}, // PLL                 //kenxu @ 20130912 to reduce preview SCLK to 56M
     {0x3708, 0x66},
     {0x3709, 0x52},
     {0x370c, 0xcf},
@@ -252,8 +252,8 @@ static const struct _sensor_reg_t ov5648_foxconn_chm_framesize_quarter[] = {
     {0x380b, 0xc0}, // y output size
     {0x380c, 0x08}, // 0x858, hts = 2136  //kenxu @ 20130912 to reduce preview SCLK to 56M
     {0x380d, 0x58},                       //kenxu @ 20130912 to reduce preview SCLK to 56M
-    {0x380e, 0x05}, // 0x58e, vts = 1422  //kenxu @ 20130912 to reduce preview SCLK to 56M
-    {0x380f, 0x8e},                       //kenxu @ 20130912 to reduce preview SCLK to 56M
+    {0x380e, 0x05}, // 0x550, vts = 1360  //kenxu @ 20130912 to reduce preview SCLK to 56M
+    {0x380f, 0x50},                       //kenxu @ 20130912 to reduce preview SCLK to 56M
   //  {0x3810, 0x00}, // isp x win = 16
     {0x3811, 0x10}, // isp x win
    // {0x3812, 0x00}, // isp y win = 10
@@ -266,13 +266,13 @@ static const struct _sensor_reg_t ov5648_foxconn_chm_framesize_quarter[] = {
     {0x4004, 0x02}, // black line number
     {0x4005, 0x18}, // blc level trigger
     //{0x350b, 0x80}, // gain = 8x
-    {0x4837, 0x16}, //0x16        //kenxu @ 20130913 to update mipi global timing
+    {0x4837, 0x17}, //0x16        //kenxu @ 20130913 to update mipi global timing
     {0x0100, 0x01},
 };
 
 /*2592 1952 full size*/
 static const struct _sensor_reg_t ov5648_foxconn_chm_framesize_full[] = {
-    // 2592x1952 15.104fps 2 lane MIPI 452.54Mbps/lane
+    // 2592x1952 14.4fps 2 lane MIPI 431.97Mbps/lane sysclk 86.394MHz
 
     {0x0100, 0x00},
 //	{0x301a, 0xf1},
@@ -280,7 +280,7 @@ static const struct _sensor_reg_t ov5648_foxconn_chm_framesize_full[] = {
     //{0x3501, 0x7b}, // exposure
     //{0x3502, 0x00}, // exposure
     {0x3035, 0x11}, // PLL                 //kenxu @ 20130912 to reduce preview SCLK to 56M
-    {0x3036, 0x42}, // PLL                 //kenxu @ 20130912 to reduce preview SCLK to 56M
+    {0x3036, 0x3f}, // PLL                 //kenxu @ 20130912 to reduce preview SCLK to 56M
     {0x3708, 0x63},
     {0x3709, 0x12},
     {0x370c, 0xcc},   //0xc0               //kenxu @ 20130913 to stabilize BLC result at full size
@@ -314,7 +314,7 @@ static const struct _sensor_reg_t ov5648_foxconn_chm_framesize_full[] = {
     {0x4004, 0x04}, // black line number
     {0x4005, 0x1a}, // blc level trigger
     //{0x350b, 0x40}, // gain = 8x
-    {0x4837, 0x16},   //kenxu @ 20130913 to update mipi global timing
+    {0x4837, 0x17}, //kenxu @ 20130913 to update mipi global timing
     {0x0100, 0x01},
 };
 static sensor_setting_t ov5648_foxconn_chm_init_array[] = {
@@ -322,8 +322,8 @@ static sensor_setting_t ov5648_foxconn_chm_init_array[] = {
 };
 
 static framesize_s ov5648_foxconn_chm_framesizes[] = {
-    {0, 0, 1280, 960, 2136, 1422, 30, 30, 0x1a8, 0x161, 0x100, VIEW_FULL, RESOLUTION_4_3, false, false, {ov5648_foxconn_chm_framesize_quarter, ARRAY_SIZE(ov5648_foxconn_chm_framesize_quarter)}, CLK_450M},
-    {0, 0, 2592, 1952, 2816, 2128, 15, 15, 0x141, 0x10b, 0xc2, VIEW_FULL, RESOLUTION_4_3, false, false, {ov5648_foxconn_chm_framesize_full, ARRAY_SIZE(ov5648_foxconn_chm_framesize_full)}, CLK_450M },
+    {0, 0, 1280, 960, 2136, 1360, 30, 30, 0x194, 0x151, 0x100, VIEW_FULL, RESOLUTION_4_3, false, false, ECGC_TYPE_MAX,{ov5648_foxconn_chm_framesize_quarter, ARRAY_SIZE(ov5648_foxconn_chm_framesize_quarter)}, CLK_450M},
+    {0, 0, 2592, 1952, 2816, 2128, 14, 14, 0x133, 0x100, 0xc2, VIEW_FULL, RESOLUTION_4_3, false, false, ECGC_TYPE_MAX,{ov5648_foxconn_chm_framesize_full, ARRAY_SIZE(ov5648_foxconn_chm_framesize_full)}, CLK_450M },
 };
 #endif /* _OV5648_FOXCONN_CHM_H_ */
 

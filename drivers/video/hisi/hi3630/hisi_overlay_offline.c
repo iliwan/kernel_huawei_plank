@@ -686,6 +686,12 @@ int hisi_ov_offline_play(struct hisi_fb_data_type *hisifd, void __user *argp)
 		goto err_nodump;
 	}
 
+	ret = hisi_dss_check_userdata(hisifd, pov_req);
+	if (ret != 0) {
+		HISI_FB_ERR("hisi_dss_check_userdata failed!\n");
+		goto err_nodump;
+	}
+
 	wb_layer = &(hisifd->ov_req.wb_layer_info);
 	wbe_chn = wb_layer->chn_idx - WBE1_CHN0;
 	if(wbe_chn >= HISI_DSS_OFFLINE_MAX_NUM){

@@ -452,6 +452,7 @@ static int ncp6925_register_attribute(struct hisi_pmic_ctrl_t *pmic_ctrl, struct
 		cam_err("%s dev is null", __func__);
 		return -1;
 	}
+#ifdef DEBUG_HISI_CAMERA
 	rc = device_create_file(dev, &ncp6925_debug);
 	if (rc < 0) {
 		cam_err("%s failed to creat ctrol attribute.", __func__);
@@ -463,11 +464,14 @@ static int ncp6925_register_attribute(struct hisi_pmic_ctrl_t *pmic_ctrl, struct
 		cam_err("%s failed to creat reg attribute.", __func__);
 		goto err_create_ncp6925_file;
 	}
+#endif
 
 	return 0;
+#ifdef DEBUG_HISI_CAMERA
 err_create_ncp6925_file:
 	device_remove_file(dev, &ncp6925_debug);
 	return rc;
+#endif
 }
 
 static const struct i2c_device_id ncp6925_id[] = {

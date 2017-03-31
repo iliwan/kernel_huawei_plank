@@ -233,6 +233,15 @@ static inline void __flush_icache_all(void)
 #define flush_cache_louis_pm()		__cpuc_flush_kern_louis_pm()
 #define flush_cache_all_pm()		__cpuc_flush_kern_all_pm()
 
+/*HI3630: flush all cpu all cache*/
+#ifndef CONFIG_SMP
+#define hi3630_fc_allcpu_allcache()             flush_cache_all()
+#else
+extern void hi3630_fc_allcpu_allcache(void);
+#endif
+/*HI3630: flush all cpu all cache*/
+
+
 static inline void vivt_flush_cache_mm(struct mm_struct *mm)
 {
 	if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(mm)))
@@ -447,6 +456,17 @@ static inline void __sync_cache_range_r(volatile void *p, size_t size)
 
 #define sync_cache_w(ptr) __sync_cache_range_w(ptr, sizeof *(ptr))
 #define sync_cache_r(ptr) __sync_cache_range_r(ptr, sizeof *(ptr))
+
+#ifdef CONFIG_FREE_PAGES_RDONLY
+int set_memory_ro(unsigned long addr, int numpages);
+int set_memory_rw(unsigned long addr, int numpages);
+
+#define mark_addr_rdonly(a)	set_memory_ro((unsigned long)a, 1);
+#define mark_addr_rdwrite(a)	set_memory_rw((unsigned long)a, 1);
+#else
+#define mark_addr_rdonly(a)
+#define mark_addr_rdwrite(a)
+#endif
 
 /*
  * Disabling cache access for one CPU in an ARMv7 SMP system is tricky.

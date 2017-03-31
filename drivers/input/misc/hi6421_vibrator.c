@@ -47,14 +47,14 @@ struct k3_vibrator_data {
 // Begin Immersion changes
 static struct k3_vibrator_data *p_data = NULL;
 // End Immersion changes
+volatile int vibrator_shake = 0;
 
 static void k3_vibrator_on(struct k3_vibrator_data  *pdata)
 {
 	u32 k3_vibrator_dr2_ctrl = 0;
 	u32 k3_vibrator_dr2_reserved = 0;
 	unsigned long flags;
-
-	pr_info("%s +\n", __FUNCTION__);
+	vibrator_shake = 1;
 
 	if (!pdata) {
 		pr_err("error:k3_vibrator_on data is null\n");
@@ -79,9 +79,6 @@ static void k3_vibrator_on(struct k3_vibrator_data  *pdata)
 	}
 
 	spin_unlock_irqrestore(&pdata->sp_lock, flags);
-
-	pr_info("%s -\n", __FUNCTION__);
-
 	return ;
 }
 
@@ -90,8 +87,7 @@ static void k3_vibrator_off(struct k3_vibrator_data  *pdata)
 	u32 k3_vibrator_dr2_ctrl = 0;
 	u32 k3_vibrator_dr2_reserved = 0;
 	unsigned long flags;
-
-	pr_info("%s +\n", __FUNCTION__);
+	vibrator_shake = 0;
 
 	if (!pdata) {
 		pr_err("error:k3_vibrator_off data is null\n");
@@ -107,9 +103,6 @@ static void k3_vibrator_off(struct k3_vibrator_data  *pdata)
 	K3_VIB_REG_W(k3_vibrator_dr2_ctrl & DR2_DISABLE, pdata->k3_vibrator_base, DR2_CTRL);
 
 	spin_unlock_irqrestore(&pdata->sp_lock, flags);
-
-	pr_info("%s -\n", __FUNCTION__);
-
 	return ;
 }
 

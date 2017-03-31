@@ -51,6 +51,7 @@
 #include <soc_baseaddr_interface.h>
 #include <general_sram_map.h>
 #include <linux/hisi/pm/pwrctrl_multi_memcfg.h>
+#include <linux/hisi/hi6xxx-boardid.h>
 
 #ifdef CONFIG_DEBUG_FS
 #include <linux/uaccess.h>
@@ -250,7 +251,7 @@ static struct cmdword cmd_map[] =
 	{"sdupdate",        0x05},
     {"softreset",       0x06},
 	{"resize",          0x07},
-	{"modemupdate",     0x08},
+	{"erecovery",     0x08},
 	{"usbupdate",       0x09},
 	{"cust",            0x0a},
 	{"usersdupdate",    0x0b},
@@ -259,6 +260,25 @@ static struct cmdword cmd_map[] =
 	{"mountfail",       0x0e},
 	{"watchdog",        0x0f},
     {"chargereboot",    0x10},
+};
+static struct cmdword cmd_map_KK2L[] =
+{
+	{"bootloader",      0x01},
+	{"recovery",        0x02},
+	{"resetfactory",    0x03},
+	{"resetuser",       0x04},
+	{"sdupdate",        0x05},
+	{"softreset",       0x06},
+	{"resize",          0x07},
+	{"erecovery",     0x08},
+	{"usbupdate",       0x09},
+	{"cust",            0x0a},
+	{"usersdupdate",    0x0b},
+	{"oem_rtc",         0x0c},
+	{"chargereboot",    0x0d},
+	{"mountfail",       0x0e},
+	{"watchdog",        0x0f},
+    {"coldboot",        0x10},
 };
 #else
 static struct cmdword cmd_map[] =
@@ -284,20 +304,92 @@ static struct cmdword cmd_map[] =
 
 #define RESET_COLD_FLAG "coldboot"
 
+/**
+ * parse boaridid cmdline which is passed from fastoot. *
+ * Format : BoardID=chip_id,pmu_id,board_id             *
+ */
+unsigned int gboard_id = 0;
+static int __init early_parse_boardid_cmdline(char *p)
+{
+	char board[HEX_STRING_MAX + 1];
+	
+	char *endptr = NULL;
+
+	memset(board, 0, (HEX_STRING_MAX + 1));
+	memcpy(board, p + (HEX_STRING_MAX + 1)*2, HEX_STRING_MAX);
+	board[HEX_STRING_MAX] = '\0';
+
+	gboard_id = (unsigned int)simple_strtoul(board, &endptr, TRANSFER_BASE);
+	printk("[bdid]boardid = 0x%x. HEX_STRING_MAX:%d. *p:%s\n", gboard_id, HEX_STRING_MAX, (const char *)p);
+
+	return 0;
+}
+early_param("boardid", early_parse_boardid_cmdline);
+
+int checkProductIsKK2L(void)
+{
+    unsigned int current_board_id = gboard_id;
+
+    if( (current_board_id==707) ||  // ALI-TL00 V1
+        (current_board_id==708) ||  // ALI-TL00 V3.1
+
+        (current_board_id==717) ||  // ALI-L21 V1
+        (current_board_id==718) ||  // ALI-L21 V3.1
+        (current_board_id==719) ||  // ALI-L21 VN1.1
+
+        (current_board_id==727) ||  // ALI-UL00 V1
+        (current_board_id==728) ||  // ALI-UL00 V3.1
+
+        (current_board_id==737) ||  // ALI-L02 V1
+        (current_board_id==738) ||  // ALI-L02 V3.1
+        (current_board_id==739) ||  // ALI-L02 VN1.1
+
+        (current_board_id==747) ||  // ALI-L23 V1
+        (current_board_id==748) ||  // ALI-L23 V3.1
+        (current_board_id==749) ||  // ALI-L23 VN1.1
+
+        (current_board_id==757) ||  // ALI-TL00 V1 V3
+
+        (current_board_id==792) ||  // CherryPro-TL10 V1
+        (current_board_id==793) ||  // CherryPro-TL10 VN1
+        (current_board_id==794) )   // CherryPro-TL10 LV
+    {
+        return 0;
+    }
+
+    printk("boarid is %d. it's KK2L version\n", current_board_id);
+    return 1;
+}
+
 static unsigned int hi6xxx_find_rebootmap(const char* str)
 {
 	unsigned int n = 0;
 
-	for (n = 0; n < sizeof(cmd_map)/sizeof(struct cmdword); n++) {
-		if(0 == strncmp(cmd_map[n].name, str, strlen(cmd_map[n].name))) {
-			printk(KERN_INFO "reboot: %s\n", cmd_map[n].name);
-			return cmd_map[n].num;
-		}
-	}
+    if( checkProductIsKK2L()==1 )
+    {
+        for (n = 0; n < sizeof(cmd_map_KK2L)/sizeof(struct cmdword); n++) {
+            if(0 == strncmp(cmd_map_KK2L[n].name, str, strlen(cmd_map_KK2L[n].name))) {
+                printk(KERN_INFO "KK2L reboot: %s\n", cmd_map_KK2L[n].name);
+                return cmd_map_KK2L[n].num;
+            }
+        }
+    }
+    else
+    {
+        for (n = 0; n < sizeof(cmd_map)/sizeof(struct cmdword); n++) {
+            if(0 == strncmp(cmd_map[n].name, str, strlen(cmd_map[n].name))) {
+                printk(KERN_INFO "reboot: %s\n", cmd_map[n].name);
+                return cmd_map[n].num;
+            }
+        }
+    }
 
     /*cold reboot as default*/
 #ifdef CONFIG_ARM64
-    return cmd_map[12].num;
+    if( checkProductIsKK2L()==1 )
+        return cmd_map_KK2L[15].num;
+    else
+        return cmd_map[12].num;
 #else
     return cmd_map[0].num;
 #endif

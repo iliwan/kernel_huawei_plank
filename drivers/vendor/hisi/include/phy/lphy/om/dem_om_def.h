@@ -507,6 +507,7 @@ typedef struct __LPHY_DEM_ERROR_REPORT_OM_IND__
 }LPHY_DEM_ERROR_REPORT_OM_IND;
 
 
+/* BEGIN: Added by songwenning, 2014/3/19   */
 #define LPHY_DT_PDSCH_TM_MODE_INFO_REQ_DEFAULT {LPHY_OFF,200}
 typedef struct __LPHY_DT_PDSCH_TM_MODE_INFO_REQ_STRU__
 {
@@ -602,6 +603,7 @@ typedef enum __LPHY_DT_MSGID_DEM_IND_ENUM__
 }LPHY_DT_MSGID_DEM_IND_ENUM;
 
 
+/* END:   Added by songwenning, 2014/3/19 */
 
 
 
@@ -641,6 +643,7 @@ typedef struct __LPHY_DEM_TRACE_TIMING_UPDATA_OM_IND__
 
 }LPHY_DEM_TRACE_TIMING_UPDATA_OM_IND;
 
+/* BEGIN: Added by songwenning, 2014/3/19   */
 //-----------------------------------------------
 //  6.  DEM DT 结构体定义和申明
 //-----------------------------------------------
@@ -655,5 +658,6 @@ typedef enum __LPHY_DT_MSGID_DEM_REQ_ENUM__
 }LPHY_DT_MSGID_DEM_REQ_ENUM;
 
 
+/* END: Added by songwenning, 2014/3/19   */
 
 #endif

@@ -329,6 +329,7 @@ extern const WUEPS_MSG_QUEUE_INFO_STRU  QueDefTbl[WUEPS_MSG_QUEUE_CNT];         
 #define THREAD_PRI_SMT      VOS_PRIORITY_M2
 #define THREAD_PRI_USIM     VOS_PRIORITY_BASE
 
+/* added by gaoyan 05-02-23 begin */
 #define VOS_MSG_HEADER_EXT_IF   VOS_UINT32 ulSenderCpuId;  \
                                 VOS_UINT32 ulSenderPid;    \
                                 VOS_UINT32 ulReceiverCpuId;\
@@ -337,7 +338,9 @@ extern const WUEPS_MSG_QUEUE_INFO_STRU  QueDefTbl[WUEPS_MSG_QUEUE_CNT];         
                                 VOS_UINT32      ulMsgName;
 
     #define VOS_MSG_HEADER_IT   VOS_MSG_HEADER
+/* added by gaoyan 05-02-23 end */
 
+/* added by luojian 60022475 11.17 begin */
 /*SFT_VERIFY delete begin*/
 #if 0
 #define PHY_VERSION_INFO_ADDR   0x900007e0 /* 物理层版本信息的内存地址 */
@@ -356,6 +359,7 @@ extern const WUEPS_MSG_QUEUE_INFO_STRU  QueDefTbl[WUEPS_MSG_QUEUE_CNT];         
 #define PS_RF_VERSION_INFO              6
 
 /*extern VOS_UCHAR   g_PsVersionInfo[32];   协议栈版本信息 */
+/* added by luojian 60022475 11.17 end */
 
 /********************************************************************
 *  函数原型的定义

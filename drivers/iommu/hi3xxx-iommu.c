@@ -30,7 +30,6 @@
 #include <asm/cacheflush.h>
 
 #include <linux/hisi/hisi-iommu.h>
-#include <linux/hisi/hi3xxx/global_ddr_map.h>
 
 #define HISI_IOMMU_IOVA_START 0x40000000
 #define HISI_IOMMU_IOVA_END 0xC0000000
@@ -703,6 +702,9 @@ static struct of_device_id of_iommu_match_tbl[] = {
 	{
 		.compatible = "hisi,hi3635-iommu",
 	},
+	{
+		.compatible = "hisi,hi3630-iommu",
+	},
 	{ /* end */ }
 };
 
@@ -710,7 +712,7 @@ static struct platform_driver hisi_iommu_driver = {
 	.probe		= hisi_iommu_probe,
 	.driver		= {
 		.owner		= THIS_MODULE,
-		.name		= "hi3635-iommu",
+		.name		= "hi3xxx-iommu",
 		.of_match_table = of_iommu_match_tbl,
 	}
 };

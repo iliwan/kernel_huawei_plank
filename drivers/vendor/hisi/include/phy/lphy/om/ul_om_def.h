@@ -29,7 +29,9 @@ extern "C"{
 
 /*下行TDD 模式接收到最大下行子帧数目*/
 #define UL_TDD_MAX_DL_SUBFRAME_NUM 9
+/* BEGIN: Added by yushujing, 2012/8/14   PN:V7R2_MODIFY*/
 #define UL_MAX_SUBFRAME_NUM 10
+/* END:   Added by yushujing, 2012/8/14   PN:V7R2_MODIFY*/
 #define UL_Pusch_Code_Rate     930
 #define UL_MAX_PWR (INT16)23
 #define UL_MIN_PWR (INT16)(-40)
@@ -38,14 +40,18 @@ extern "C"{
 
 #define UL_OM_RPT_PERIOD 1000
 
+/* BEGIN: Added by xueqiuyan, 2012/6/5   PN:POWER_OM*/
 
 #define POWER_INVALID_VALUE 0x7f
 
+/* END:   Added by xueqiuyan, 2012/6/5 */
 
+/* BEGIN: Added by xueqiuyan, 2012/9/7   PN:CMCC_DT*/
 
 #define DT_INVALID_VALUE 0x7f
 #define UL_OM_DT_RPT_PERIOD 200
 
+/* END:   Added by xueqiuyan, 2012/9/7 */
 
 /************************************************************
                            1. REQ命令和对应的数据结构定义
@@ -357,10 +363,13 @@ typedef enum __LPHY_IND_MSGID_UL__
     LPHY_IND_UL_SCHEUL_STATIC_INFO     = OM_CMD_ID(LPHY_UL_MID, OM_TYPE_IND, 0xd),
     LPHY_IND_UL_HARQBLER_INFO          = OM_CMD_ID(LPHY_UL_MID, OM_TYPE_IND, 0xe),
     LPHY_IND_UL_PD_INFO                = OM_CMD_ID(LPHY_UL_MID, OM_TYPE_IND, 0xf),
+    /* BEGIN: Added by yushujing, 2012/8/6   PN:V7R2_MODIFY*/
     //LPHY_IND_UL_PUSCH_33A_INFO         = OM_CMD_ID(LPHY_UL_MID, OM_TYPE_IND, 0xf),
     //LPHY_IND_UL_PUCCH_33A_INFO         = OM_CMD_ID(LPHY_UL_MID, OM_TYPE_IND, 0x10)
+    /* END:   Added by yushujing, 2012/8/6 */
 
 }LPHY_IND_MSGID_UL_ENUM;
+/* BEGIN: Added by yushujing, 2012/8/1   PN:V7R2_MODIFY*/
 typedef struct
 {
     UINT16 usDci3ValidFlag;                  /*PUSCH DCI3、3a存在标志*/
@@ -408,6 +417,7 @@ typedef struct
     UL_PUCCH_33A_TPC_PARA_STRU stPucch33aTemp;  //用于保存 配比5 子帧9 的备份信息
 }UL_OM_PUCCH_33A_TPC_IND_STRU;
 
+/* END:   Added by yushujing, 2012/8/1 */
 enum UL_SRS_SYMBOL_IND_ENUM
 {
     NON_SYMBOL = 0,
@@ -485,10 +495,14 @@ typedef struct
     /*发送功率保存*/
     INT16               sTransPwr;               /*记录当前终端发射功率，用于和终端最大发送功率*/
     UINT16              ausTpc[9];
+    /* BEGIN: Added by yushujing, 2012/8/11   PN:V7R2_MODIFY*/
     INT16               s33aTpcValue;
     //UINT16              usRsv;
+    /* END:   Added by yushujing, 2012/8/11 */
 
+    /* BEGIN: Added by dongning, 2013/1/11   PN:V7R2_MODIFY*/
     INT16               sPmax;
+    /* END:   Added by dongning, 2013/1/11 */
 }UL_CUR_PUCCH_PWR_CTRL_PARA_STRU;
 
 typedef struct
@@ -1086,6 +1100,7 @@ typedef struct
     UINT32 ulOnlyUciPuschDisabErrCount;                 /*Deltashift错误计数*/
     UINT32 ulMacInValidErrCnt;                          /*Deltashift错误计数*/
     UINT32 ulTtiBundlNprbErrCnt;
+    /* END:   Added by sunyanjie, 2011/11/24 */
 }UL_PUSCH_STAT_INFO_STRU;
 /*****************************************************************************
  结构名    : UL_PRACH_STAT_INFO_STRU
@@ -1272,6 +1287,7 @@ typedef struct
     UINT16  usPeriodCount;
     UINT16  usRsv;
 }UL_OM_CTRL_INFO_STRU;
+/* END:   Added by yushujing, 2010/9/2 */
 
 /*****************************************************************************
  结构名    : UL_OM_DATA_CAPTURE_FLG_STRU
@@ -1826,10 +1842,12 @@ enum
 };
 typedef UINT16 UL_MSG3_STATUS_ENUM_UINT16;
 
+/* END:   Added by sunyanjie, 2011/11/14 */
 typedef struct
 {
     //UINT16 usMsg3SndFlg;
     UL_MSG3_STATUS_ENUM_UINT16 enMsg3SndFlg;
+    /* END:   Added by sunyanjie, 2011/11/14 */
     UINT16 usAccessMode;
     UINT16 usTcRnti;
     UINT16 usPdcchOrderFlg;
@@ -1837,6 +1855,7 @@ typedef struct
     UINT16 usRarHarqNum;
     UL_ACCESS_STATUS_ENUM_UINT16 enAccessStatus;
     RAR_DCI_VALID_ENUM_UINT16 enDciReceived;
+    /* END:   Added by sunyanjie, 2011/11/14 */
 }UL_RAR_PROCESS_STRU;
 
 
@@ -1940,6 +1959,7 @@ typedef enum __LPHY_TRACE_UL_ENUM__
     LPHY_TRACE_UL_LOG_CODERATE_EX_ERR         = OM_CMD_ID(LPHY_UL_MID, OM_TYPE_TRACE, 0x22),
     LPHY_TRACE_UL_LOG_MBX_ERR                 = OM_CMD_ID(LPHY_UL_MID, OM_TYPE_TRACE, 0x23),
     LPHY_TRACE_UL_LOG_TTI_BUNDL_STATE_CHANGE  = OM_CMD_ID(LPHY_UL_MID, OM_TYPE_TRACE, 0x24),
+    /* END:   Added by sunyanjie, 2011/11/24 */
     LPHY_TRACE_UL_TA_TIMER_TIMEOUT_ERR        = OM_CMD_ID(LPHY_UL_MID, OM_TYPE_TRACE, 0x25),
     LPHY_TRACE_UL_CHANNEL_RELEASE             = OM_CMD_ID(LPHY_UL_MID, OM_TYPE_TRACE, 0x26),
     LPHY_TRACE_UL_SRS_CONFIG                  = OM_CMD_ID(LPHY_UL_MID, OM_TYPE_TRACE, 0x27),
@@ -1990,6 +2010,7 @@ typedef struct __LPHY_TRACE_UL_RAR_CONFIG_STRU__
 
 
 
+/* BEGIN: Added by xueqiuyan, 2012/9/7   PN:CMCC_DT*/
 
 /************************************************************
                            5. DT路测数据结构定义
@@ -2170,14 +2191,17 @@ typedef struct
 }UL_DT_OM_DATA_REQUEST_FLG_STRU;
 
 
+/* BEGIN: Added by xueqiuyan, 2012/9/13   PN:CMCC_DT*/
 typedef struct
 {
     UINT32 ulSchedStatCnt;
     UINT32 ulHarqRptCnt;
     UINT32 ulHarqBlerStatCnt;
 }UL_DT_OM_DATA_REPORT_COUNT_STRU;
+/* END:   Added by xueqiuyan, 2012/9/13 */
 
 
+/* END:   Added by xueqiuyan, 2012/9/7 */
 
 #ifdef __cplusplus
 #if __cplusplus

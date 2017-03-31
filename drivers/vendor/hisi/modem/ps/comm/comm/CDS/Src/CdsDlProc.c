@@ -116,10 +116,10 @@ VOS_VOID CDS_TraceIpPktToRabmDataInd(TTF_MEM_ST *pstIpPkt)
     pstTraceMsg->usPdcpSn         = 0xFFFF;
     pstTraceMsg->ulDataLen        = ulTraceDataLen;
 
-    TTF_MemGetHeadData(UEPS_PID_CDS,
-                       pstIpPkt,
-                       pstTraceMsg->aucData,
-                       (VOS_UINT16)ulTraceDataLen);
+    (VOS_VOID)TTF_MemGetHeadData(UEPS_PID_CDS,
+                                 pstIpPkt,
+                                 pstTraceMsg->aucData,
+                                 (VOS_UINT16)ulTraceDataLen);
 
     (VOS_VOID)OM_TraceMsgHook(pstTraceMsg);
 

@@ -108,9 +108,15 @@ int hw_vcm_config(hw_vcm_t *hw_vcm, void *arg)
 		rc = hw_vcm->intf->vtbl->vcm_i2c_write(hw_vcm->intf, arg);
 		break;
 	case CFG_VCM_GET_VCM_NAME:
-		strncpy(cdata->cfg.name, hw_vcm->vcm_info->vcm_name,
-			sizeof(cdata->cfg.name) - 1);
-		break;
+        {
+            if (hw_vcm->vcm_info) {
+                if (hw_vcm->vcm_info->vcm_name) {
+                    strncpy(cdata->cfg.name, hw_vcm->vcm_info->vcm_name,
+			            sizeof(cdata->cfg.name) - 1);
+                }
+            }
+		    break;
+        }
 	default:
 		rc = hw_vcm->intf->vtbl->vcm_ioctl(hw_vcm->intf, arg);
 		break;

@@ -30,8 +30,10 @@ extern "C" {
 /* 3GPP 协议上规定最大EUTRAN频点数 */
 #define LRRC_GURRC_LTE_ARFCN_MAX_NUM                        8
 
+/* Begin: add inter meas ferq num */
 /* UE支持的EUTRAN频点的最大测量数目 */
 #define LRRC_GURRC_LTE_PHY_MAX_SUPPORT_CARRIER_NUM          8
+/* End: add inter meas ferq num */
 
 /* EUTRAN 单个频点支持小区最大数目 */
 #define LRRC_GURRC_MAX_LTE_CELL_PER_FREQ_NUM                32
@@ -45,8 +47,10 @@ extern "C" {
 /* UE支持的UTRAN频点的最大测量数目 */
 #define LRRC_GURRC_UTRAN_PHY_MAX_SUPPORT_CARRIER_NUM        3
 
+/* begin: for modify TDD max Meas Num  */
 /* UE支持的UTRAN频点的最大测量数目 */
 #define LRRC_TRRC_PHY_MAX_SUPPORT_CARRIER_NUM               9
+/* end: for modify TDD max Meas Num  */
 
 /* UTRAN 单个频点支持小区最大数目 */
 #define LRRC_GURRC_MAX_UTRAN_CELL_PER_FREQ_NUM              32
@@ -92,7 +96,7 @@ extern "C" {
 /* v7r2 code end */
 
 /* L重定向时，包括的UTRAN CELL 的系统消息最大长度 */
-#define LRRC_WRRC_UTRAN_BCCH_CONTAINER_MAX_BYTE_LEN         256
+#define LRRC_WRRC_UTRAN_BCCH_CONTAINER_MAX_BYTE_LEN         640
 
 
 /* L CellResel或者CCO到G时，如果目标G小区没有测量值，接口中设置的无效值 */
@@ -227,6 +231,9 @@ enum LRRC_GURRC_CELL_RESEL_RESULT_ENUM
     LRRC_GURRC_CELL_RESEL_UNSPECIFIC                           ,                /* 其他未定义的错误 */
     LRRC_GURRC_CELL_RESEL_CONNECTION_REJECT                    ,                /* 立即指派被拒或连接被拒，该原因值只用于CCO流程 */
     LRRC_GURRC_CELL_RESEL_S_OR_C1_CHECK_FAIL                   ,                /* 系统消息接收成功，但不满足C1准则要求，用于防止LG, LU乒乓重选 */
+    /* add for MFBI begin */
+    LRRC_GURRC_CELL_RESEL_ARFCN_NOT_SUPPORT                    ,
+    /* add for MFBI end */
 
     LRRC_GURRC_CELL_RESEL_RESULT_BUTT
 };
@@ -250,6 +257,10 @@ enum LRRC_GURRC_HANDOVER_RESULT_ENUM
     LRRC_GURRC_HANDOVER_RESULT_IRAT_PROTOCOL_ERR               ,                /* inter-RAT protocol error */
     LRRC_GURRC_HANDOVER_RESULT_UNSPECIFIC,
 
+    /* add for MFBI begin */
+    LRRC_GURRC_HANDOVER_RESULT_ARFCN_NOT_SUPPORT               ,
+    /* add for MFBI end */
+
     LRRC_GURRC_HANDOVER_RESULT_BUTT
 };
 
@@ -265,6 +276,10 @@ enum LRRC_GURRC_REDIRECTED_RESULT_ENUM
 {
     LRRC_GURRC_REDIRECTED_SUCC                              = 0,
     LRRC_GURRC_REDIRECTED_FAIL                                 ,
+
+    /* add for MFBI begin */
+    LRRC_GURRC_REDIRECTED_ARFCN_NOT_SUPPORT                    ,
+    /* add for MFBI end */
 
     LRRC_GURRC_REDIRECTED_RESULT_BUTT
 };
@@ -362,6 +377,10 @@ enum LRRC_GURRC_MEAS_RESULT_ENUM
 {
     LRRC_GURRC_MEAS_RESULT_SUCC                             = 0,
     LRRC_GURRC_MEAS_RESULT_FAIL                                ,
+
+    /* add for MFBI begin */
+    LRRC_GURRC_MEAS_RESULT_ARFCN_NOT_SUPPORT                   ,
+    /* add for MFBI end */
 
     LRRC_GURRC_MEAS_RESULT_BUTT
 };

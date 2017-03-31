@@ -279,7 +279,7 @@ typedef struct wifi_wl_config_ioctl_data_struct
         uint8                    pwrm;                   /* power management */
         uint8                    pk_mode;
         uint8                    prot;                   /* prot mode set */
-        uint8                    coex_2040_enabled;      /* 2040 coex mode set */
+        uint8                    coex_2040_enabled;      /* 2040 coex mode set */
         uint8                    amsdu_certify_enabled;  /* amsdu certify mode set */
         uint8                    psm_certify_enabled;    /* psm certify mode set */
         uint8                    wmm_ac_opt_enabled;     /* wmm ac opt certify mode set */

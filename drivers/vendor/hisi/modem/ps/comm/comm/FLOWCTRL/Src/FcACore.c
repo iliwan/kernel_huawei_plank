@@ -1430,6 +1430,7 @@ VOS_UINT32  FC_CDS_DownProcess( VOS_UINT8 ucRabId, MODEM_ID_ENUM_UINT16 enModemI
         return VOS_OK;
     }
 
+    /* add by wangrong */
     if ( MODEM_ID_BUTT <= enModemId )
     {
         FC_LOG1(PS_PRINT_WARNING, "FC_CDS_DownProcess ModemId Is Invalid %d\n", enModemId);

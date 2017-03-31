@@ -196,6 +196,10 @@ enum APP_RRC_MSG_ID_ENUM
     ID_LRRC_APP_SET_UE_REL_VERSION_CNF      = (PS_MSG_ID_RRC_TO_APP_BASE + 0x40),/* _H2ASN_MsgChoice LRRC_APP_SET_UE_REL_VERSION_CNF_STRU  */
     ID_APP_RRC_FORCE_HOANDCSEL_CNF        = (PS_MSG_ID_RRC_TO_APP_BASE + 0x41),/* _H2ASN_MsgChoice RRC_APP_FORCE_HOANDCSEL_CNF_STRU */
     ID_APP_RRC_BARCELL_ACCESS_CNF        = (PS_MSG_ID_RRC_TO_APP_BASE + 0x42),/* _H2ASN_MsgChoice RRC_APP_BARCELL_ACCESS_CNF_STRU */
+
+    /* begin: add for feature v700r500 */
+    ID_LRRC_APP_DBG_INFO_IND         = (PS_MSG_ID_RRC_TO_APP_BASE + 0x43),   /* _H2ASN_MsgChoice LRRC_APP_DBG_INFO_STRU */
+    /* end: add for feature v700r500 */
     /* add for AT&T LRRC DAM begin */
     ID_RRC_PTL_DAM_CELL_BAR_TIMER_INFO_IND    = (PS_MSG_ID_RRC_TO_APP_BASE + 0x44),
     ID_RRC_APP_DAM_STATUS_DBG_INFO_IND    = (PS_MSG_ID_RRC_TO_APP_BASE + 0x45),/* _H2ASN_MsgChoice LRRC_APP_DAM_STATUS_DBG_INFO_IND_STRU  */
@@ -497,6 +501,7 @@ typedef struct
     VOS_UINT8                           aucReserved[3];
     APP_RESULT_ENUM_UINT32              enResult;
 }RRC_APP_TIME_DELAY_RPT_CNF_STRU;
+/* add by guojiyu for tmer delay begin */
 #if 0
 /*****************************************************************************
  结构名    :RRC_APP_TIME_DELAY_RPT_IND_STRU
@@ -514,6 +519,7 @@ typedef struct
     VOS_UINT32                          ulEndTime;                              /*时延结速时间:ms*/
 }RRC_APP_TIME_DELAY_RPT_IND_STRU;
 #endif
+/* add by guojiyu for tmer delay end */
 /*****************************************************************************
  结构名    :APP_RRC_INQ_CAMP_CELL_INFO_REQ_STRU
  结构说明  :获取当前驻留小区的ID、频点等信息的查询请求，或者停止上报驻留小区信息的请求。
@@ -1469,6 +1475,347 @@ typedef struct
     APP_RESULT_ENUM_UINT32              enResult;
 } LRRC_APP_SET_UE_REL_VERSION_CNF_STRU;
 
+/* begin: add for feature v700r500 */
+/*****************************************************************************
+ 结构名    : LRRC_APP_DBG_INFO_TYPE_ENUM
+ 结构说明  : DBG上报的枚举
+*****************************************************************************/
+enum LRRC_APP_DBG_INFO_TYPE_ENUM
+{
+    LRRC_APP_BAR_CELL_INFO,    /* _H2ASN_MsgChoice LRRC_APP_LIMITED_INFO_STRU */ 
+    LRRC_APP_DBG_COMM_INFO,    /* _H2ASN_MsgChoice LRRC_APP_DBG_COMM_INFO_STRU */ 
+    LRRC_APP_DBG_RESEL_INFO,    /* _H2ASN_MsgChoice LRRC_APP_DBG_RESEL_INFO_STRU */ 
+    LRRC_APP_DBG_INFO_TYPE_BUTT
+};
+typedef VOS_UINT32 LRRC_APP_DBG_INFO_TYPE_ENUM_UNIT32;
+
+/*****************************************************************************
+ 结构名    : LRRC_LCSEL_FORBIDDEN_CAUSE_ENUM
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : FORBIDDEN情况的两种细分原因值，L模forbidden列表中使用，bar列表中无用
+ *****************************************************************************/
+enum LRRC_APP_FORBIDDEN_CAUSE_ENUM
+{
+    LRRC_APP_FORBIDDEN_CAUSE_NOT_EPLMN  = 0,                                  /* 由于非EPLMN原因而被forbidden */
+    LRRC_APP_FORBIDDEN_CAUSE_FORBIDDEN,                                       /* 其他原因被forbidden */
+    LRRC_APP_FORBIDDEN_CAUSE_BUTT
+};
+typedef VOS_UINT16  LRRC_APP_FORBIDDEN_CAUSE_ENUM_UINT16;
+
+/*****************************************************************************
+ 结构名    : RRC_CSEL_LIMITED_ITEM_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 受限(Barred/Forbidden)小区的资源池,包括了受限节点的信息,超时的时间点
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT16                             usFreqInfo;                             /* 该条目的频率信息 */
+    VOS_UINT16                             usCellId;                               /* 该条目的小区信息,若无效值表示整个频率受限 */
+    LRRC_APP_FORBIDDEN_CAUSE_ENUM_UINT16   enForbCause;                         /* forbidden列表中forbidden的原因，此域只在forbidden列表中使用，bar列表中无效 */
+    VOS_UINT8                              ucBandInd;                              /* 受限列表中需要增加，band指示 */
+    VOS_UINT8                              aucReserved[1];
+    VOS_UINT32                             ulTimeOutTimeInMs;                      /* 该条目实效的时刻 */
+    VOS_UINT32                             ulRemainTimerLenth;                     /* 距离超时剩余时间 */
+} LRRC_APP_LIMITED_ITEM_STRU;
+
+typedef struct
+{
+    VOS_UINT32                             ulCnt;
+    LRRC_APP_LIMITED_ITEM_STRU             astLimitedItems[64];
+}LRRC_APP_LIMITED_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : LRRC_APP_DBG_INFO_TYPE_ENUM
+ 结构说明  : DBG上报的枚举
+*****************************************************************************/
+enum LRRC_APP_DBG_FUN_NAME_ENUM
+{
+    LRRC_APP_DBG_NO_FUN_NAME = 0,
+    SUBFUN_NULL_MARK_ONE_E,
+    SUBFUN_NULL_MARK_TWO_E,
+    SUBFUN_NULL_MARK_THREE_E,
+    SUBFUN_NULL_MARK_FOUR_E,
+    SUBFUN_NULL_MARK_FIVE_E,
+    SUBFUN_NULL_MARK_SIX_E,
+    SUBFUN_NULL_MARK_SEVEN_E,
+    SUBFUN_NULL_MARK_EIGHT_E,
+    SUBFUN_NULL_MARK_NINE_E,
+    SUBFUN_NULL_MARK_TEN_E = 10,
+    SUBFUN_NULL_MARK_ELEVEN_E,
+    SUBFUN_NULL_MARK_TWELVE_E,
+    SUBFUN_NULL_MARK_THIRTEEN_E,
+    SUBFUN_NULL_MARK_FOURTEEN_E,
+    SUBFUN_NULL_MARK_FIFTEEN_E = 15,    
+    LRRC_LCSEL_GetSysCfgSuspendFlag_E,
+    RRC_CSEL_GetNcellNoEplmnSrchFlg_E,
+    RRC_CSEL_CheckIsEPlmn_E,
+    RRC_SIB_CheckIsStopRcvOtherSysInfoOrNot_E,
+    RRC_CSEL_CheckTcellMultiBandInd_E = 20,
+    LRRC_CSEL_CheckIsEmPlmn_E,
+    RRC_CheckIsChinaMcc_E,
+    LRRC_CSEL_CheckIsCellSearching_E,
+    LRRC_CSEL_CheckIsInteroperability_E,
+    RRC_CSEL_CheckCellIsBarBySIB1_E,
+    RRC_CSEL_CheckIsEplmnBySIB1_E,
+    RRC_CSEL_CheckIsForbiddenTacBySIB1_E,
+    RRC_CSEL_CheckIsSatifySCritorBySIB1_E,
+    RRC_CSEL_CheckTcellFreqBandInd_E,
+    RRC_CSEL_CheckTaiNotInForbTa_E = 30,
+    RRC_CSEL_CheckTCellBarredForReserved_E,
+    RRC_CSEL_ProcSibGetSysinfoCnf_E,
+    RRC_CSEL_ProcSibGetSysinfoCnfRcvSucc_E,
+    RRC_CSEL_CheckTCellLimitStatus_E,
+    RRC_CSEL_CheckTCellLimit_E,
+    LRRC_LCSEL_CheckTCellBarred_E,
+    RRC_CSEL_CheckCellAllFreqIsSupport_E,
+    RRC_CSEL_CheckTCellSuitable_E,
+    RRC_CSEL_SearchMovGetSysInfoBarOrForbidenInd_E,
+    RRC_CSEL_ProcSibSysInfoSucLimitCell_E = 40,
+    RRC_CSEL_CheckBandWidthIsSupport_E,
+    LRRC_CSEL_CheckPartBandInCustBand_E,
+    RRC_COMM_CheckPartBandInSpecBand_E,
+    PS_IE_ABSENT_E,
+    RRC_COMM_CalculateBandIndByDlEarfcn_E,
+    RRC_COMM_CheckFreqIsInUeCapBand_E,
+    RRC_COMM_CheckBandInfo_E,
+    RRC_COMM_CalculateDlFreq_E,
+    RRC_RB_CheckUuRrcConnRecfgMsgIe_E,
+    RRC_RB_CheckTtiBundlingPara_E = 50,
+    RRC_RB_CheckTtiBundlingAndSps_E,
+    RRC_RRC_CheckTtiBundlingAndSps_E,
+    RRC_RRC_CheckTtiBundlingAndSubframeAssign_E,
+    RRC_RB_CheckRadioResourceCfgOfRrcConnRecfgMsg_E,
+    RRC_RB_ReturnResultOfCheckRadioResDedic_E,
+    RRC_RB_CheckPhyCfgDedicatedInfoOfRrcConnRecfgMsg_E,
+    RRC_RB_CheckSpsCfgInfoOfRrcConnRecfgMsg_E,
+    RRC_RRC_CheckDlSpsCfgInfoOfRrcConnSetupMsg_E,
+    RRC_RRC_CheckUlSpsCfgInfoOfRrcConnSetupMsg_E,
+    RRC_RB_CheckMacCfgInfoOfRrcConnRecfgMsg_E = 60,
+    RRC_RRC_CheckMacMainCfgR11_E,
+    RRC_RRC_CheckMacMainCfgR10_E,
+    RRC_RRC_CheckConnectedDrxCfgOfRrcConnSetupMsg_E,
+    RRC_RRC_CheckUlSchCfgOfRrcConnSetupMsg_E,
+    UU_SPARE2_RETX_BSR_TIMER_E,
+    RRC_RB_CheckDrbInfoOfRrcConnRecfgMsg_E,
+    RRC_RB_CheckSrbInfoOfRrcConnRecfgMsg_E,
+    RRC_RB_CheckRadioRsrcCfgPara_E,
+    UU_MAX_NUM_OF_DRB_E,
+    UU_C1_CRITI_EXT_RRC_CONN_RECFG_CHOSEN_E = 70,
+    UU_RRC_CONN_RECFG_R8_C1_RRC_CONN_RECFG_CHOSEN_E,
+    RRC_RB_CheckMobilityCtrlInfoOfRrcConnRecfgMsg_E,
+    RRC_SMC_INACTIVE_E,
+    RRC_COMM_CheckFreqIsInSpecBand_E,
+    RRC_RB_CheckEutraCarrierFreqInfoOfMobilityCtrlInfo_E,
+    RRC_RB_CheckLocalTtiBundlingAndSpsAfterCheckUu_E,
+    RRC_RB_CheckSecurityCfgOfRrcConnRecfgMsg_E,
+    RRC_RB_CheckIntraLteHoSecurityCfg_E,
+    RRC_SMC_CheckSecurAlgorPara_E,
+    RRC_RB_CheckBandWidthOfMobilityCtrlInfo_E = 80,
+    UU_SPARE10_DL_BANDWIDTH_E,
+    UU_SPARE10_UL_BANDWIDTH_E,
+    RRC_RB_CheckAllFreqInMobilityCtrlInfoValid_E,
+    RRC_CMM_UuMeasCfgCheck_E,
+    RRC_CMM_UuMeasObjCfgCheck_E,
+    RRC_CMM_UuMeasRptCfgCheck_E,
+    RRC_CMM_UuMeasQuantCfgCheck_E,
+    RRC_CMM_UuUtraMeasCfgCheck_E,
+    RRC_CMM_UuMeasSpeedCfgCheck_E,
+    RRC_CMM_UuUtraMeasCfgThrshldChk_E = 90,
+    RRC_RB_CheckFullConfigOfRrcConnRecfgMsg_E,
+    RRC_RB_CheckRadioResCfgCommInfoOfMobilityCtrlInfo_E,
+    RRC_RB_CheckSrsUlCfgCommInfo_E,
+    RRC_RB_CheckAntennaCfgInfoOfMobilityCtrlInfo_E,
+    RRC_RB_CheckUpPwrCtrlCommR10OfMobilityCtrlInfo_E,
+    RRC_RB_CheckMobilCtrlInfoOfGu2LHo_E,
+    LPS_OM_GetTmode_E,
+    RRC_CSEL_DecodeAccessSysInfoWhenSearch_E,
+    RRC_COMM_CheckIsEqulCell_E,
+    RRC_CSEL_GetCampState_E = 100,
+    RRC_CSEL_GetSearchCampSate_E,
+    LRRC_LCSEL_GetDeleteFddBandMCC_E,
+    LRRC_LCSEL_GetDeleteFddBandFlg_E,
+    RRC_SIB_GetRcvRslt_E,
+    RRC_SIB_IsReceivedAll_E,
+    RRC_CSEL_DecodeReselParamInSib3_E,
+    RRC_CSEL_DecodeReselParamInSib4_E,
+    RRC_CSEL_DecodeReselParamInSib5_E,
+    RRC_CSEL_DecodeReselParamInSib6_E,
+    LRRC_LCSEL_SaveUtraTddFreqListSib6_E = 110,
+    LRRC_LCSEL_SaveUtraFddFreqListSib6_E,
+    RRC_CSEL_DecodeReselParamInSib7_E,
+	RRC_RRC_JudgeAccessRestrict_E,
+    RRC_RRC_JudgeMoSignallingAccessRestrict_E,
+    RRC_RRC_JudgeUsimAcIsValid_E,
+    RRC_RRC_JudgeCellAccessIsBarredByRandom_E,
+    RRC_RRC_JudgeEmergencyAndMoCallAcIsValid_E,
+    RRC_COMM_CheckBandInUeCap_E,
+    LRRC_COMM_SetMFBISupportFlag_E,
+    LRRC_COMM_SetMFBICampOnWiderBandFlag_E = 120,
+    LRRC_COMM_SaveCapBandFreqInfoTable_E,
+    RRC_COMM_SortAndSaveSubBandInfo_E,
+    LRRC_COMM_SrchSupportBandByFreq_E,
+    RRC_COMM_DelMFBIBarredCellFromBarList_E,
+    RRC_CSEL_DelCellFromBarredList_E,
+    LRRC_LRRC_SaveW2LRedirReqMsg_E,
+    LRRC_LRRC_SaveG2LRedirReqMsg_E,
+    LRRC_APP_DBG_FUN_NAME_ENUM_BUTT
+};
+typedef VOS_UINT32 LRRC_APP_DBG_FUN_NAME_ENUM_UNIT32;
+
+typedef LRRC_APP_DBG_FUN_NAME_ENUM_UNIT32 LRRC_APP_DBG_SUBFUN_NAME_ENUM_UNIT32;
+typedef LRRC_APP_DBG_FUN_NAME_ENUM_UNIT32 LRRC_APP_DBG_PARA_ENUM_UNIT32;
+/*****************************************************************************
+ 结构名    : LRRC_APP_DBG_MSG_TYPE_ENUM
+ 结构说明  : DBG上报的类型枚举
+*****************************************************************************/
+enum LRRC_APP_DBG_MSG_TYPE_ENUM
+{
+    FUNCTION_ENTRY_INFO = 0,                /* 函数入口参数打印 */
+    CELL_BARED_BY_SIB,                      /* SIB消息指示小区被bar */
+    CELL_FORBIDENED_BY_SIB,                 /* SIB消息指示小区被forbidden */
+    CELL_FORBIDENED_BY_TAI,                 /* 所有tai都在forbidden ta list中 */
+    CELL_BARED_BY_EPLMN_AC,                 /* 等效PLMN list为空 或 AC数据异常 */
+    CELL_BARED_BY_FIRST_PLMN_MCC,           /* SIB1中PlmnIdList包含的第一个PLMN的MCC不存在 */
+    CELL_BAR_FORBIDEN,                      /* 小区被bar或forbidden */
+    CELL_FREQ_BARED,                        /* 频率被bar */
+    CELL_NO_LIMIT,                          /* 小区不受限 */
+    DECODE_SYS_INFO_ERROR,                  /* 系统消息解码错误 */
+    INVALID_S_VALUE,                        /* 不满足S准则 */
+    INVALID_FREQ_CELLID,                    /* 频点错误 */
+    INVALID_BAND,                           /* 不支持的band */
+    BAND_OUT_CUSTOM,                        /* band范围不在定制范围内 */
+    BAND_IN_CUSTOM,                         /* band范围在定制范围内 */
+    BAND_FREQ_SUPPORT,                      /* band和频率都在支持范围内 */
+    BANDWIDTH_OUT_CUSTOM,                   /* 带宽不在定制范围内 */
+    BAND_NOT_64,                            /* 当前band不是band64 */
+    CAMPED_ON_ANY_CELL,                     /* any cell驻留状态 */
+    MEASCFG_MSG_INVALID,                    /* 测量配置消息错误 */
+    MSG_NULL,                               /* 空消息 */
+    GU2L_LIMIT_NOTEPLMN_ACESS,              /* GU->L重选时，非等效PLMN或推出被bar */
+    GU2L_LIMIT_FORBID_BAR,                  /* GU->L重选时，被forbidden或bar */
+    TAI_IN_FORBIDEN_TA,                     /* 存在TAI在被禁止TA列表中 */
+    TAI_NOT_IN_FORBIDEN_TA,                 /* TAI都不在被禁止TA列表中 */
+    CELL_CSG_INDICATION_TRUE,               /* 小区的csg-Indication指示为TRUE */
+    CELL_NOT_SUITABLE,                      /* 非suitable小区 */
+    MAIN_STATUS_INVALID,                    /* 主状态错误 */
+    RSRP_INVALID,                           /* RSRP不满足S准则 */
+    RSRQ_INVALID,                           /* RSRQ的S值小于0 */
+    HO_FAIL_CONF_UNACCEPTABLE,              /* 切换失败原因值为CONF_UNACCEPTABLE */
+    HO_FAIL_ARFCN_NOT_SUPPORT,              /* 切换失败原因值为ARFCN_NOT_SUPPORT */
+    BANDWIDTH_INVALID,                      /* 带宽不可用 */
+    PUCCH_INVALID,                          /* PUCCH不可用 */
+    PARA_VAL_INVALID,                       /* 参数取值非法 */
+    MOBILOTY_AS_SECURITY_INACTIVE,          /* 安全未激活 */
+    MOBILOTY_INCLUDE_NAS_INFO,              /* 存在NAS消息 */
+    TMODE_ERROR,                            /* 模式错误 */
+    CONFIG_UNSUPPORT,                       /* 配置参数错误 */
+    ARRAY_OVERFLOW,                         /* 数组越界 */
+    NOT_CHINA_MCC,                          /* 非国内MCC */
+    JP_MCC_MNC_NOT_EPLMN,                   /* 软银定制，MNC1不是EPLMN */
+    NOT_JP_MCC,                             /* 非日本MCC */
+    CHINA_MODE_DEL_FDD_BAND,                /* 国内模式删除FDDband */
+    ONLY_NO_SIB12,                          /* 仅没收到sib12 */
+    USIM_ABSENT_OR_INVALID,                 /* USIM卡不存在或不可用 */
+    T302_RUNNING,                           /* T302运行中 */
+    T305_RUNNING,                           /* T305运行中 */
+    MFBI_FLAG_OFF,                          /* MFBI开关关闭 */
+    MFBI_FLAG_ON,                           /* MFBI开关打开 */
+    WIDER_BAND_FLAG,                        /* 驻留到协议物理带宽更宽Band开关 */
+    CHECK_ALL_BAND,                         /* 检查UE支持的所有band */
+    
+    LRRC_APP_DBG_MSG_TYPE_ENUM_BUTT
+};
+typedef VOS_UINT32 LRRC_APP_DBG_MSG_TYPE_ENUM_UINT32;
+
+/*****************************************************************************
+ 结构名    : RRC_DEBUG_PRINT_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  :
+*****************************************************************************/
+typedef struct
+{
+    LRRC_APP_DBG_MSG_TYPE_ENUM_UINT32       enMsgType;
+    LRRC_APP_DBG_FUN_NAME_ENUM_UNIT32       enFunName;
+    LRRC_APP_DBG_SUBFUN_NAME_ENUM_UNIT32    enSubFunName;
+    LRRC_APP_DBG_PARA_ENUM_UNIT32           enPara1;
+    LRRC_APP_DBG_PARA_ENUM_UNIT32           enPara2;
+    VOS_INT32                               lPara3;
+    VOS_INT32                               lPara4;
+    VOS_INT32                               lPara5;
+    VOS_INT32                               lPara6;
+    VOS_INT32                               lPara7;
+    VOS_INT32                               lPara8;
+}LRRC_APP_DBG_ERROR_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : LRRC_APP_DBG_RESEL_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 0xFFFFFFFF 为无效值
+*****************************************************************************/
+typedef struct
+{
+    LRRC_APP_DBG_FUN_NAME_ENUM_UNIT32           enFunName;
+    VOS_UINT32                                  ulFreq;
+    VOS_UINT32                                  ulSsc_Switch;
+    VOS_UINT32                                  ulAdrx_Switch;
+    VOS_INT32                                   lq_RxLevMin;
+    VOS_INT32                                   lthreshServingLowP;
+    VOS_INT32                                   lthreshServingLowQ;
+    VOS_INT32                                   lT_Reselection;
+    VOS_INT32                                   lscell_priority;
+    VOS_INT32                                   lncell_priority;
+    VOS_INT32                                   lthreshX_HighP;
+    VOS_INT32                                   lthreshX_LowP;
+    VOS_INT32                                   lthreshX_HighQ;
+    VOS_INT32                                   lthreshX_LowQ;
+    VOS_INT32                                   lSCell_sValue;
+    VOS_INT32                                   lNCell_sValue;
+    VOS_INT32                                   lSCell_qValue;
+    VOS_INT32                                   lNCell_qValue;
+    VOS_INT32                                   ls_IntraSerchP;
+    VOS_INT32                                   ls_IntraSerchQ;
+    VOS_INT32                                   ls_NonIntraSerchP;
+    VOS_INT32                                   ls_NonIntraSerchQ;
+    VOS_INT32                                   lQ_offset;
+    VOS_INT32                                   lQ_Hyst;
+    VOS_INT32                                   lStart_Meas_SCell_Rsrp;
+    VOS_INT32                                   lStart_Meas_SCell_Rsrq;
+    VOS_INT32                                   lHigh_pri_NCell_Rsrp;
+    VOS_INT32                                   lHigh_pri_NCell_Rsrq;
+    VOS_INT32                                   lLow_pri_SCell_Rsrp;
+    VOS_INT32                                   lLow_pri_SCell_Rsrq;
+    VOS_INT32                                   lLow_pri_NCell_Rsrp;
+    VOS_INT32                                   lLow_pri_NCell_Rsrq;
+    VOS_INT32                                   lIntra_Freq_SCell_Rsrp;
+    VOS_INT32                                   lIntra_Freq_NCell_Rsrp;
+}LRRC_APP_DBG_RESEL_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : LRRC_APP_DBG_INFO_IND_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : Debug上报类型结构
+*****************************************************************************/
+typedef struct
+{
+    VOS_MSG_HEADER                                           /*_H2ASN_Skip*/
+    VOS_UINT32                               ulMsgId;        /*_H2ASN_Skip*/
+    LRRC_APP_DBG_INFO_TYPE_ENUM_UNIT32       enReportType;
+    union  /* _H2ASN_Skip */
+    {      /* _H2ASN_Skip */
+        LRRC_APP_LIMITED_INFO_STRU          stLimitedInfo;   /* _H2ASN_Skip */
+        LRRC_APP_DBG_ERROR_INFO_STRU        stCommDbgInfo;   /* _H2ASN_Skip */
+        LRRC_APP_DBG_RESEL_INFO_STRU        stReselDbgInfo;
+        /******************************************************************************************************
+            _H2ASN_IeChoice_When        LRRC_APP_DBG_INFO_TYPE_ENUM_UNIT16
+        ******************************************************************************************************/
+    }u;  /* _H2ASN_Skip */
+}LRRC_APP_DBG_INFO_IND_STRU;
+/* end: add for feature v700r500 */
 
 /* add for AT&T LRRC DAM begin */
 enum LRRC_APP_CONNREQ_TIMER_STATUS_ENUM

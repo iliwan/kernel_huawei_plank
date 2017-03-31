@@ -1,1 +1,0 @@
-obj-$(CONFIG_BALONG_EARLY_FS)	+= balong_early_fs.o

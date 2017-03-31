@@ -799,6 +799,63 @@ VOS_UINT32 AT_RcvMtaSetGFreqLockCnf(
 }
 
 
+/*****************************************************************************
+ 函 数 名  : AT_SetActPdpStubPara
+ 功能描述  : ^ACTPDPSTUB
+ 输入参数  : ucIndex - 端口索引
+ 输出参数  : 无
+ 返 回 值  : AT_XXX
+ 调用函数  :
+ 被调函数  :
+
+ 修改历史      :
+  1.日    期   : 2015年11月04日
+    作    者   : z00301431
+    修改内容   : 新生成函数
+*****************************************************************************/
+VOS_UINT32 AT_SetActPdpStubPara(VOS_UINT8 ucIndex)
+{
+    VOS_UINT8                           ucFlag;
+
+    /* 参数检查 */
+    if (AT_CMD_OPT_SET_PARA_CMD != g_stATParseCmd.ucCmdOptType)
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    /* 参数个数检查 */
+    if (2 != gucAtParaIndex)
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    if((0 == gastAtParaList[0].usParaLen)
+    || (0 == gastAtParaList[1].usParaLen))
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    /* 获取设置的标志 */
+    ucFlag = (VOS_UINT8)gastAtParaList[1].ulParaValue;
+
+    /* 根据MODEM ID调用不同的桩函数 */
+    if (0 == gastAtParaList[0].ulParaValue)
+    {
+        AT_SetPcuiPsCallFlag(ucFlag, AT_CLIENT_TAB_APP_INDEX);
+    }
+    else if (1 == gastAtParaList[0].ulParaValue)
+    {
+        AT_SetCtrlPsCallFlag(ucFlag, AT_CLIENT_TAB_APP_INDEX);
+    }
+    else
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    return AT_OK;
+}
+
+
 #ifdef __cplusplus
     #if __cplusplus
         }

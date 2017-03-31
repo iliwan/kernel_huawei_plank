@@ -308,12 +308,6 @@ VOS_UINT32 DIAG_SocpPowerOn(VOS_VOID)
 {
     g_diagDspState = LDSP_INITING;
 
-    /* 工具已连接 */
-    if(g_ulDiagCfgInfo & (1 << DIAG_CFG_CONN_BIT))
-    {
-        return ERR_MSP_SUCCESS;
-    }
-
     if(g_diagSocpPowerOnReq == VOS_TRUE)
     {
         diag_printf("%s: power on req is running\n", __FUNCTION__);
@@ -398,6 +392,8 @@ VOS_VOID diag_MailboxSelfTask(VOS_VOID)
 }
 
 #endif
+
+
 VOS_UINT32 diag_AgentMsgProcInit(enum VOS_INIT_PHASE_DEFINE ip)
 {
     VOS_UINT32 ret = ERR_MSP_SUCCESS;

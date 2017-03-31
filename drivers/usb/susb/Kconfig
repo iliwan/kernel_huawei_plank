@@ -28,4 +28,4 @@ config USB_SUSB_HCD
 config HI3635_USB
 	depends on USB_SUSB_HDRC
 	bool 'USB for hi3635'
-	default ARCH_HI3XXX
+	default ARCH_HI3XXX || ARCH_HI3630

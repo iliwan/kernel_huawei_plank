@@ -33,7 +33,7 @@
 #include <linux/hw_dev_dec.h>
 #endif
 #if defined (CONFIG_HUAWEI_DSM)
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #endif
 #include "tps65132.h"
 #include "../hisi_fb_def.h"

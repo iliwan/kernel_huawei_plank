@@ -317,7 +317,9 @@ enum
         ID_TMAC_TPHY_BSIC_FRAME_REQ,
 
         ID_TPHY_STOP_CELL_SELECT_REQ,
+        /*Add by leikai for DPDT begin*/
         ID_TRRC_TPHY_DPDT_CMD_REQ,          /*消息方向 TRRC -> TPHY*/
+        /*Add by leikai for DPDT end*/
 
         ID_TRRC_TPHY_SWTICH_IND,
 
@@ -396,7 +398,9 @@ enum
 
         ID_TPHY_STOP_CELL_SELECT_CNF,
 
+        /*Add by leikai for DPDT begin*/
         ID_TRRC_TPHY_DPDT_CMD_IND,           /*消息方向 TPHY -> TRRC*/
+        /*Add by leikai for DPDT end*/
         ID_TRRC_TPHY_BUTT
 
       /*TPhy-->TPS  Cnf & Ind End*/
@@ -404,6 +408,7 @@ enum
     };
 typedef VOS_UINT32    TPS_TPHY_MSG_ID_ENUM_UINT32;
 
+/*Add by leikai for DPDT begin*/
 
 /*****************************************************************************
  枚举名    : TLRRC_TLPHY_DPDT_CMD_ENUM
@@ -419,6 +424,7 @@ enum TRRC_TPHY_DPDT_CMD_ENUM
     TRRC_TPHY_DPDT_VALUE_QRY               /*查询*/
 };
 typedef VOS_UINT16  TRRC_TPHY_DPDT_CMD_ENUM_UINT16;
+/*Add by leikai for DPDT end*/
 
 
 /* xrm add begin */
@@ -480,6 +486,7 @@ enum TRRC_TPHY_STOP_CELL_SELECT_RLST_ENUM
 };
 typedef VOS_UINT16 TRRC_TPHY_STOP_CELL_SELECT_RLST_ENUM_UINT16;
 
+/*Add by leikai for DPDT begin*/
 
 /*****************************************************************************
  结构名    : TRRC_TPHY_DPDT_CMD_REQ_STRU
@@ -513,6 +520,7 @@ typedef struct
     VOS_UINT32                                          ulDpdtValue;
 }TRRC_TPHY_DPDT_CMD_IND_STRU;
 
+/*Add by leikai for DPDT end*/
 
 /*****************************************************************************
  结构名    : TRRC_TPHY_STOP_CELL_SELECT_REQ

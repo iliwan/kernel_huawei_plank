@@ -50,7 +50,7 @@
 #include <soc_baseaddr_interface.h>
 #include <soc_peri_sctrl_interface.h>
 #endif
-#include<huawei_platform/dsm/dsm_pub.h>
+#include<dsm/dsm_pub.h>
 /*
  * This macro is used to define some register default values.
  * reg is masked with mask, the OR:ed with an (again masked)
@@ -408,7 +408,7 @@ struct pl022 {
 	bool				dma_running;
 	unsigned int				dma_callback_enter;
 #endif
-#if defined(CONFIG_SPI_HI3635_CS_USE_PCTRL) || defined(CONFIG_SPI_HI3650_CS_USE_PCTRL)
+#if defined(CONFIG_SPI_HI3XXX_CS_USE_PCTRL)
 	void __iomem *pctrl_base;
 #endif
 	int cur_cs;
@@ -447,7 +447,7 @@ struct chip_data {
 	int xfer_type;
 };
 
-#if defined(CONFIG_ARCH_KIRIN)
+#if defined(CONFIG_ARCH_HI3630FPGA) || defined(CONFIG_ARCH_HI3630) || defined(CONFIG_ARCH_KIRIN)
 #define SSP_TXFIFOCR(r)	(r + 0x028)
 #define SSP_RXFIFOCR(r)	(r + 0x02C)
 
@@ -473,11 +473,15 @@ struct chip_data {
 )
 #endif
 
-#if defined(CONFIG_SPI_HI3635_CS_USE_PCTRL) || defined(CONFIG_SPI_HI3650_CS_USE_PCTRL)
+#if defined(CONFIG_SPI_HI3XXX_CS_USE_PCTRL)
 #define SPI_PCTRL_CS_BASE_VALUE 0x00010001
 #endif
 static void __iomem *pctrl_base;
 /*lint -e750*/
+#if defined(CONFIG_ARCH_HI3630FPGA) || defined(CONFIG_ARCH_HI3630)
+static void __iomem *crgctrl_base;
+#endif
+
 #define RES1_LOCK_OFF	0x40c
 #define RES1_UNLOCK_OFF	0x410
 #define RES1_LOCK_STAT_OFF	0x414
@@ -519,7 +523,7 @@ static void null_cs_control(u32 command)
 	pr_debug("pl022: dummy chip select control, CS=0x%x\n", command);
 }
 
-#if defined(CONFIG_SPI_HI3635_CS_USE_PCTRL) || defined(CONFIG_SPI_HI3650_CS_USE_PCTRL)
+#if defined(CONFIG_SPI_HI3XXX_CS_USE_PCTRL)
 static inline bool pctrl_cs_is_valid(int cs)
 {
 	return (cs != ~0);
@@ -537,7 +541,7 @@ static void pl022_pctrl_cs_set(struct pl022 *pl022, u32 command)
 
 static void pl022_cs_control(struct pl022 *pl022, u32 command)
 {
-#if defined(CONFIG_SPI_HI3635_CS_USE_PCTRL) || defined(CONFIG_SPI_HI3650_CS_USE_PCTRL)
+#if defined(CONFIG_SPI_HI3XXX_CS_USE_PCTRL)
 	if (pctrl_cs_is_valid(pl022->cur_cs))
 		pl022_pctrl_cs_set(pl022, command);
 #else
@@ -610,9 +614,7 @@ static void giveback(struct pl022 *pl022)
 	writew((readw(SSP_CR1(pl022->virtbase)) &
 		(~SSP_CR1_MASK_SSE)), SSP_CR1(pl022->virtbase));
 
-
 	spi_finalize_current_message(pl022->master);
-
 }
 
 /**
@@ -671,7 +673,7 @@ static void restore_state(struct pl022 *pl022)
 	writew(chip->cpsr, SSP_CPSR(pl022->virtbase));
 	writew(DISABLE_ALL_INTERRUPTS, SSP_IMSC(pl022->virtbase));
 	writew(CLEAR_ALL_INTERRUPTS, SSP_ICR(pl022->virtbase));
-#if defined(CONFIG_ARCH_KIRIN)
+#if defined(CONFIG_ARCH_HI3630FPGA) || defined(CONFIG_ARCH_HI3630) || defined(CONFIG_ARCH_KIRIN)
 	writew(DEFAULT_SSP_REG_TXFIFOCR, SSP_TXFIFOCR(pl022->virtbase));
 	writew(DEFAULT_SSP_REG_RXFIFOCR, SSP_RXFIFOCR(pl022->virtbase));
 #endif
@@ -1384,6 +1386,10 @@ void print_spi_registers(struct spi_master *master)
 
                 if (pl022->hardware_mutex) {
                         dev_err(&pl022->adev->dev, "Resource1 lock state is 0x%x\n", readl(pctrl_base + RES1_LOCK_STAT_OFF));
+#if defined(CONFIG_ARCH_HI3630FPGA) || defined(CONFIG_ARCH_HI3630)
+                        dev_err(&pl022->adev->dev, "CLKDIV19 state is 0x%x\n", readl(crgctrl_base + 0xF4));
+                        dev_err(&pl022->adev->dev, "PERCLKEN2 state is 0x%x\n", readl(crgctrl_base + 0x28));
+#endif
                 }
 
                 if (gpio_is_valid(pl022->cur_cs))
@@ -1610,7 +1616,10 @@ static int set_up_next_transfer(struct pl022 *pl022,
 	pl022->write =
 	    pl022->tx ? pl022->cur_chip->write : WRITING_NULL;
 	pl022->read = pl022->rx ? pl022->cur_chip->read : READING_NULL;
-
+#if defined(CONFIG_ARCH_HI3630FPGA) || defined(CONFIG_ARCH_HI3630)
+	dev_dbg(&pl022->adev->dev, "pl022->tx %08x\n", (u32)pl022->tx);
+	dev_dbg(&pl022->adev->dev, "pl022->rx %08x\n", (u32)pl022->rx);
+#endif
 #ifdef CONFIG_ARCH_KIRIN
 	dev_dbg(&pl022->adev->dev, "pl022->tx %08llx\n", (u64)pl022->tx);
 	dev_dbg(&pl022->adev->dev, "pl022->rx %08llx\n", (u64)pl022->rx);
@@ -1700,8 +1709,12 @@ static void do_interrupt_dma_transfer(struct pl022 *pl022)
 	 * Default is to enable all interrupts except RX -
 	 * this will be enabled once TX is complete
 	 */
-	 u64 irqflags = 0;
-	 if(SSP_MASTER == s_hierarchy) {
+#if defined(CONFIG_ARCH_HI3630FPGA) || defined(CONFIG_ARCH_HI3630)
+	u32 irqflags = 0;
+#else
+	u64 irqflags = 0;
+#endif
+	if(SSP_MASTER == s_hierarchy) {
 	    irqflags = ENABLE_ALL_INTERRUPTS & ~SSP_IMSC_MASK_RXIM;
 	}
 	else {
@@ -2168,7 +2181,7 @@ static int pl022_setup(struct spi_device *spi)
                      if (of_property_read_u32(np, "pl022,duplex",&chip_info_dt.duplex)){
             		       printk(KERN_ERR " Failed to get duplex!!!!\n");
 	 	       }			
-#if defined(CONFIG_ARCH_KIRIN)
+#if defined(CONFIG_ARCH_HI3630FPGA) || defined(CONFIG_ARCH_HI3630) || defined(CONFIG_ARCH_KIRIN)
 			chip_info_dt.slave_tx_disable = of_property_read_bool(np, "pl022,slave-tx-disable");
 #endif
 
@@ -2221,7 +2234,7 @@ static int pl022_setup(struct spi_device *spi)
 	chip->xfer_type = chip_info->com_mode;
 	if (!chip_info->cs_control) {
 		chip->cs_control = null_cs_control;
-#if defined(CONFIG_SPI_HI3635_CS_USE_PCTRL) || defined(CONFIG_SPI_HI3650_CS_USE_PCTRL)
+#if defined(CONFIG_SPI_HI3XXX_CS_USE_PCTRL)
 		dev_dbg(&spi->dev, "using pctrl\n");;
 #else
 		if (!gpio_is_valid(pl022->chipselects[spi->chip_select]))
@@ -2397,7 +2410,7 @@ pl022_platform_data_dt_get(struct device *dev)
 		return NULL;
 	}
 
-#if defined(CONFIG_ARCH_KIRIN)
+#if defined(CONFIG_ARCH_HI3630FPGA) || defined(CONFIG_ARCH_HI3630) || defined(CONFIG_ARCH_KIRIN)
 	ret = of_property_read_u32(np, "bus-id", &tmp);
 	if (ret < 0)
 		dev_err(dev, "spi cannot get the bus-id value\n");
@@ -2430,6 +2443,9 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	struct pl022 *pl022 = NULL;	/*Data for this driver */
 	struct device_node *np = adev->dev.of_node;
 	struct device_node *np_pctrl;
+#if defined(CONFIG_ARCH_HI3630FPGA) || defined(CONFIG_ARCH_HI3630)
+	struct device_node *np_crgctrl;
+#endif
 	int status = 0, i, num_cs;
 
 	dev_info(&adev->dev,
@@ -2513,6 +2529,19 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 			pctrl_base = of_iomap(np_pctrl, 0);
 			BUG_ON(!pctrl_base);
 		}
+#if defined(CONFIG_ARCH_HI3630FPGA) || defined(CONFIG_ARCH_HI3630)
+        if (crgctrl_base == NULL) {
+			np_crgctrl = of_find_compatible_node(NULL, NULL, "hisilicon,crgctrl");
+			if (!np_crgctrl) {
+				pr_err("get crgctrl node error !\n");
+				BUG_ON(1);
+				status = -ENOMEM;
+				goto hwspin_lock_err0;
+			}
+			crgctrl_base = of_iomap(np_crgctrl, 0);
+			BUG_ON(!crgctrl_base);
+		}
+#endif
 	}
 	/*
 	 * Bus Number Which has been Assigned to this SSP controller
@@ -2528,7 +2557,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	master->rt = platform_info->rt;
 	master->dev.of_node = dev->of_node;
 
-#if defined(CONFIG_SPI_HI3635_CS_USE_PCTRL) || defined(CONFIG_SPI_HI3650_CS_USE_PCTRL)
+#if defined(CONFIG_SPI_HI3XXX_CS_USE_PCTRL)
 	np = of_find_compatible_node(NULL, NULL, "hisilicon,pctrl");
 	pl022->pctrl_base = of_iomap(np, 0);
 	platform_info->chipselects = devm_kzalloc(dev, num_cs * sizeof(int),
@@ -2537,9 +2566,9 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 		platform_info->chipselects[i] = SPI_PCTRL_CS_BASE_VALUE << i;
 #endif
 
-#if defined(CONFIG_ARCH_KIRIN)
+#if defined(CONFIG_ARCH_HI3630FPGA) || defined(CONFIG_ARCH_HI3630) || defined(CONFIG_ARCH_KIRIN)
 	if (1 == num_cs) {
-		#if defined(CONFIG_SPI_HI3635_CS_USE_PCTRL) || defined(CONFIG_SPI_HI3650_CS_USE_PCTRL)
+		#if defined(CONFIG_SPI_HI3XXX_CS_USE_PCTRL)
 		platform_info->chipselects = devm_kzalloc(dev, num_cs * sizeof(int),
 					  GFP_KERNEL);
 		*platform_info->chipselects = ~0;
@@ -2860,7 +2889,7 @@ static const struct dev_pm_ops pl022_dev_pm_ops = {
 	SET_RUNTIME_PM_OPS(pl022_runtime_suspend, pl022_runtime_resume, NULL)
 };
 
-#if defined(CONFIG_ARCH_KIRIN)
+#if defined(CONFIG_ARCH_HI3630FPGA) || defined(CONFIG_ARCH_HI3630) || defined(CONFIG_ARCH_KIRIN)
 static struct vendor_data vendor_arm = {
 	.fifodepth = 256,
 	.max_bpw = 16,

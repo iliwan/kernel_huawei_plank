@@ -352,11 +352,13 @@ typedef struct
 	UINT32          ulProtectPost;
 }NV_TAS_DPDT_PROTECT_STRU;
 
+/* BEGIN: Added by zhaoyanmin, 2015/4/10   PN:È«ÍøÍ¨*/
 typedef struct
 {
     UINT32          ulCtuSelIdx;
 	UINT32          ulRsv;
 }NV_AFC_PORT_SEL_INDEX_STRU;
+/* END:   Added by zhaoyamin, 2015/4/10 */
 
 typedef struct
 {

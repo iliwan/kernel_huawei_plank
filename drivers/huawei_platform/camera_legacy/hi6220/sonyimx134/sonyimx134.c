@@ -303,45 +303,45 @@ typedef struct{
 }framesizes_resource;
 static framesize_s sonyimx134_sft_framesizes[] = {
 //1280x720
-	{0, 0, 1280, 720, 3600, 3000, 3, 1, 0x1BC, 0x172, 0x100, VIEW_FULL, RESOLUTION_16_9, false, false, {sonyimx134_framesize_1280x720_sft, ARRAY_SIZE(sonyimx134_framesize_1280x720_sft)} },
+	{0, 0, 1280, 720, 3600, 3000, 3, 1, 0x1BC, 0x172, 0x100, VIEW_FULL, RESOLUTION_16_9, false, false,  ECGC_TYPE_MAX,{sonyimx134_framesize_1280x720_sft, ARRAY_SIZE(sonyimx134_framesize_1280x720_sft)} },
 
 //1600x1200
-	{0, 0, 1600, 1200, 3600, 3000, 3, 1, 0x1BC, 0x172, 0x100, VIEW_FULL, RESOLUTION_4_3, false, false, {sonyimx134_framesize_1600x1200_sft, ARRAY_SIZE(sonyimx134_framesize_1600x1200_sft)} },
+	{0, 0, 1600, 1200, 3600, 3000, 3, 1, 0x1BC, 0x172, 0x100, VIEW_FULL, RESOLUTION_4_3, false, false,  ECGC_TYPE_MAX,{sonyimx134_framesize_1600x1200_sft, ARRAY_SIZE(sonyimx134_framesize_1600x1200_sft)} },
 
 //1920x1088
-	{0, 0, 1920, 1088, 3600, 3000, 3, 1, 0x22b, 0x1CE,0x100, VIEW_FULL, RESOLUTION_16_9,false, false, {sonyimx134_framesize_1920x1088_sft, ARRAY_SIZE(sonyimx134_framesize_1920x1088_sft)} },
+	{0, 0, 1920, 1088, 3600, 3000, 3, 1, 0x22b, 0x1CE,0x100, VIEW_FULL, RESOLUTION_16_9,false, false,  ECGC_TYPE_MAX,{sonyimx134_framesize_1920x1088_sft, ARRAY_SIZE(sonyimx134_framesize_1920x1088_sft)} },
 
-    {0, 0, 3264, 1840, 3600, 2960, 1, 1, 0x1BC, 0x172, 0x100, VIEW_FULL, RESOLUTION_16_9, false, false, {sonyimx134_framesize_3264x1840_sft, ARRAY_SIZE(sonyimx134_framesize_3264x1840_sft)} },
+    {0, 0, 3264, 1840, 3600, 2960, 1, 1, 0x1BC, 0x172, 0x100, VIEW_FULL, RESOLUTION_16_9, false, false,  ECGC_TYPE_MAX,{sonyimx134_framesize_3264x1840_sft, ARRAY_SIZE(sonyimx134_framesize_3264x1840_sft)} },
 
 //3264x2448
-	{0, 0, 3264, 2448, 3600, 2960, 1, 1, 0x1BC, 0x172, 0x100, VIEW_FULL, RESOLUTION_4_3, false, false, {sonyimx134_framesize_full_sft, ARRAY_SIZE(sonyimx134_framesize_full_sft)} },
+	{0, 0, 3264, 2448, 3600, 2960, 1, 1, 0x1BC, 0x172, 0x100, VIEW_FULL, RESOLUTION_4_3, false, false,  ECGC_TYPE_MAX,{sonyimx134_framesize_full_sft, ARRAY_SIZE(sonyimx134_framesize_full_sft)} },
 };
 static framesize_s sonyimx134_oem_framesizes[] = {
 	/* 1600x1200, just close with quarter size */
-	{0, 0, 1600, 1200, 3600, 1480, 30, 30, 0x1BC, 0x172, 0x100, VIEW_FULL, RESOLUTION_4_3, false, false, {sonyimx134_framesize_1600x1200_oem, ARRAY_SIZE(sonyimx134_framesize_1600x1200_oem)} },
+	{0, 0, 1600, 1200, 3600, 1480, 30, 30, 0x1BC, 0x172, 0x100, VIEW_FULL, RESOLUTION_4_3, false, false,  ECGC_TYPE_MAX,{sonyimx134_framesize_1600x1200_oem, ARRAY_SIZE(sonyimx134_framesize_1600x1200_oem)} },
 
 	/* 1920x1088, 30fps for 1080P video, edge & sony mipi 720 */
-	//{0, 0, 1920, 1088, 3600, 1858, 30, 10, 0x22b, 0x1CE,0x100, VIEW_CROP, RESOLUTION_16_9,false, false, {sonyimx134_framesize_1920x1088, ARRAY_SIZE(sonyimx134_framesize_1920x1088)} },
+	//{0, 0, 1920, 1088, 3600, 1858, 30, 10, 0x22b, 0x1CE,0x100, VIEW_CROP, RESOLUTION_16_9,false, false,  ECGC_TYPE_MAX,{sonyimx134_framesize_1920x1088, ARRAY_SIZE(sonyimx134_framesize_1920x1088)} },
     /* hts will scale with image (reg 0x0340=2592,hts=2592/1.6875=1536),vts will not. */
-	{0, 0, 1920, 1088, 3600, 2592, 30, 30, 0x309, 0x288, 0x100, VIEW_FULL, RESOLUTION_16_9, false, false, {sonyimx134_framesize_1920x1088_oem, ARRAY_SIZE(sonyimx134_framesize_1920x1088_oem)} },
+	{0, 0, 1920, 1088, 3600, 2592, 30, 30, 0x309, 0x288, 0x100, VIEW_FULL, RESOLUTION_16_9, false, false, ECGC_TYPE_MAX,{sonyimx134_framesize_1920x1088_oem, ARRAY_SIZE(sonyimx134_framesize_1920x1088_oem)} },
 
     /* 3264x2448@30fps base 3600x2774@750M: */
-    {0, 0, 3264, 2448, 3600, 2774, 30, 30, 0x340, 0x2B5, 0x200, VIEW_FULL, RESOLUTION_4_3, false, true, {sonyimx134_framesize_3264x2448_750M_oem, ARRAY_SIZE(sonyimx134_framesize_3264x2448_750M_oem)} },
+    {0, 0, 3264, 2448, 3600, 2774, 30, 30, 0x340, 0x2B5, 0x200, VIEW_FULL, RESOLUTION_4_3, false, true, ECGC_TYPE_MAX, {sonyimx134_framesize_3264x2448_750M_oem, ARRAY_SIZE(sonyimx134_framesize_3264x2448_750M_oem)} },
 
     /* 3264x2448@20fps base 3600x2722@490M_test: */
-    //{0, 0, 3264, 2448, 3600, 2722, 20, 20, 0x340, 0x2B5, 0x200, VIEW_FULL, RESOLUTION_4_3, false, false, {sonyimx134_framesize_3264x2448_490M_test, ARRAY_SIZE(sonyimx134_framesize_3264x2448_490M_test)} },
+    //{0, 0, 3264, 2448, 3600, 2722, 20, 20, 0x340, 0x2B5, 0x200, VIEW_FULL, RESOLUTION_4_3, false, false,  false,{sonyimx134_framesize_3264x2448_490M_test, ARRAY_SIZE(sonyimx134_framesize_3264x2448_490M_test)} },
 
 	/* full size 15fps cs, es will revise a little(not correct 13fps) */
-	{0, 0, 3264, 2448, 4150, 2962, 13, 15, 0x181, 0x141, 0xDE, VIEW_FULL, RESOLUTION_4_3, false, false, {sonyimx134_framesize_full_oem, ARRAY_SIZE(sonyimx134_framesize_full_oem)} },
+	{0, 0, 3264, 2448, 4150, 2962, 13, 15, 0x181, 0x141, 0xDE, VIEW_FULL, RESOLUTION_4_3, false, false,  ECGC_TYPE_MAX,{sonyimx134_framesize_full_oem, ARRAY_SIZE(sonyimx134_framesize_full_oem)} },
 
     /* 3280x1840@30fps base 3600x2000@540M:change 1840 to 2448. */
-    //{0, 0, 3280, 2448, 3600, 2000, 30, 30, 0x341, 0x258, 0x1F4, VIEW_FULL, RESOLUTION_4_3, false, true, {sonyimx134_framesize_3280x1840_540M, ARRAY_SIZE(sonyimx134_framesize_3280x1840_540M)} },
+    //{0, 0, 3280, 2448, 3600, 2000, 30, 30, 0x341, 0x258, 0x1F4, VIEW_FULL, RESOLUTION_4_3, false, true, ECGC_TYPE_MAX,{sonyimx134_framesize_3280x1840_540M, ARRAY_SIZE(sonyimx134_framesize_3280x1840_540M)} },
 
     /* 3280x1960@30fps base 3600x2148@580M. */
-    {0, 0, 3280, 1960, 3600, 2148, 30, 30, 0, 0, 0x1F4, VIEW_FULL, RESOLUTION_16_9, false, true, {sonyimx134_framesize_3280x1960_580M_oem, ARRAY_SIZE(sonyimx134_framesize_3280x1960_580M_oem)} },
+    {0, 0, 3280, 1960, 3600, 2148, 30, 30, 0, 0, 0x1F4, VIEW_FULL, RESOLUTION_16_9, false, true,  ECGC_TYPE_MAX,{sonyimx134_framesize_3280x1960_580M_oem, ARRAY_SIZE(sonyimx134_framesize_3280x1960_580M_oem)} },
 
     /* 3280x2464@30fps base 3542x2598@690M. */
-    {0, 0, 3280, 2464, 3600, 2728, 28, 28, 0, 0, 0x1F4, VIEW_FULL, RESOLUTION_4_3, false, true, {sonyimx134_framesize_3280x2464_690M_oem, ARRAY_SIZE(sonyimx134_framesize_3280x2464_690M_oem)} },
+    {0, 0, 3280, 2464, 3600, 2728, 28, 28, 0, 0, 0x1F4, VIEW_FULL, RESOLUTION_4_3, false, true,  ECGC_TYPE_MAX,{sonyimx134_framesize_3280x2464_690M_oem, ARRAY_SIZE(sonyimx134_framesize_3280x2464_690M_oem)} },
 
 };
 static framesizes_resource sonyimx134_framesize_resource[] = {
@@ -630,12 +630,14 @@ static int sonyimx134_try_framesizes(struct v4l2_frmsizeenum *framesizes)
  **************************************************************************
 */
 static int sonyimx134_set_framesizes(camera_state state,
-				 struct v4l2_frmsize_discrete *fs, int flag, camera_setting_view_type view_type,bool zsl_preview)
+				 struct v4l2_frmsize_discrete *fs, int flag, camera_setting_view_type view_type,bool zsl_preview,camera_b_shutter_mode b_shutter_mode,ecgc_support_type_s ecgc_type)
 {
 	int i = 0;
 	bool match = false;
 	int size = 0;
 	assert(fs);
+	(void)b_shutter_mode;//imx134 not not set b_shutter alog setting
+	(void)ecgc_type;
 
 	print_info("Enter Function:%s State(%d), flag=%d, width=%d, height=%d",
 		   __func__, state, flag, fs->width, fs->height);

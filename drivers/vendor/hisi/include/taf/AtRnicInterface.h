@@ -237,8 +237,10 @@ typedef struct
     VOS_UINT32                          ulWinnsSecAddr;                          /* 副WINNS地址 */
     VOS_UINT32                          ulPcscfPrimAddr;                        /* 主P-CSCF地址 */
     VOS_UINT32                          ulPcscfSecAddr;                         /* 副P-CSCF地址 */
-
+    VOS_UINT32                          ulPcscfThiAddr;                         /* 第三P-CSCF地址 */
 }AT_RNIC_IPV4_PDN_INFO_STRU;
+
+
 typedef struct
 {
     VOS_UINT8                           aucPdnAddr[RNICITF_MAX_IPV6_ADDR_LEN];      /* IP地址 */
@@ -246,8 +248,10 @@ typedef struct
     VOS_UINT8                           aucDnsSecAddr[RNICITF_MAX_IPV6_ADDR_LEN];   /* 副DNS地址 */
     VOS_UINT8                           aucPcscfPrimAddr[RNICITF_MAX_IPV6_ADDR_LEN];/* 主P-CSCF地址 */
     VOS_UINT8                           aucPcscfSecAddr[RNICITF_MAX_IPV6_ADDR_LEN]; /* 副P-CSCF地址 */
-
+    VOS_UINT8                           aucPcscfThiAddr[RNICITF_MAX_IPV6_ADDR_LEN]; /* 第三P-CSCF地址 */
 } AT_RNIC_IPV6_PDN_INFO_STRU;
+
+
 typedef struct
 {
     VOS_MSG_HEADER                                                              /* 消息头   */      /* _H2ASN_Skip */

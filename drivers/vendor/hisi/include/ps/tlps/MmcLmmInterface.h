@@ -66,7 +66,9 @@ extern "C" {
 
 #define  MMC_LMM_LTE_ARFCN_MAX_NUM      (8)                 /* LTE频点列表最大个数 */
 
+/*Modify by sunbing 49683 for CL multimode 2014-01-09 begin*/
 #define  MMC_LMM_LTE_CELL_ID_MAX_NUM      (8)               /* LTE小区ID列表最大个数 */
+/*Modify by sunbing 49683 for CL multimode 2014-01-09 end*/
 
 #define LMM_MMC_EMERGENCY_NUM_MAX_LEN            (46)
 #define LMM_MMC_EMERGENCY_NUM_LIST_MAX_RECORDS   (16)
@@ -122,6 +124,8 @@ enum    MMC_LMM_MSG_ID_ENUM
 
     ID_MMC_LMM_CELL_SIGN_REPORT_NOTIFY  = (PS_MSG_ID_MMC_TO_LMM_BASE+0x21),     /* _H2ASN_MsgChoice MMC_LMM_CELL_SIGN_REPORT_NOTIFY_STRU*/
 
+    ID_MMC_LMM_VOICE_DOMAIN_CHANGE_IND  = (PS_MSG_ID_MMC_TO_LMM_BASE+0x22),     /* _H2ASN_MsgChoice MMC_LMM_VOICE_DOMAIN_CHANGE_IND_STRU*/
+    ID_MMC_LMM_CS_CONN_STATUS_NOTIFY    = (PS_MSG_ID_MMC_TO_LMM_BASE+0x23),     /* _H2ASN_MsgChoice MMC_LMM_CS_CONN_STATUS_NOTIFY_STRU*/
     /* LMM发送给MMC的消息原语*/
     ID_LMM_MMC_START_CNF                = (PS_MSG_ID_LMM_TO_MMC_BASE+0x01),     /* _H2ASN_MsgChoice LMM_MMC_START_CNF_STRU */
     ID_LMM_MMC_STOP_CNF                 = (PS_MSG_ID_LMM_TO_MMC_BASE+0x02),     /* _H2ASN_MsgChoice LMM_MMC_STOP_CNF_STRU */
@@ -145,8 +149,11 @@ enum    MMC_LMM_MSG_ID_ENUM
     ID_LMM_MMC_TAU_RESULT_IND           = (PS_MSG_ID_LMM_TO_MMC_BASE+0x14),     /* _H2ASN_MsgChoice LMM_MMC_TAU_RESULT_IND_STRU */
     ID_LMM_MMC_SERVICE_RESULT_IND       = (PS_MSG_ID_LMM_TO_MMC_BASE+0x15),     /* _H2ASN_MsgChoice LMM_MMC_SERVICE_RESULT_IND_STRU */
     ID_LMM_MMC_TIN_TYPE_IND             = (PS_MSG_ID_LMM_TO_MMC_BASE+0x16),     /* _H2ASN_MsgChoice LMM_MMC_TIN_TYPE_IND_STRU */
-    ID_LMM_MMC_SERVICE_STATUS_IND       = (PS_MSG_ID_LMM_TO_MMC_BASE+0X17),     /* _H2ASN_MsgChoice LMM_MMC_SERVICE_STATUS_IND_STRU */
-    ID_LMM_MMC_REGISTER_STATUS_IND      = (PS_MSG_ID_LMM_TO_MMC_BASE+0X18),     /* _H2ASN_MsgChoice LMM_MMC_REGISTER_STATUS_IND_STRU */
+    
+    /* Deleted by l00305157 for Service_State_Optimize_PhaseII, 2015-02-11, begin */
+    /* 删除LTE上报服务状态和注册状态的接口,  ID_LMM_MMC_SERVICE_STATUS_IND/ID_LMM_MMC_REGISTER_STATUS_IND*/
+    /* Deleted by l00305157 for Service_State_Optimize_PhaseII, 2015-02-11, end */
+    
     ID_LMM_MMC_TIMER_STATE_NOTIFY       = (PS_MSG_ID_LMM_TO_MMC_BASE+0x19),     /* _H2ASN_MsgChoice LMM_MMC_TIMER_STATE_NOTIFY_STRU */
     ID_LMM_MMC_BG_PLMN_SEARCH_CNF       = (PS_MSG_ID_LMM_TO_MMC_BASE+0x1A),     /* _H2ASN_MsgChoice LMM_MMC_BG_PLMN_SEARCH_CNF_STRU*/
     ID_LMM_MMC_STOP_BG_PLMN_SEARCH_CNF  = (PS_MSG_ID_LMM_TO_MMC_BASE+0x1B),     /* _H2ASN_MsgChoice LMM_MMC_STOP_BG_PLMN_SEARCH_CNF_STRU*/
@@ -200,7 +207,9 @@ enum MMC_LMM_DISABLE_LTE_REASON_ENUM
     MMC_LMM_DISABLE_LTE_REASON_SIM_CARD_SWITCH_ON                   =5,
     MMC_LMM_DISABLE_LTE_REASON_IMSI_IN_FORBIDDEN_LIST               =6,
     MMC_LMM_DISABLE_LTE_REASON_LTE_REJ_CAUSE_14                     =7,
+
     MMC_LMM_DISABLE_LTE_REASON_LMM_NOTIFY_EUTRAN_NOT_ALLOW          =8,
+
     MMC_LMM_DISABLE_LTE_REASON_BUTT
 };
 typedef VOS_UINT32  MMC_LMM_DISABLE_LTE_REASON_ENUM_UINT32;
@@ -331,34 +340,34 @@ typedef VOS_UINT32 MMC_LMM_ACTION_TYPE_ENUM_UINT32;
 *****************************************************************************/
 enum    NAS_LMM_CN_CAUSE_ENUM
 {
-    NAS_EMM_CAUSE_IMSI_UNKNOWN_IN_HSS                                                                  = 0x00000002,    /* IMSI unknown in HSS          */
-    NAS_EMM_CAUSE_ILLEGAL_UE                                                                                          = 0x00000003,    /* Illegal UE          */
-    NAS_EMM_CAUSE_IMSI_UNKNOWN_IN_VLR                                   = 0x00000004, /*IMSI unknown in VLR*/
-    NAS_EMM_CAUSE_IMEI_NOT_ACCEPTED                                     = 0x00000005, /*IMEI not accepted*/
-    NAS_EMM_CAUSE_ILLEGAL_ME                                                                                          = 0x00000006,    /* Illegal ME              */
-    NAS_EMM_CAUSE_EPS_SERV_NOT_ALLOW                                                                  = 0x00000007,    /* EPS services not allowed                */
-    NAS_EMM_CAUSE_EPS_SERV_AND_NON_EPS_SERV_NOT_ALLOW                    = 0x00000008,    /* EPS services and non-EPSservices not allowed                     */
-    NAS_EMM_CAUSE_MS_ID_CANNOT_BE_DERIVED_BY_NW                                       = 0x00000009,    /* MS identity cannot be derived by the network             */
-    NAS_EMM_CAUSE_EPS_IMPLICITLY_DETACHED                                                          = 0x0000000a,    /* Implicitly detached  */
-    NAS_EMM_CAUSE_PLMN_NOT_ALLOW                                                                             = 0x0000000b,    /* PLMN not allowed                         */
-    NAS_EMM_CAUSE_TA_NOT_ALLOW                                                                                   = 0x0000000c,    /* Tracking  area not allowed                */
-    NAS_EMM_CAUSE_ROAM_NOT_ALLOW                                                                            = 0x0000000d,     /* Roaming not allowed in this tracking area                      */
-    NAS_EMM_CAUSE_EPS_SERV_NOT_ALLOW_IN_PLMN                                              = 0x0000000e,    /* EPS services not allowed in this PLMN   */
-    NAS_EMM_CAUSE_NO_SUITABL_CELL                                                                             = 0x0000000f,     /* No Suitable Cells In Location Area       */
-    NAS_EMM_CAUSE_MSC_TEMPORARILY_NOT_REACHABLE                                                              = 0x00000010,    /* MSC temporarily not reachable     */
-    NAS_EMM_CAUSE_NETWORKFAILURE                                                                             = 0x00000011,    /* Network failure     */
-    NAS_EMM_CAUSE_CS_DOMAIN_NOT_AVAILABLE                                                        = 0x00000012,    /* CS domain not available       */
-    NAS_EMM_CAUSE_ESM_FAILURE                                                                                       = 0x00000013,    /* ESM failure       */
-    NAS_EMM_CAUSE_CONGESTION                                                                                        = 0x00000016,    /* Congestion     */
-    NAS_EMM_CAUSE_NOT_AUTHORIZED_FOR_THIS_CSG                                             = 0x00000019,    /*  Not authorized for this CSG        */
-    NAS_EMM_CAUSE_REQUESTED_SER_OPTION_NOT_AUTHORIZED_IN_PLMN                           = 0x00000023, /*Requested service option not authorized in this PLMN*/
-    NAS_EMM_CAUSE_CS_DOMAIN_TEMP_NOT_AVAILABLE                                          = 0x00000027,    /*  CS domain temporarily not available       */
-    NAS_EMM_CAUSE_NO_EPS_BEARER_CONTEXT_ACTIVATED                                = 0x00000028,    /*  No EPS bearer context activated        */
-    NAS_EMM_CAUSE_SEMANTICALLY_INCORRECT_MSG                                              = 0x0000005f,    /* Semantically incorrect message    */
-    NAS_EMM_CAUSE_INVALID_MANDATORY_INFORMATION                                         = 0x00000060,    /* Invalid mandatory information    */
-    NAS_EMM_CAUSE_MSG_TYPE_NON_EXIST_OR_IMPLEMENT                                  = 0x00000061,    /* Message type non-existent or not implemented    */
-    NAS_EMM_CAUSE_INFO_ELEMENT_NON_EXIST_OR_NOT_IMPLEMENT              = 0x00000063,    /*  Information element non-existent or not implemented    */
-    NAS_EMM_CAUSE_MSG_NOT_COMPATIBLE_WITH_PROTOCOL_STATE              = 0x00000065,    /*Message not compatible with protocol state    */
+    NAS_EMM_CAUSE_IMSI_UNKNOWN_IN_HSS                            = 0x00000002,  /* IMSI unknown in HSS                                  */
+    NAS_EMM_CAUSE_ILLEGAL_UE                                     = 0x00000003,  /* Illegal UE                                           */
+    NAS_EMM_CAUSE_IMSI_UNKNOWN_IN_VLR                            = 0x00000004,  /* IMSI unknown in VLR                                  */
+    NAS_EMM_CAUSE_IMEI_NOT_ACCEPTED                              = 0x00000005,  /* IMEI not accepted                                    */
+    NAS_EMM_CAUSE_ILLEGAL_ME                                     = 0x00000006,  /* Illegal ME                                           */
+    NAS_EMM_CAUSE_EPS_SERV_NOT_ALLOW                             = 0x00000007,  /* EPS services not allowed                             */
+    NAS_EMM_CAUSE_EPS_SERV_AND_NON_EPS_SERV_NOT_ALLOW            = 0x00000008,  /* EPS services and non-EPSservices not allowed         */
+    NAS_EMM_CAUSE_MS_ID_CANNOT_BE_DERIVED_BY_NW                  = 0x00000009,  /* MS identity cannot be derived by the network         */
+    NAS_EMM_CAUSE_EPS_IMPLICITLY_DETACHED                        = 0x0000000a,  /* Implicitly detached                                  */
+    NAS_EMM_CAUSE_PLMN_NOT_ALLOW                                 = 0x0000000b,  /* PLMN not allowed                                     */
+    NAS_EMM_CAUSE_TA_NOT_ALLOW                                   = 0x0000000c,  /* Tracking area not allowed                            */
+    NAS_EMM_CAUSE_ROAM_NOT_ALLOW                                 = 0x0000000d,  /* Roaming not allowed in this tracking area            */
+    NAS_EMM_CAUSE_EPS_SERV_NOT_ALLOW_IN_PLMN                     = 0x0000000e,  /* EPS services not allowed in this PLMN                */
+    NAS_EMM_CAUSE_NO_SUITABL_CELL                                = 0x0000000f,  /* No Suitable Cells In Location Area                   */
+    NAS_EMM_CAUSE_MSC_TEMPORARILY_NOT_REACHABLE                  = 0x00000010,  /* MSC temporarily not reachable                        */
+    NAS_EMM_CAUSE_NETWORKFAILURE                                 = 0x00000011,  /* Network failure                                      */
+    NAS_EMM_CAUSE_CS_DOMAIN_NOT_AVAILABLE                        = 0x00000012,  /* CS domain not available                              */
+    NAS_EMM_CAUSE_ESM_FAILURE                                    = 0x00000013,  /* ESM failure                                          */
+    NAS_EMM_CAUSE_CONGESTION                                     = 0x00000016,  /* Congestion                                           */
+    NAS_EMM_CAUSE_NOT_AUTHORIZED_FOR_THIS_CSG                    = 0x00000019,  /* Not authorized for this CSG                          */
+    NAS_EMM_CAUSE_REQUESTED_SER_OPTION_NOT_AUTHORIZED_IN_PLMN    = 0x00000023,  /* Requested service option not authorized in this PLMN */
+    NAS_EMM_CAUSE_CS_DOMAIN_TEMP_NOT_AVAILABLE                   = 0x00000027,  /* CS domain temporarily not available                  */
+    NAS_EMM_CAUSE_NO_EPS_BEARER_CONTEXT_ACTIVATED                = 0x00000028,  /* No EPS bearer context activated                      */
+    NAS_EMM_CAUSE_SEMANTICALLY_INCORRECT_MSG                     = 0x0000005f,  /* Semantically incorrect message                       */
+    NAS_EMM_CAUSE_INVALID_MANDATORY_INFORMATION                  = 0x00000060,  /* Invalid mandatory information                        */
+    NAS_EMM_CAUSE_MSG_TYPE_NON_EXIST_OR_IMPLEMENT                = 0x00000061,  /* Message type non-existent or not implemented         */
+    NAS_EMM_CAUSE_INFO_ELEMENT_NON_EXIST_OR_NOT_IMPLEMENT        = 0x00000063,  /* Information element non-existent or not implemented  */
+    NAS_EMM_CAUSE_MSG_NOT_COMPATIBLE_WITH_PROTOCOL_STATE         = 0x00000065,  /* Message not compatible with protocol state           */
     NAS_EMM_CAUSE_BUTT
 };
 
@@ -415,7 +424,9 @@ enum    MMC_LMM_SYS_CHNG_DIR_ENUM
     MMC_LMM_SYS_CHNG_DIR_G2L,
     MMC_LMM_SYS_CHNG_DIR_W2L,
 
+    /*Modify by sunbing 49683 for CL multimode 2014-01-09 begin*/
     MMC_LMM_SYS_CHNG_DIR_L2C,
+    /*Modify by sunbing 49683 for CL multimode 2014-01-09 end*/
 
     MMC_LMM_SYS_CHNG_DIR_BUTT
 };
@@ -662,6 +673,7 @@ enum MMC_LMM_ATT_REQ_TYPE_ENUM
 };
 typedef VOS_UINT32 MMC_LMM_ATT_REQ_TYPE_ENUM_UINT32;
 
+/*Modify by sunbing 49683 for CL multimode 2014-01-09 begin*/
 /*****************************************************************************
  枚举名    : MMC_LMM_ATT_REASON_ENUM
  协议表格  :
@@ -675,6 +687,7 @@ enum MMC_LMM_ATT_REASON_ENUM
     MMC_LMM_ATT_REASON_BUTT
 };
 typedef VOS_UINT32 MMC_LMM_ATT_REASON_ENUM_UINT32;
+/*Modify by sunbing 49683 for CL multimode 2014-01-09 end*/
 
 
 /*****************************************************************************
@@ -749,6 +762,7 @@ enum MMC_LMM_MO_DETACH_TYPE_ENUM
 };
 typedef VOS_UINT32 MMC_LMM_MO_DETACH_TYPE_ENUM_UINT32;
 
+/*Modify by sunbing 49683 for CL multimode 2014-01-09 begin*/
 /*****************************************************************************
  枚举名    : MMC_LMM_DETACH_RESEAON_ENUM
  协议表格  :
@@ -762,6 +776,7 @@ enum MMC_LMM_DETACH_RESEAON_ENUM
     MMC_LMM_DETACH_RESEAON_BUTT
 };
 typedef VOS_UINT32 MMC_LMM_DETACH_RESEAON_ENUM_UINT32;
+/*Modify by sunbing 49683 for CL multimode 2014-01-09 end*/
 
 
 /*****************************************************************************
@@ -905,24 +920,7 @@ enum MMC_LMM_SERVICE_TYPE_ENUM
     MMC_LMM_SERVICE_TYPE_BUTT
 };
 typedef VOS_UINT32 MMC_LMM_SERVICE_TYPE_ENUM_UINT32;
-
-/*****************************************************************************
- 枚举名    : MMC_LMM_SERVICE_STATUS_ENUM
- 协议表格  :
- ASN.1描述 :
- 枚举说明  : LMM上报的service status
-*****************************************************************************/
-enum MMC_LMM_SERVICE_STATUS_ENUM
-{
-    MMC_LMM_SERVICE_STATUS_NO_SERVICE           = 0,
-    MMC_LMM_SERVICE_STATUS_LIMIT_SERVICE,
-    MMC_LMM_SERVICE_STATUS_NORMAL_SERVICE,
-    MMC_LMM_SERVICE_STATUS_LIMIT_SERVICE_REGION,
-    MMC_LMM_SERVICE_STATUS_DEEP_SLEEP,
-    MMC_LMM_SERVICE_STATUS_TYPE_BUTT
-};
-typedef VOS_UINT32 MMC_LMM_SERVICE_STATUS_ENUM_UINT32;
-
+/* 注册/服务状态上报上移MMC，删除注册/服务状态相关代码 */
 /*****************************************************************************
  枚举名    : MMC_LMM_SYS_MODE_ENUM
  协议表格  :
@@ -941,24 +939,7 @@ enum MMC_LMM_SYS_MODE_ENUM
     MMC_LMM_SERVICE_MODE_TYPE_BUTT
 };
 typedef VOS_UINT32 MMC_LMM_SYS_MODE_ENUM_UINT32;
-
-/*****************************************************************************
- 枚举名    : MMC_LMM_REGISTER_STATUS_ENUM
- 协议表格  :
- ASN.1描述 :
- 枚举说明  : LMM上报的register status
-*****************************************************************************/
-enum MMC_LMM_REGISTER_STATUS_ENUM
-{
-    MMC_LMM_REGISTER_STATUS_NOT_REG_NOT_SRCHING = 0,
-    MMC_LMM_REGISTER_STATUS_REG_HPLMN,
-    MMC_LMM_REGISTER_STATUS_NOT_REG_SRCHING,
-    MMC_LMM_REGISTER_STATUS_REG_DENINED,
-    MMC_LMM_REGISTER_STATUS_UNKNOWN,
-    MMC_LMM_REGISTER_STATUS_REG_ROAMING,
-    MMC_LMM_REGISTER_STATUS_BUTT
-};
-typedef VOS_UINT32 MMC_LMM_REGISTER_STATUS_ENUM_UINT32;
+/* 注册/服务状态上报上移MMC，删除注册/服务状态相关代码 */
 
 
 /*****************************************************************************
@@ -1194,6 +1175,16 @@ enum LMM_MMC_SRV_DOMAIN_ENUM
 typedef VOS_UINT8  LMM_MMC_SRV_DOMAIN_ENUM_UINT8;
 
 
+enum MMC_LMM_VOICE_DOMAIN_ENUM
+{
+    MMC_LMM_VOICE_DOMAIN_CS_ONLY            = 0,    /* CS voice only */
+    MMC_LMM_VOICE_DOMAIN_IMS_PS_ONLY        = 1,    /* IMS PS voice only */
+    MMC_LMM_VOICE_DOMAIN_CS_PREFERRED       = 2,    /* CS vocie preferred, IMS PS voice as secondary */
+    MMC_LMM_VOICE_DOMAIN_IMS_PS_PREFERRED   = 3,    /* IMS PS voice preferred, CS vocie as secondary */
+
+    MMC_LMM_VOICE_DOMAIN_BUTT
+};
+typedef VOS_UINT8  MMC_LMM_VOICE_DOMAIN_ENUM_UINT32;
 
 /*****************************************************************************
   5 STRUCT
@@ -1347,9 +1338,11 @@ typedef struct
 
     LTE_BAND_STRU                       stLteBand;                              /* L模当前驻留的频段信息 */
 
+    /*Modify by sunbing 49683 for CL multimode 2014-01-09 begin*/
     VOS_UINT16                          usArfcn;                                /* 驻留频点信息 */
     VOS_UINT8                           ucBandWidth;                            /* 带宽信息 */
     MMC_LMM_ACCESS_TYPE_ENUM_UINT8      enAccessType;                           /* 接入类型:TDD/FDD */
+    /*Modify by sunbing 49683 for CL multimode 2014-01-09 end*/
 }MMC_LMM_SYS_INFO_STRU;
 
 
@@ -1535,7 +1528,9 @@ typedef struct
     MMC_LMM_USIM_STATUS_ENUM_UINT32      ulUsimState;
     RRMM_RAT_PRIO_ENUM_UINT8             aucRatPrioList[RRMM_RAT_TYPE_BUTT];     /* 各模的优先级 */
     MMC_LMM_UTRAN_MODE_ENUM_UINT8       enUtranMode;                            /* 当前UTRAN的工作模式:0---FDD 1---TDD */
+    /*Modify by sunbing 49683 for CL multimode 2014-01-09 begin*/
     VOS_UINT8                           aucRsv[2];
+    /*Modify by sunbing 49683 for CL multimode 2014-01-09 end*/
 } MMC_LMM_START_REQ_STRU;
 
 /*****************************************************************************
@@ -1598,7 +1593,9 @@ typedef struct
     VOS_UINT32                          ulOpId;
 
     MMC_LMM_ATT_REQ_TYPE_ENUM_UINT32    ulAttachType;
+    /*Modify by sunbing 49683 for CL multimode 2014-01-09 begin*/
     MMC_LMM_ATT_REASON_ENUM_UINT32      ulAttachReason;
+    /*Modify by sunbing 49683 for CL multimode 2014-01-09 end*/
 }MMC_LMM_ATTACH_REQ_STRU;
 
 
@@ -1674,7 +1671,9 @@ typedef struct
     VOS_UINT32                          ulOpId;
 
     MMC_LMM_MO_DETACH_TYPE_ENUM_UINT32  ulDetachType;
+    /*Modify by sunbing 49683 for CL multimode 2014-01-09 begin*/
     MMC_LMM_DETACH_RESEAON_ENUM_UINT32  ulDetachReason;
+    /*Modify by sunbing 49683 for CL multimode 2014-01-09 end*/
 }MMC_LMM_DETACH_REQ_STRU;
 
 
@@ -1842,9 +1841,11 @@ typedef struct
     VOS_UINT16                          ausLteArfcnList[MMC_LMM_LTE_ARFCN_MAX_NUM];
     MMC_LMM_EPLMN_STRU                  stEplmnList;                            /* 邻区相关等效plmn信息*/
 
+    /*Modify by sunbing 49683 for CL multimode 2014-01-09 begin*/
     VOS_UINT8                           ucLteCellIdNum;                         /* 0表示LTE小区ID不存在 */
     VOS_UINT8                           aucRsv1[3];                              /* 保留位 */
     VOS_UINT16                          ausLteCellIdList[MMC_LMM_LTE_CELL_ID_MAX_NUM];
+    /*Modify by sunbing 49683 for CL multimode 2014-01-09 end*/
 }MMC_LMM_NCELL_INFO_STRU;
 
 /*****************************************************************************
@@ -2426,7 +2427,9 @@ typedef struct
     NAS_RRC_USER_SET_FREQ_BAND_STRU     stBand;                                 /* 频段 */
     RRMM_RAT_PRIO_ENUM_UINT8            aucRatPrioList[RRMM_RAT_TYPE_BUTT];     /* 各模的优先级 */
 
+    /*Modify by sunbing 49683 for CL multimode 2014-01-09 begin*/
     VOS_UINT8                           aucReserved[3];                         /* 字节对齐 */
+    /*Modify by sunbing 49683 for CL multimode 2014-01-09 begin*/
 } MMC_LMM_SYS_CFG_REQ_STRU;
 
 
@@ -2493,49 +2496,7 @@ typedef struct
     VOS_UINT32                          ulOpId;
     MMC_LMM_TIN_TYPE_ENUM_UINT32        ulTinType;
 } LMM_MMC_TIN_TYPE_IND_STRU;
-
-/*****************************************************************************
- 结构名称: LMM_MMC_SERVICE_STATUS_IND_STRU
- 协议表格:
- ASN.1 描述:
- 结构说明:  服务状态上报消息结构
-*****************************************************************************/
-typedef struct
-{
-    VOS_MSG_HEADER                                          /*_H2ASN_Skip*/
-    MMC_LMM_MSG_ID_ENUM_UINT32          ulMsgId;            /*_H2ASN_Skip*/
-    VOS_UINT32                          ulOpId;
-
-    VOS_UINT32                          bitOpPsStatus   : 1;
-    VOS_UINT32                          bitOpCsStatus   : 1;
-    VOS_UINT32                          bitSpare        : 30;
-
-    MMC_LMM_SERVICE_STATUS_ENUM_UINT32  ulServiceStatus;    /* PS服务状态 */
-    MMC_LMM_SERVICE_STATUS_ENUM_UINT32  ulCsServiceStatus;  /* CS服务状态 */
-    MMC_LMM_SYS_MODE_ENUM_UINT32        ulSysMode;
-} LMM_MMC_SERVICE_STATUS_IND_STRU;
-
-/*****************************************************************************
- 结构名称: LMM_MMC_REGISTER_STATUS_IND_STRU
- 协议表格:
- ASN.1 描述:
- 结构说明:  注册状态上报消息结构
-*****************************************************************************/
-typedef struct
-{
-    VOS_MSG_HEADER                                          /*_H2ASN_Skip*/
-    MMC_LMM_MSG_ID_ENUM_UINT32          ulMsgId;            /*_H2ASN_Skip*/
-    VOS_UINT32                          ulOpId;
-
-
-    VOS_UINT32                          bitOpRegisterStatus :1;
-    VOS_UINT32                          bitOpLocationInfo   :1;
-    VOS_UINT32                          bitSpare            :30;
-    MMC_LMM_REGISTER_STATUS_ENUM_UINT32 ulRegisterStatus;
-    NAS_LMM_TAC_STRU                    stTac;
-    VOS_UINT32                          ulCellId;           /* Cell Identity */
-} LMM_MMC_REGISTER_STATUS_IND_STRU;
-
+/* 注册/服务状态上报上移MMC，删除注册/服务状态相关代码 */
 /*****************************************************************************
  结构名称: MMC_LMM_USER_PLMN_END_NOTIFY_STRU
  协议表格:
@@ -2656,6 +2617,24 @@ typedef struct
     MMC_LMM_MSG_ID_ENUM_UINT32                ulMsgId;            /*_H2ASN_Skip*/
     VOS_UINT32                                ulOpId;
 } MMC_LMM_ENABLE_LTE_NOTIFY_STRU;
+
+/*****************************************************************************
+ 结构名称: MMC_LMM_CS_CONN_STATUS_NOTIFY_STRU
+ 协议表格:
+ ASN.1 描述:
+ 结构说明:ID_MM_LMM_CONN_STATUS_NOTIFY_STRU
+*****************************************************************************/
+typedef struct
+{
+    VOS_MSG_HEADER                                          /*_H2ASN_Skip*/
+    MMC_LMM_MSG_ID_ENUM_UINT32          ulMsgId;            /*_H2ASN_Skip*/
+    VOS_UINT32                          ulOpId;
+    VOS_UINT8                           ucCsRrConnStatusFlg;                    /* CS域RR连接是否存在,VOS_FALSE:不存在,VOS_TRUE:存在 */
+    VOS_UINT8                           ucCsEmergencyConnStatusFlg;             /* 紧急呼叫链路是否存在,VOS_TRUE:存在，VOS_FALSE不存在 */
+    VOS_UINT8                           aucReserved[2];
+} MMC_LMM_CS_CONN_STATUS_NOTIFY_STRU;
+
+
 /*****************************************************************************
  结构名    : MMC_LMM_SUSPEND_REL_REQ_STRU
  协议表格  :
@@ -2968,6 +2947,12 @@ typedef struct
     VOS_UINT32                              ulOpId;
     VOS_UINT32                              ulT3402Len;   /* 3402定时器时长，单位:毫秒 */
 } LMM_MMC_T3402_LEN_NOTIFY_STRU;
+typedef struct
+{
+    VOS_MSG_HEADER                                                              /*_H2ASN_Skip*/
+    MMC_LMM_MSG_ID_ENUM_UINT32              ulMsgId;                            /*_H2ASN_Skip*/
+    MMC_LMM_VOICE_DOMAIN_ENUM_UINT32        enVoiceDomain;                      /* 语音优选域 */
+} MMC_LMM_VOICE_DOMAIN_CHANGE_IND_STRU;
 
 
 /*****************************************************************************

@@ -1241,6 +1241,9 @@ extern VOS_SEM                   g_ulUSIMMTaskDelaySemID;
 
 extern USIMM_CARD_VERSIONTYPE_STRU  g_stUSIMMCardVersionType;
 
+
+extern VOS_UINT32 g_ulCsimSessionId;
+
 /*****************************************************************************
   6 Function∂®“Â
 *****************************************************************************/
@@ -1640,10 +1643,6 @@ extern VOS_BOOL USIMM_CheckSupportAP(VOS_VOID);
 
 extern VOS_UINT32 USIMM_InitCardHandle(USIMM_MsgBlock *pMsg);
 
-extern VOS_VOID USIMM_VsimWriteableFileInit(VOS_VOID);
-
-extern VOS_VOID USIMM_VsimWriteableFileUpdate(VOS_UINT16 usFileId, VOS_UINT8 *pucFileContent);
-
 extern VOS_UINT32 USIMM_DeactiveRealCard(USIMM_MsgBlock *pMsg);
 
 extern VOS_VOID USIMM_CardStatusRegCbFuncProc(VOS_VOID);
@@ -1653,6 +1652,9 @@ extern VOS_UINT32 USIMM_CardStatusHandle(USIMM_MsgBlock *pstMsg);
 extern VOS_UINT32 USIMM_OpenChannel(VOS_UINT8 *pucChannelID, VOS_UINT32 *pulSessionId);
 
 extern VOS_UINT32 USIMM_CloseChannel(VOS_UINT8 ucChannelID);
+
+
+extern VOS_UINT32 USIMM_OpenChannelForCSIM(VOS_VOID);
 
 #if ((VOS_OS_VER == VOS_WIN32) || (VOS_OS_VER == VOS_NUCLEUS))
 #pragma pack()

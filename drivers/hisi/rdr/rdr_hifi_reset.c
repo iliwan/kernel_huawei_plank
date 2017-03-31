@@ -13,20 +13,24 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/huawei/rdr.h>
-#include <product_config.h>
 #include <drv_reset.h>
 #include <rdr_internal.h>
 
+#ifdef CONFIG_ARM64
+#include <product_config.h>
 #ifdef CONFIG_HIFI_RESET
 #include <bsp_reset.h>
 #include <linux/hisi/rdr_hifi_reset.h>
+#endif
+#define HIFI_SEC_HEAD_BACKUP		(0x37C75000)
+#define HIFI_SEC_HEAD_SIZE		(1024)
+#else
+#include "../hi3630dsp/hifi_lpp.h"
 #endif
 
 #ifndef HIFI_SEC_DDR_MAX_NUM
 #define HIFI_SEC_DDR_MAX_NUM		(32)
 #endif
-#define HIFI_SEC_HEAD_BACKUP		(0x37C75000)
-#define HIFI_SEC_HEAD_SIZE		(1024)
 #define HIFI_BSS_SEC				(2)
 
 struct drv_hifi_sec_info {
@@ -83,7 +87,7 @@ error:
 	return ret;
 }
 
-
+#ifdef CONFIG_ARM64
 #ifdef CONFIG_HIFI_RESET
 
 /*Link used for hifi reset*/
@@ -309,5 +313,6 @@ int hifireset_runcbfun (DRV_RESET_CALLCBFUN_MOMENT eparam)
 return_error:
 	return BSP_RESET_ERROR;
 }
+#endif
 #endif
 

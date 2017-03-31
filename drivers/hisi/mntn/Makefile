@@ -7,6 +7,9 @@ ccflags-y += -I$(BALONG_TOPDIR)/ap/config/product/$(OBB_PRODUCT_NAME)/config
 
 obj-$(CONFIG_HISILICON_PLATFORM_MAINTAIN)	+= hisilicon_platform_mntn.o
 obj-$(CONFIG_HISILICON_PLATFORM_HISI_EASYSHELL)	+= hisi-easy-shell.o
+ifneq ($(strip $(OBB_PRODUCT_FINAL_RELEASE)), true)
+obj-$(CONFIG_HISI_LOWMEM_DBG)	+= lowmem_dbg.o
+endif
 ifdef CONFIG_ARCH_HI6XXX
 ifndef CONFIG_ARM64
 hisilicon_platform_mntn-y := \

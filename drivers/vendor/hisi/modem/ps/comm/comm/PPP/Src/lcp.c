@@ -1,4 +1,10 @@
 
+ /*
+  1.日    期   : 2006年4月4日
+    作    者   : liuyang id:48197
+    修改内容   : 问题单号:A32D01738
+ */
+
 #if 0
 #include <sys/param.h>
 #include <netinet/in.h>
@@ -714,10 +720,11 @@ LcpLayerUp(struct fsm *fp)
       fp->link->phase = PHASE_AUTHENTICATE;
       PPP_MNTN_LOG(PS_PID_APP_PPP, 0, PS_PRINT_NORMAL, "goto auth stage\r\n");
 
+      /* added by liukai */
       if (fp->link->lcp.want_auth == PROTO_CHAP)    /* right now just CHAP needs UE to start authentication */
         auth_StartReq(fp->link);
   }
-  else
+  else    /* added by liukai */
   {
       fp->link->phase = PHASE_NETWORK;
       fp->link->ipcp.fsm.state = ST_CLOSED;
@@ -1087,7 +1094,7 @@ LcpDecodeConfig(struct fsm *fp, VOS_CHAR *cp, VOS_CHAR *end, VOS_INT32 mode_type
       case MODE_REJ:
         lcp->his_reject |= (1 << opt->hdr.id);
         PPP_MNTN_LOG(PS_PID_APP_PPP, 0, PS_PRINT_NORMAL, "Peer will not auth by our way\r\n");
-		lcp->want_auth = 0;
+		lcp->want_auth = 0;    /* added by liukai, 2008-11-24 */
         break;
       }
       break;

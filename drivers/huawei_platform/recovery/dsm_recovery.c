@@ -2,7 +2,7 @@
 #include <linux/sched/rt.h>
 #include <linux/random.h>
 #include <huawei_platform/log/hw_log.h>
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 
 #define HWLOG_TAG    DSM_RECOVERY
 HWLOG_REGIST();

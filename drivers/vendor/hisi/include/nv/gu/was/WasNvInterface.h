@@ -717,6 +717,26 @@ typedef struct
 }WAS_CSFB_SEARCH_CTRL_INFO_STRU;
 
 /*****************************************************************************
+ 结构名    : WAS_AC_CTRL_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 连接态不检查AC接入信息控制NV
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT8                          ucIgnorAcInfo;                      /* 连接态不检查AC接入信息 */
+    VOS_UINT8                          ucReserve1;
+    VOS_UINT8                          ucReserve2;
+    VOS_UINT8                          ucReserve3;
+}WAS_AC_CTRL_INFO_STRU;
+typedef struct
+{
+    PS_BOOL_ENUM_UINT8                              enFddListCtrFlg;                /* 是否定制FDD LIST能力上报 */
+    VOS_UINT8                                       aucReserve1;                    /* 保留位 */
+    VOS_UINT8                                       aucReserve2;                    /* 保留位 */
+    VOS_UINT8                                       aucReserve3;                    /* 保留位 */
+}WAS_NV_CAPBILITY_FDDLIST_CTRL_STRU;
+/*****************************************************************************
  结构名    : WAS_EUTRA_CELL_RESEL_CTRL_INFO_STRU
  协议表格  :
  ASN.1描述 :

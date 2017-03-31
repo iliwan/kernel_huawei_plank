@@ -786,36 +786,38 @@ int32 ini_find_var_value(int32 modu, int8 * puc_var, int8* puc_value)
 	 * just once while call ini_find_var_value */
 	if (sl_once)
 	{
+		int8 version_buff[32] = {0};
+
 		INI_DEBUG("sl_once = %d", sl_once);
 		sl_once = 0;
-		l_ret = ini_find_var(fp, INI_MODU_PLAT, INI_VAR_PLAT_BOARD, puc_value);
+		l_ret = ini_find_var(fp, INI_MODU_PLAT, INI_VAR_PLAT_BOARD, version_buff);
 		if (INI_FAILED == l_ret)
 		{
-			puc_value[0] = '\0';
+			version_buff[0] = '\0';
 			ini_file_close(fp);
             INI_MUTEX_UNLOCK(&file_mutex);
 			return INI_FAILED;
 		}
-		if (INI_FAILED == ini_check_value(puc_value))
+		if (INI_FAILED == ini_check_value(version_buff))
 		{
 			ini_file_close(fp);
             INI_MUTEX_UNLOCK(&file_mutex);
 			return INI_FAILED;
 		}
 		memset(g_board_version.board_version, 0, sizeof(g_board_version.board_version));
-		strncpy(g_board_version.board_version, puc_value, sizeof(g_board_version.board_version) - 1);
+		strncpy(g_board_version.board_version, version_buff, sizeof(g_board_version.board_version) - 1);
 		INI_DEBUG("::g_board_version.board_version = %s::", g_board_version.board_version);
 		fp->f_pos = 0;
 
-		l_ret = ini_find_var(fp, INI_MODU_PLAT, INI_VAR_PLAT_PARAM, puc_value);
+		l_ret = ini_find_var(fp, INI_MODU_PLAT, INI_VAR_PLAT_PARAM, version_buff);
 		if (INI_FAILED == l_ret)
 		{
-			puc_value[0] = '\0';
+			version_buff[0] = '\0';
 			ini_file_close(fp);
             INI_MUTEX_UNLOCK(&file_mutex);
 			return INI_FAILED;
 		}
-		if (INI_FAILED == ini_check_value(puc_value))
+		if (INI_FAILED == ini_check_value(version_buff))
 		{
 			ini_file_close(fp);
             INI_MUTEX_UNLOCK(&file_mutex);
@@ -823,7 +825,7 @@ int32 ini_find_var_value(int32 modu, int8 * puc_var, int8* puc_value)
 		}
 		INI_DEBUG("::g_param_version.param_version = %s::", g_param_version.param_version);
 		memset(g_param_version.param_version, 0, sizeof(g_param_version.param_version));
-		strncpy(g_param_version.param_version, puc_value, sizeof(g_param_version.param_version) - 1);
+		strncpy(g_param_version.param_version, version_buff, sizeof(g_param_version.param_version) - 1);
 		fp->f_pos = 0;
 	}
 #endif

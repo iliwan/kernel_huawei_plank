@@ -4277,7 +4277,33 @@ VOS_VOID SI_PB_InitSYNCHProc(PBMsgBlock *pstMsg)
     return;
 }
 
+/*****************************************************************************
+函 数 名  : SI_PB_InitInfoAppDebug
+功能描述  : INFO APP过程的DEBUG函数
+输入参数  : pstMsg
+输出参数  : 无
+返 回 值  : 无
+调用函数  :
+被调函数  :
+修订记录  :
+1.  日    期   : 2015年3月12日
+    作    者   : H00300778
+    修改内容   : Creat
+*****************************************************************************/
+VOS_VOID SI_PB_InitInfoAppDebug(PBMsgBlock *pstMsg)
+{
+    /*设置初始化状态为已初始化*/
+    gstPBInitState.enPBInitStep = PB_INIT_FINISHED;
 
+    /*lint -e534*/
+    vos_printf("\r\nSI_PB_InitInfoAppDebug:");
+    vos_printf("\r\nSend Pid: %d",pstMsg->ulSenderPid);
+    vos_printf("\r\nRcv Pid: %d", pstMsg->ulReceiverPid);
+    vos_printf("\r\nMsg Name: %d", pstMsg->ulMsgName);
+    /*lint +e534*/
+
+    return;
+}
 VOS_UINT16  SI_PB_TransferFileCnt2ExtFileID(VOS_UINT32 PBFileCnt,
                                                     VOS_UINT32 *pulPBType)
 {

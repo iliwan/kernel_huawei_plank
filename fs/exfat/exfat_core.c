@@ -3922,6 +3922,12 @@ INT32 exfat_find_dir_entry(struct super_block *sb, CHAIN_T *p_dir, UNI_NAME_T *p
 					if (is_feasible_entry) {
 						name_ep = (NAME_DENTRY_T *) ep;
 
+						/* it's impossible that order is zero while is_feasible_entry is true, there must be something wrong with medadata */
+						if (order == 0) {
+							printk(KERN_ERR "[EXFAT] exfat_find_dir_entry: order can't be zero!\n");
+							return -2;
+						}
+
 						if ((++order) == 2)
 							uniname = p_uniname->name;
 						else

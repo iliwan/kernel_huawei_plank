@@ -240,6 +240,7 @@ void
 fsm_Output(struct fsm *fp, VOS_CHAR code, VOS_CHAR id, VOS_CHAR *ptr, VOS_INT32 count,
            VOS_INT32 mtype)
 {
+/* END: changed by fanzhibin 49086, 2006/5/12   PN:A32D03785*/
 
   VOS_INT32 plen;
   struct fsmheader lh;
@@ -348,6 +349,7 @@ fsm_Open(struct fsm *fp)
   default:
     PPP_MNTN_LOG(PS_PID_APP_PPP, 0, PS_PRINT_NORMAL, "not_exist_state\r\n");
 
+/* END: changed by fanzhibin 49086, 2006/5/12   PN:A32D03785*/
   }
 }
 

@@ -46,7 +46,7 @@
 HWLOG_REGIST();
 
 #if defined (CONFIG_HUAWEI_DSM)
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #endif
 
 #define WINDOW_LEN                   (10)
@@ -58,9 +58,13 @@ static unsigned int    capacity_sum;
 #ifdef CONFIG_PM
 static unsigned int    suspend_capacity;
 #endif
+#ifdef CONFIG_BATTERY_HI6XXX_SMARTSTAR
 extern void hisi_smartstar_print_cc_reg(int c);
 extern int is_smartstar_fcc_debounce(void) ;
+#endif
+#ifdef CONFIG_HI6521_CHARGER
 extern int hi6521_get_factory_flag(void);
+#endif
 static int bq_bci_battery_resume(struct platform_device *pdev);
 static int bq_bci_battery_suspend(struct platform_device *pdev,pm_message_t state);
 struct class *hw_power_get_class(void);
@@ -231,7 +235,7 @@ static int bq_bci_state_ops_set(const char *buffer,
 
 static int bq_bci_state_ops_get(char *buffer, const struct kernel_param *kp)
 {
-	sprintf(buffer, "%d", bq_bci_running);
+	snprintf(buffer, PAGE_SIZE, "%d", bq_bci_running);
 	return strlen(buffer);
 }
 
@@ -245,8 +249,9 @@ module_param_cb(bq_bci_running, &bq_bci_state_ops, &bq_bci_running, 0644);
 static int get_factory_flag(void)
 {
 	int factory_flag = 0;
+#ifdef CONFIG_HI6521_CHARGER
 	factory_flag = hi6521_get_factory_flag();
-
+#endif
 	return factory_flag;
 }
 
@@ -438,13 +443,15 @@ static int capacity_changed(struct bq_bci_device_info *di)
 
     case POWER_SUPPLY_STATUS_FULL:
         battery_volt = hisi_battery_voltage();
-        max_charge_volt = hi6521_get_max_voltagemV();
+#ifdef CONFIG_HI6521_CHARGER
+	max_charge_volt = hi6521_get_max_voltagemV();
         vrechg_hys = hi6521_get_vrechg_hys();
         if((max_charge_volt > vrechg_hys) && (battery_volt >= (max_charge_volt - vrechg_hys)))
         {
             curr_capacity = 100;
             di->charge_full_count = 0;
         }
+#endif
         break;
 
     case POWER_SUPPLY_STATUS_DISCHARGING:
@@ -668,7 +675,9 @@ int bq_get_error_info(struct bq_bci_device_info *di)
                 if (abs(pre_uf_capacity - bat_uf_capacity) > 10)
                     di->bat_err |= (ERROR_UFCAPCITY_DEBOUNCE_100 & batt_error_mask);
             }
+#ifdef CONFIG_BATTERY_HI6XXX_SMARTSTAR
             hisi_smartstar_print_cc_reg(2); //debug
+#endif
         }
         pre_uf_capacity = bat_uf_capacity;
     }
@@ -698,11 +707,11 @@ int bq_get_error_info(struct bq_bci_device_info *di)
         }
     }
     pre_capacity = di->capacity;
-
+#ifdef CONFIG_BATTERY_HI6XXX_SMARTSTAR
     if (is_smartstar_fcc_debounce()) {
         di->bat_err |= (ERROR_FCC_DEBOUNCE & batt_error_mask);
     }
-
+#endif
     if(di->bat_err != pre_bat_err && archive_state == 1){
         timeout_jiffies = jiffies + msecs_to_jiffies(LOG_ARCH_DELAY_TIME);
         archive_state = 0;
@@ -711,7 +720,9 @@ int bq_get_error_info(struct bq_bci_device_info *di)
     pre_bat_err = di->bat_err;
 
     if(time_is_before_jiffies(timeout_jiffies) && archive_state == 0){
+#ifndef  FINAL_RELEASE_MODE
         bq_log_exception_archive(di->bat_err);
+#endif
 
 #if defined (CONFIG_HUAWEI_DSM)
 		if (dsm_client_ocuppy(battery_dclient) && (di->bat_err != 0x0)) {
@@ -959,7 +970,7 @@ static ssize_t bq_bci_set_batt_error_mask(struct device *dev, struct device_attr
 
 static ssize_t bq_bci_show_batt_error_mask(struct device *dev, struct device_attribute *attr, char *buf)
 {
-    return sprintf(buf, "0x%x\n", batt_error_mask);
+    return snprintf(buf, PAGE_SIZE, "0x%x\n", batt_error_mask);
 }
 
 static DEVICE_ATTR(batt_error_mask, (S_IWUSR | S_IRUGO),

@@ -3,7 +3,7 @@
 
 #include <huawei_platform/log/janklogconstants.h>
 
-#define LOG_JANK_FS "/dev/log/jank"
+#define LOG_JANK_FS "/dev/hwlog_jank"
 
 #define JANK_LOG_PRIO_VERBOSE  (2)
 #define JANK_LOG_PRIO_DEBUG (3)

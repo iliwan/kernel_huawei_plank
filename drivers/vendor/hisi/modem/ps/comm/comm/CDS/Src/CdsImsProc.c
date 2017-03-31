@@ -431,9 +431,17 @@ VOS_UINT32 CDS_ImsGetPktDestPort(VOS_UINT16 *pusDestPort,
         return PS_FAIL;
     }
 
+    /*异常保护,端口号不能为0*/
+    if (0 == *pusDestPort)
+    {
+        return PS_FAIL;
+    }
+
     return PS_SUCC;
 
 }
+
+
 VOS_UINT32 CDS_IsImsUtPkt(const TTF_MEM_ST *pstIpPkt,const CDS_ENTITY_STRU *pstCdsEntity)
 {
     CDS_IP_DATA_INFO_STRU       stIpPktInfo = {0};

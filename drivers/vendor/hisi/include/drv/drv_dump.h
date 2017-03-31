@@ -106,6 +106,7 @@ typedef enum{
     DUMP_SAVE_MOD_RUN_TRACE, /* ´òµã¸ú×ÙÇøÓò */ 
     DUMP_SAVE_MOD_DUAL_MODEM,
     DUMP_CP_PM_OM,
+    DUMP_SAVE_MOD_GUAS,
 	DUMP_CP_FIELD_END,
 
     /*LPM3 FIELD IDs*/
@@ -142,6 +143,7 @@ typedef enum{
 #define DUMP_EXT_TLPS_SIZE                           (0x1000)
 #define DUMP_EXT_RUN_TRACE_SIZE                      (0x400)
 #define DUMP_EXT_DUAL_MODEM_SIZE					 (0x1400)
+#define DUMP_EXT_GUAS_SIZE                           (0x1000)
 #else
 
 typedef enum{

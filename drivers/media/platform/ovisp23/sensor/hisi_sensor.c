@@ -86,6 +86,14 @@ int hisi_sensor_get_dt_data(struct platform_device *pdev,
 	}
 	sensor->sensor_info = sensor_info;
 
+	/* ++add mirror & flip disable flag zwx211899++ */
+	rc = of_property_read_u32(of_node, "hisi,mirror_flip_disable",
+			&sensor_info->mirror_flip_disable);
+	if(rc < 0) {
+		cam_err("%s failed %d\n", __func__, __LINE__);
+	}
+	/* --add mirror & flip disable flag zwx211899--*/
+
 	rc = of_property_read_string(of_node, "hisi,sensor_name",
 		&sensor_info->name);
 	cam_debug("%s hisi,sensor_name %s, rc %d\n", __func__,
@@ -239,6 +247,15 @@ int hisi_sensor_get_dt_data(struct platform_device *pdev,
 		goto fail;
 	}
 
+	rc = of_property_read_u32(of_node, "hisi,sensor_type",
+		&sensor_info->sensor_type);
+	cam_debug("%s hisi,sensor_type %d, rc %d\n", __func__,
+		sensor_info->sensor_type, rc);
+	if (rc < 0) {
+		cam_err("%s failed %d\n", __func__, __LINE__);
+		goto fail;
+	}
+
 	if (sensor_info->vcm_enable) {
 		rc = of_property_read_string(of_node, "hisi,vcm_name",
 			&sensor_info->vcm_name);
@@ -338,10 +355,7 @@ static int hisi_sensor_get_pos(int index)
 	}
 
 	set_fs(fs);
-
-	if (NULL != filp) {
-		filp_close(filp, NULL);
-	}
+	filp_close(filp, NULL);
 
 	return pos;
 }
@@ -381,10 +395,7 @@ static int hisi_sensor_set_pos(int index, int pos, const char *sensor_name)
 
 fail:
 	set_fs(fs);
-
-	if (NULL != filp) {
-		filp_close(filp, NULL);
-	}
+	filp_close(filp, NULL);
 
 	return rc;
 }
@@ -434,16 +445,21 @@ static int hisi_sensor_init(struct hisi_sensor_ctrl_t *s_ctrl)
 		}
 	}
 
-	s_ctrl->sensor = NULL;
+	s_ctrl->sensor = s_ctrl->sensor_array[0];
 
 	cam_err("%s init sensor error.\n", __func__);
-	return -EFAULT;
+	return rc;
 }
 
 int hisi_sensor_config(struct hisi_sensor_ctrl_t *s_ctrl, void *arg)
 {
+    if (NULL == arg) {
+        cam_err("%s: arg is NULL", __func__);
+        return -EFAULT;
+    }
 	struct sensor_cfg_data *cdata = (struct sensor_cfg_data *)arg;
 	long   rc = 0;
+	static bool power_on = false;
 
 	cam_info("%s enter cfgtype=%d.\n", __func__, cdata->cfgtype);
 
@@ -451,10 +467,17 @@ int hisi_sensor_config(struct hisi_sensor_ctrl_t *s_ctrl, void *arg)
 
 	switch (cdata->cfgtype) {
 	case CFG_SENSOR_POWER_DOWN:
-		rc = s_ctrl->sensor->func_tbl->sensor_power_down(s_ctrl);
+		if (power_on == true) {
+			rc = s_ctrl->sensor->func_tbl->sensor_power_down(s_ctrl);
+			power_on = false;
+		}
 		break;
 	case CFG_SENSOR_POWER_UP:
-		rc = s_ctrl->sensor->func_tbl->sensor_power_up(s_ctrl);
+		if (power_on == false) {
+			rc = s_ctrl->sensor->func_tbl->sensor_power_up(s_ctrl);
+			if (0 == rc)
+				power_on = true;
+		}
 		break;
 	case CFG_SENSOR_I2C_READ:
 		rc = s_ctrl->sensor->func_tbl->sensor_i2c_read(s_ctrl, arg);
@@ -469,9 +492,24 @@ int hisi_sensor_config(struct hisi_sensor_ctrl_t *s_ctrl, void *arg)
 		rc = s_ctrl->sensor->func_tbl->sensor_i2c_write_seq(s_ctrl, arg);
 		break;
 	case CFG_SENSOR_GET_SENSOR_NAME:
+        memset(cdata->cfg.name, 0, sizeof(cdata->cfg.name));
 		strncpy(cdata->cfg.name, s_ctrl->sensor->sensor_info->name,
 			sizeof(cdata->cfg.name) - 1);
 		rc = 0;
+		break;
+	case CFG_SENSOR_APPLY_EXPO_GAIN:
+		rc = s_ctrl->sensor->func_tbl->sensor_apply_expo_gain(s_ctrl, arg);
+		break;
+	case CFG_SENSOR_SUSPEND_HISI_EG_TASK:
+		rc = s_ctrl->sensor->func_tbl->sensor_suspend_eg_task(s_ctrl, arg);
+			break;
+	case CFG_SENSOR_GET_PRODUCT_NAME:
+        memset(cdata->cfg.name, 0, sizeof(cdata->cfg.name));
+		strncpy(cdata->cfg.name, get_product_name(), sizeof(cdata->cfg.name) - 1);
+		rc = 0;
+		break;
+	case CFG_SENSOR_APPLY_BSHUTTER_EXPO_GAIN:
+		rc = s_ctrl->sensor->func_tbl->sensor_apply_bshutter_expo_gain(s_ctrl, arg);
 		break;
 	default:
 		rc = s_ctrl->sensor->func_tbl->sensor_ioctl(s_ctrl, arg);
@@ -500,7 +538,8 @@ static long hisi_sensor_subdev_ioctl(struct v4l2_subdev *sd,
 		rc = hisi_sensor_init(s_ctrl);
 		if (rc < 0) {
 			cam_err("%s s_ctrl NULL\n", __func__);
-			return -EBADF;
+			rc = -EBADF;
+			return rc;
 		}
 	}
 
@@ -528,12 +567,37 @@ static long hisi_sensor_subdev_ioctl(struct v4l2_subdev *sd,
 }
 
 
+static int hisi_sensor_subdev_internal_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+{
+	struct hisi_sensor_ctrl_t *s_ctrl = get_sctrl(sd);
+	int rc=0;
+	struct sensor_cfg_data cdata = {0};
+	cdata.cfgtype = CFG_SENSOR_POWER_DOWN;
+
+	if (s_ctrl == NULL) {
+		cam_err("%s get s_strl error", __func__);
+		return -1;
+	}
+	if (s_ctrl->sensor == NULL || s_ctrl->sensor->func_tbl == NULL
+		|| s_ctrl->csi_ctrl == NULL || s_ctrl->csi_ctrl->hisi_csi_disable == NULL)
+		return rc;
+	rc = s_ctrl->sensor->func_tbl->sensor_config(s_ctrl, (void *)(&cdata));
+	rc |= s_ctrl->csi_ctrl->hisi_csi_disable(s_ctrl->sensor->sensor_info->csi_index);
+
+	cam_notice(" enter %s,return value %d", __func__,rc);
+	return rc;
+}
+
 static struct v4l2_subdev_core_ops hisi_sensor_subdev_core_ops = {
 	.ioctl = hisi_sensor_subdev_ioctl,
 };
 
 static struct v4l2_subdev_ops hisi_sensor_subdev_ops = {
 	.core = &hisi_sensor_subdev_core_ops,
+};
+
+static struct v4l2_subdev_internal_ops hisi_sensor_subdev_internal_ops = {
+	.close = hisi_sensor_subdev_internal_close,
 };
 
 static int32_t hisi_sensor_platform_probe(struct platform_device *pdev,
@@ -552,6 +616,8 @@ static int32_t hisi_sensor_platform_probe(struct platform_device *pdev,
 
 	if (!s_ctrl->sensor_v4l2_subdev_ops)
 		s_ctrl->sensor_v4l2_subdev_ops = &hisi_sensor_subdev_ops;
+
+	s_ctrl->hisi_sd.sd.internal_ops = &hisi_sensor_subdev_internal_ops;
 
 	v4l2_subdev_init(&s_ctrl->hisi_sd.sd,
 			s_ctrl->sensor_v4l2_subdev_ops);
@@ -601,9 +667,9 @@ static int32_t sensor_platform_probe(struct platform_device *pdev)
 
 	match = of_match_device(hisi_sensor_dt_match, &pdev->dev);
 	if(!match) {
-		cam_err("pmu led match device failed");
+		cam_err("sensor match device failed");
 		return -1;
-	}	
+	}
 	cam_notice("%s compatible=%s.\n", __func__, match->compatible);
 	return hisi_sensor_platform_probe(pdev, (void*)match->data);
 }

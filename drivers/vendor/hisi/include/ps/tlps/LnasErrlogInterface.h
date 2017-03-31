@@ -63,6 +63,7 @@ enum EMM_OM_ERRLOG_TYPE_ENUM
     EMM_OM_ERRLOG_TYPE_LRRC_REL        = 3, /*收到LRRC释放*/
     EMM_OM_ERRLOG_TYPE_EST_CNF_FAIL    = 4, /*建链失败*/
     EMM_OM_ERRLOG_TYPE_DATA_CNF_FAIL   = 5, /*data req失败*/
+    EMM_OM_ERRLOG_TYPE_EPS_ONLY        = 6, /*联合注册，EPS ONLY成功*/
 
     EMM_OM_ERRLOG_TYPE_CN_BUTT
 };

@@ -54,34 +54,7 @@
 
 #define CSI_INIT_DELAY			10
 
-#define LANE0_THS_SETTLE (0x10)
-#define LANE0_HS_CLK_SRC (0x11)
-#define LANE1_THS_SETTLE (0x20)
-#define LANE1_HS_CLK_SRC (0x21)
-#define LANE2_THS_SETTLE (0x30)
-#define LANE2_HS_CLK_SRC (0x31)
-#define LANE3_THS_SETTLE (0x40)
-#define LANE3_HS_CLK_SRC (0x41)
-
 struct hisi_csi_pad csi_pad;
-
-void TSTCODE_SETREG8(unsigned int reg_base, unsigned int addr, unsigned int value)
-{
-	CSI_SETREG32(reg_base + PHY_TST_CONTRL1, (1 << 16) | addr);
-	CSI_SETREG32(reg_base + PHY_TST_CONTRL0, 2);
-	CSI_SETREG32(reg_base + PHY_TST_CONTRL0, 0);
-	CSI_SETREG32(reg_base + PHY_TST_CONTRL1, value);
-	CSI_SETREG32(reg_base + PHY_TST_CONTRL0, 2);
-	CSI_SETREG32(reg_base + PHY_TST_CONTRL0, 0);
-}
-
-void TSTCODE_GETREG8(unsigned int reg_base, unsigned int addr, unsigned int *value)
-{
-	CSI_SETREG32(reg_base + PHY_TST_CONTRL1, (1 << 16) | addr);
-	CSI_SETREG32(reg_base + PHY_TST_CONTRL0, 2);
-	CSI_SETREG32(reg_base + PHY_TST_CONTRL0, 0);
-	*value = ((CSI_GETREG32(reg_base + PHY_TST_CONTRL1) >> 8) & (0x000000ff));
-}
 
 #if 0
 static irqreturn_t hisi_csi0_isr(int irq, void *dev_id)
@@ -121,7 +94,6 @@ static irqreturn_t hisi_csi1_isr(int irq, void *dev_id)
 }
 #endif
 
-#if 0
 int hisi_csi_enable(csi_index_t csi_index, int csi_lane, int csi_mipi_clk)
 {
 	/*CSI PHY enbale*/
@@ -131,14 +103,11 @@ int hisi_csi_enable(csi_index_t csi_index, int csi_lane, int csi_mipi_clk)
 	u32 err2 ;
 	int ret = 0;
 
-	cam_notice("%s enter:csi_index=%d,csi_lane=%d,csi_mipi_clk=%d.\n", __func__,
+	cam_info("%s enter:csi_index=%d,csi_lane=%d,csi_mipi_clk=%d.\n", __func__,
 		csi_index, csi_lane, csi_mipi_clk);
-	if (csi_index == 2) {
-		csi_index = 1;
-	}
 
 	if(csi_pad.csi_inited[csi_index]) {
-		cam_info("csi  phy has already been enabled.");
+		cam_notice("csi  phy has already been enabled.");
 		return ret;
 	}
 
@@ -164,14 +133,12 @@ int hisi_csi_enable(csi_index_t csi_index, int csi_lane, int csi_mipi_clk)
 	ret = request_irq(csi_pad.info.csi_irq[CSI_INDEX_0], hisi_csi0_isr, 0, "csi0_irq", 0);
 	if (ret < 0) {
 		cam_err("fail to request irq [%d]", csi_pad.info.csi_irq[CSI_INDEX_0]);
-		return -EAGAIN;
 	}
 
 	ret = request_irq(csi_pad.info.csi_irq[CSI_INDEX_1], hisi_csi1_isr, 0, "csi1_irq", 0);
 	if (ret < 0) {
 		cam_err("fail to request irq [%d]", csi_pad.info.csi_irq[CSI_INDEX_1]);
 		free_irq(csi_pad.info.csi_irq[CSI_INDEX_0], 0);
-		return -EAGAIN;
 	}
 #endif
 
@@ -242,133 +209,22 @@ int hisi_csi_enable(csi_index_t csi_index, int csi_lane, int csi_mipi_clk)
 
 	return ret;
 }
-#endif
-
-#if 1
-int hisi_csi_enable(csi_index_t csi_index, int csi_lane, int csi_mipi_clk)
-{
-	/*CSI PHY enbale*/
-	u32 phy_state1;
-	u32 reg_base;
-	u32 err1 ;
-	u32 err2 ;
-	u8 settle_time, value, camera_source;
-
-	reg_base = 0x7F400;
-
-	CSI_SETREG32(reg_base + CSI_REG_PHY_SHUTDOWNZ, 0);
-	CSI_SETREG32(reg_base + CSI_REG_DPHY_RSTZ, 0);
-	CSI_SETREG32(reg_base + CSI_REG_RESETN, 0);
-
-	CSI_SETREG32(reg_base + PHY_TST_CONTRL0, 1);
-	CSI_SETREG32(reg_base + PHY_TST_CONTRL0, 0);
-	msleep(1);
-
-	CSI_SETREG32(reg_base + CSI_REG_PHY_SHUTDOWNZ, 1);
-	CSI_SETREG32(reg_base + CSI_REG_N_LANES, 3);
-
-	//settle_time = 26;
-	//settle_time = 23;
-	//settle_time = 10;
-	settle_time = 23; //29; //16;
-	camera_source = 1;
-
-	CSI_SETREG32(reg_base + CSI_REG_DPHY_RSTZ, 1);
-	CSI_SETREG32(reg_base + CSI_REG_RESETN, 1);
-
-	TSTCODE_SETREG8(reg_base, LANE0_HS_CLK_SRC, camera_source);
-	TSTCODE_GETREG8(reg_base, LANE0_HS_CLK_SRC, &value);
-	cam_info("reg LANE0_HS_CLK_SRC = %d", value);
-
-	TSTCODE_SETREG8(reg_base, LANE1_THS_SETTLE, settle_time);
-	TSTCODE_GETREG8(reg_base, LANE1_THS_SETTLE, &value);
-	cam_info("reg LANE1_THS_SETTLE = %d", value);
-
-	TSTCODE_SETREG8(reg_base, LANE1_HS_CLK_SRC, camera_source);
-	TSTCODE_GETREG8(reg_base, LANE1_HS_CLK_SRC, &value);
-	cam_info("reg LANE1_HS_CLK_SRC = %d", value);
-
-	TSTCODE_SETREG8(reg_base, LANE2_THS_SETTLE, settle_time);
-	TSTCODE_GETREG8(reg_base, LANE2_THS_SETTLE, &value);
-	cam_info("reg LANE2_THS_SETTLE = %d", value);
-
-	TSTCODE_SETREG8(reg_base, LANE2_HS_CLK_SRC, camera_source);
-	TSTCODE_GETREG8(reg_base, LANE2_HS_CLK_SRC, &value);
-	cam_info("reg LANE2_HS_CLK_SRC = %d", value);
-
-	TSTCODE_SETREG8(reg_base, LANE3_THS_SETTLE, settle_time);
-	TSTCODE_GETREG8(reg_base, LANE3_THS_SETTLE, &value);
-	cam_info("reg LANE3_THS_SETTLE = %d", value);
-
-	/* diff with balong */
-	TSTCODE_SETREG8(reg_base, LANE3_HS_CLK_SRC, camera_source);
-	TSTCODE_GETREG8(reg_base, LANE3_HS_CLK_SRC, &value);
-	cam_info("reg LANE3_HS_CLK_SRC = %d", value);
-
-	/*
-	   csi-2 Controller programming - Read the PHY status register (PHY_STATE) to confirm that all data
-	   and clock lanes of the D-PHY are in Stop State (that is, ready to receive data).
-	 */
-
-	/*
-	   Configure the MIPI Camera Sensor - Access Camera Sensor using CCI interface to initialize and
-	   configure the Camera Sensor to start transmitting a clock on the D-PHY clock lane.
-	 */
-
-	/*
-	   csi-2 Controller programming - Read the PHY status register (PHY_STATE) to confirm that the
-	   D-PHY is receiving a clock on the D-PHY clock lane.
-	 */
-
-	
-	phy_state1 = CSI_GETREG32(reg_base + CSI_REG_PHY_STATE);
-
-	err1 = CSI_GETREG32(reg_base + CSI_REG_ERR1);
-	err2 = CSI_GETREG32(reg_base + CSI_REG_ERR2);
-	cam_info("Not all data and clock lanes of the D-PHY are in Stop State, "
-			"err1 : %#x, err2 : %#x ", err1,  err2);
-	
-	if (0 == (phy_state1 & PHY_STATE_STOPSTATE0)
-	&& 0 == (phy_state1 & PHY_STATE_STOPSTATECLK)) {
-		cam_err("Not all data and clock lanes of the D-PHY are in Stop State, "
-			"phy_state1 : %#x ", phy_state1);
-
-	}
-
-	if (0 == (phy_state1 & PHY_STATE_RXCLKACTIVEHS))
-		cam_err("D-PHY was not receive a clock \n");
-
-	CSI_SETREG32(reg_base + CSI_REG_MASK1, CSI_INT_EN);
-	CSI_SETREG32(reg_base + CSI_REG_MASK2, CSI_INT_EN);
-	msleep(100);
-
-	phy_state1 = CSI_GETREG32(reg_base + CSI_REG_PHY_STATE);
-	cam_err("Not all data and clock lanes of the D-PHY are in Stop State, "
-			"phy_state1 : %#x ", phy_state1);
-
-	cam_info("exit.");
-	return 0;
-}
-#endif
 
 int hisi_csi_disable(csi_index_t csi_index)
 {
-	u32 reg_offset;
+	//u32 reg_offset;
 
 	cam_info("%s enter:csi_index=%d.\n", __func__, csi_index);
-	if (csi_index == 2) {
-		csi_index = 1;
-	}
 
 	if(!csi_pad.csi_inited[csi_index]) {
 		cam_debug("csi is disabled now");
 		return 0;
 	}
 
-	reg_offset = csi_pad.info.csi_base_offset[csi_index];
+	//reg_offset = csi_pad.info.csi_base_offset[csi_index];
 
-	CSI_SETREG32(reg_offset + CSI_REG_RESETN, 0);
-	CSI_SETREG32(reg_offset + CSI_REG_PHY_SHUTDOWNZ, 0);
+	//CSI_SETREG32(reg_offset + CSI_REG_RESETN, 0);
+	//CSI_SETREG32(reg_offset + CSI_REG_PHY_SHUTDOWNZ, 0);
 
 	if (!is_fpga_board()) {
 		clk_disable_unprepare(csi_pad.info.phyclk[csi_index]);

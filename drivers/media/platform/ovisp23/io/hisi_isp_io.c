@@ -15,7 +15,7 @@
 #include <linux/printk.h>
 #include "hisi_isp_io.h"
 
-void __iomem * isp_base;
+unsigned int isp_base;
 
 unsigned int CSI_GETREG32(unsigned int reg)
 {
@@ -29,7 +29,7 @@ void CSI_SETREG32(unsigned int reg, unsigned int val)
 	iowrite32(val, (volatile void*)(isp_base + reg));
 }
 
-void io_set_isp_base(unsigned long isp_base_addr)
+void io_set_isp_base(unsigned int isp_base_addr)
 {
 	isp_base = isp_base_addr;
 }

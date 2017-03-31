@@ -1,6 +1,6 @@
 /* Copyright (c) 2008-2011, Hisilicon Tech. Co., Ltd. All rights reserved.
  *
- *  reset.h    reset module interface declare
+ * reset.h    reset module interface declare
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -35,26 +35,26 @@
 #include <linux/timex.h>
 #include <linux/rtc.h>
 
-#define AP_LOG_PATH_APR             "/data/hisi_logs/ap_log/coredump/"
-#define CP_LOG_PATH_APR             "/data/hisi_logs/cp_log/coredump/"
-#define HIFI_LOG_PATH_APR           "/data/hisi_logs/hifi_log/coredump/"
+#define AP_LOG_PATH_APR  "/data/hisi_logs/ap_log/coredump/"
+#define CP_LOG_PATH_APR  "/data/hisi_logs/cp_log/coredump/"
+#define HIFI_LOG_PATH_APR  "/data/hisi_logs/hifi_log/coredump/"
 
-#define MAX_APR_CMD_LEN		256
-#define MAX_APR_FILE_LEN	64
-#define MAX_APR_LOCAL_TIME_STR		32
-typedef struct
-{
-    sreset_mailbox_msg_mcu              smailboxmsg_mcu;
-    AP_HIFI_CCPU_RESET_REQ_STRU               smailboxmsg_hifi;
-    int               iccore_reset;
-    int               ivalue_reg1;      /*保存寄存器原始值，用于做恢复*/
-    int               ivalue_reg2;      /*保存寄存器原始值，用于做恢复*/
-    struct semaphore     sem_wait_ccorereset;
-    struct semaphore     sem_wait_ccorereset_ok;
-    struct semaphore     sem_wait_hifireset;
-    struct semaphore     sem_wait_hifi_msg;
-    struct semaphore     sem_wait_mcu_msg;
-    struct semaphore     sem_wait_mcu_msg_hifireset;
+#define MAX_APR_CMD_LEN (256)
+#define MAX_APR_FILE_LEN (64)
+#define MAX_APR_LOCAL_TIME_STR (32)
+typedef struct {
+	sreset_mailbox_msg_mcu smailboxmsg_mcu;
+	AP_HIFI_CCPU_RESET_REQ_STRU smailboxmsg_hifi;
+	int iccore_reset;
+	int ivalue_reg1; /*保存寄存器原始值，用于做恢复*/
+	int ivalue_reg2; /*保存寄存器原始值，用于做恢复*/
+	struct semaphore sem_wait_ccorereset;
+	struct semaphore sem_wait_ccorereset_ok;
+	struct semaphore sem_wait_hifireset;
+	struct semaphore sem_wait_hifi_msg;
+	struct semaphore sem_wait_mcu_msg;
+	struct semaphore sem_wait_mcu_msg_hifireset;
+	struct semaphore sem_wait_hifisave;
 } sreset_mgr_assistant_hifi;
 
 

@@ -17,6 +17,9 @@
 #include "../camera/hisi_camera.h"
 #include "isp_driver.h"
 
+extern int k3_alloc_firmware_memory(void);
+extern void k3_free_firmware_memory(void);
+
 DEFINE_HISI_MUTEX(isp_mut);
 struct hisi_isp_ctrl_t hisi_s_ctrl = {
 	.hisi_isp_mutex = &isp_mut,
@@ -107,6 +110,13 @@ static int hisi_isp_platform_probe(struct platform_device *pdev, void *data)
 		return rc;
 	}
 
+	rc = k3_alloc_firmware_memory();
+	if (rc < 0) {
+		rc = -ENOMEM;
+		cam_err("%s: camera init alloc memory for firmware fail rc=%d.\n", __func__, rc);
+		return rc;
+	}
+
 	return rc;
 }
 
@@ -150,6 +160,8 @@ static int __init isp_module_init(void)
 
 static void __exit isp_module_exit(void)
 {
+	k3_free_firmware_memory();
+
 	platform_driver_unregister(&isp_platform_driver);
 }
 

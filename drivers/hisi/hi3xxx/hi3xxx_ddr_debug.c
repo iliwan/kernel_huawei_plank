@@ -5,6 +5,8 @@
  * License terms: GNU General Public License (GPL) version 2
  *
  */
+
+ #if 0
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -43,6 +45,8 @@
 static unsigned long virt_addr = 0;
 static unsigned int virt_len = 0;
 static unsigned int pid;
+
+extern void show_pte(struct mm_struct *mm, unsigned long addr);
 
 static ssize_t show_phys_pte(char *buf, ssize_t size, struct mm_struct *mm, unsigned long addr)
 {
@@ -108,18 +112,19 @@ static ssize_t show_phys_pte(char *buf, ssize_t size, struct mm_struct *mm, unsi
 static ssize_t show_phys_addr(struct device *dev, struct device_attribute *attr,
 	char *buf)
 {
+	struct task_struct *tgt_task = NULL;
 	ssize_t size;
+#if 0
 	unsigned long phys_addr;
 	pgd_t *pgd_tmp = NULL;
 	pud_t *pud_tmp = NULL;
 	pmd_t *pmd_tmp = NULL;
-	pte_t *pte_tmp = NULL;
+	pte_t *pte_tmp = NULL
+#endif
 	int i;
 	unsigned long va_addr = virt_addr;
 
 	size = snprintf(buf, PAGE_SIZE, "%u, 0x%lx, %u\n", pid, virt_addr, virt_len);
-
-	struct task_struct *tgt_task = NULL;
 
 	if (pid == 0) {
 		tgt_task = current;
@@ -130,14 +135,14 @@ static ssize_t show_phys_addr(struct device *dev, struct device_attribute *attr,
 
 	if(!tgt_task) {
 		size += snprintf(buf+size, PAGE_SIZE - size, "[ddr_debug] tgt_task is NULL!\n");
-		return ;
+		return size;
 	}
 
 	for(i = (virt_len*1024/PAGE_SIZE + 1);i > 0;i--)
 	{
 		if(!find_vma(tgt_task->mm, va_addr)) {
 			size += snprintf(buf+size, PAGE_SIZE - size, "[ddr_debug] cannot find vma!\n");
-			return ;
+			return size;
 		}
 		size += snprintf(buf+size, PAGE_SIZE - size, "[ddr_debug]i:%d\n", i);
 
@@ -250,16 +255,20 @@ static ssize_t store_virt_addr(struct device *dev, struct device_attribute *attr
 
 		switch (args) {
 		case 0:
-			sscanf(head, "%u", &pid);
+			if(-1 == sscanf(head, "%u", &pid)){
+				pr_err("[%s]:%d invalid pid!\n", __func__, __LINE__);
+			}
 			break;
 		case 1:
-			sscanf(head, "%lx", &virt_addr);
+			if(-1 == sscanf(head, "%lx", &virt_addr)){
+				pr_err("[%s]:%d invalid virt_addr!\n", __func__, __LINE__);
+			}
 			break;
 		case 2:
-			sscanf(head, "%u", &virt_len);
+			if(-1 == sscanf(head, "%u", &virt_len)){
+				pr_err("[%s]:%d invalid virt_len!\n", __func__, __LINE__);
+			}
 			break;
-		default:
-			pr_err("[%s]:%d invalid args!\n", __func__, __LINE__);
 		}
 
 		head = head + argl + 1;
@@ -285,7 +294,7 @@ static struct attribute_group ddr_debug_attr_grp = {
 
 static int ddr_debug_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	/*struct device_node *np = pdev->dev.of_node;*/
 	int ret;
 
 	pr_info("[%s]:%d enter.\n", __func__, __LINE__);
@@ -337,3 +346,5 @@ module_exit(ddr_debug_exit);
 MODULE_AUTHOR("cuiyong1@huawei.com>");
 MODULE_DESCRIPTION("DDR DEBUG MODULE");
 MODULE_LICENSE("GPL v2");
+
+#endif

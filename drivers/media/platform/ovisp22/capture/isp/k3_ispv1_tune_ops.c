@@ -67,6 +67,7 @@
 
 k3_isp_data *this_ispdata;
 static bool camera_ajustments_flag;
+extern k3_isp_data isp_data;
 
 static int scene_target_y_low = DEFAULT_TARGET_Y_LOW;
 static int scene_target_y_high = DEFAULT_TARGET_Y_HIGH;
@@ -235,6 +236,150 @@ out:
 	return retvalue;
 }
 
+
+int ispv1_set_pro_manual_iso(int iso)
+{
+	int max_iso, min_iso;
+	int max_gain, min_gain;
+	int retvalue = 0;
+	camera_sensor *sensor;
+	ae_params_s *this_ae;
+	if (NULL == this_ispdata) {
+		print_info("this_ispdata is NULL");
+		return -1;
+	}
+	sensor = this_ispdata->sensor;
+
+	print_debug("enter %s", __func__);
+
+	if (0 == iso){
+		this_ae = &sensor->effect->ae_param;
+		/*iso limit is also sensor related, sensor itself should provide a method to define its iso limitation*/
+		/*if sensor does not  provide this method,make sure that the default iso shuold be set here */
+		max_iso = this_ae->iso_max;
+		min_iso = this_ae->iso_min;
+
+	}else if (iso < 100){
+		retvalue = -1;
+		goto out;
+	}else if (iso <= 400){
+		max_iso = (iso + 28);
+		min_iso = (iso - 25);
+		if (min_iso<100)
+			min_iso = 100;
+	}else if (iso <= 1600){
+		max_iso = (iso +50);
+		min_iso = (iso - 50);
+		if (max_iso > 1600 )
+			min_iso = 1600;
+	}
+	else{
+		retvalue = -1;
+		goto out;
+	}
+
+	max_gain = max_iso * 0x10 / 100;
+	min_gain = min_iso * 0x10 / 100;
+
+	if( (sensor->frmsize_list[sensor->preview_frmsize_index].summary == false)
+	&&(true == sensor->support_summary)){
+		max_gain = max_gain * 2;
+	}
+
+	print_info("enter %s, max_gain:%d, min_gain%d", __func__, max_gain, min_gain);
+
+	/* set to ISP registers */
+	SETREG8(REG_ISP_MAX_GAIN, (max_gain & 0xff00) >> 8);
+	SETREG8(REG_ISP_MAX_GAIN + 1, max_gain & 0xff);
+	SETREG8(REG_ISP_MIN_GAIN, (min_gain & 0xff00) >> 8);
+	SETREG8(REG_ISP_MIN_GAIN + 1, min_gain & 0xff);
+
+	sensor->min_gain = min_gain;
+	sensor->max_gain = max_gain;
+
+out:
+	return retvalue;
+}
+
+
+/*
+ **************************************************************************
+ * FunctionName: ispv1_set_b_shutter_ecgc;
+ * Description : set b shutter mode aecagc that supported by isp and camera rear sensorn duing preview;
+ * Input       : NA;
+ * Output      : NA;
+ * ReturnValue : NA;
+ * Other       : NA;
+ **************************************************************************
+ */
+int ispv1_set_b_shutter_ecgc(b_shutter_ae_iso_s* b_shutter_tryae_ecgc)
+{
+	int currBandingMode = CAMERA_ANTI_BANDING_50Hz;
+	u32 banding_step = 0;
+	u32 expo_line = 0;
+	u32 expo_vts = 0;
+	u32 frame_index = 0;
+	u32 gain = 0;
+	u16 basic_vts=0;
+	camera_sensor *sensor = this_ispdata->sensor;
+	u32 bandMode=100;
+
+	print_info("%s %s b_shutter_tryae expo=0x%x iso=0x%x", BSHUTTER_LOG_TAG, __FUNCTION__,b_shutter_tryae_ecgc->long_expo_expo,b_shutter_tryae_ecgc->long_expo_iso);
+
+	gain = ispv1_iso2gain(b_shutter_tryae_ecgc->long_expo_iso,false);
+	if(b_shutter_tryae_ecgc->long_expo_expo <=0 || gain<=0)
+	{
+		print_error("%s %s error input", BSHUTTER_LOG_TAG, __FUNCTION__);
+		return -1;
+	}
+
+	frame_index = sensor->preview_frmsize_index;
+	currBandingMode = ispv1_get_anti_banding();
+	if(CAMERA_ANTI_BANDING_60Hz == currBandingMode){
+		banding_step = sensor->frmsize_list[frame_index].banding_step_60hz;
+		bandMode=120;
+	}else{//none 60HZ case use 50HZ setting
+		banding_step = sensor->frmsize_list[frame_index].banding_step_50hz;
+		bandMode=100;
+	}
+
+	if(b_shutter_tryae_ecgc->long_expo_expo>=SEGMENT_EXPO_TIME_TO_LINE){
+		expo_line = (b_shutter_tryae_ecgc->long_expo_expo*banding_step)/1000000*bandMode;
+		print_info("%s %s expo_time=0x%x exceed 2second", BSHUTTER_LOG_TAG,__func__, b_shutter_tryae_ecgc->long_expo_expo);
+	}else{
+		expo_line = b_shutter_tryae_ecgc->long_expo_expo/(1000000/bandMode/banding_step);
+	}
+
+	basic_vts = sensor->frmsize_list[frame_index].vts;
+	if(expo_line< basic_vts){
+		expo_vts = basic_vts;
+	}else{
+		expo_vts = expo_line + sensor->support_expoline_offset;//FIX the frame gap issue
+
+		if((expo_vts>sensor->support_max_vts) && (sensor->support_max_vts!=0)){
+			expo_vts = sensor->support_max_vts;
+		}
+	}
+	print_info("%s %s b_shutter_tryae expo_line=0x%x gain=0x%x expo_vts=0x%x frame_index=0n%d banding_step=0x%x sensor=%s", BSHUTTER_LOG_TAG, __FUNCTION__,expo_line,gain,expo_vts,frame_index,banding_step,sensor->info.name);
+
+	if(expo_line > expo_vts - sensor->support_expoline_offset){
+		expo_line = expo_vts - sensor->support_expoline_offset;
+		print_warn("%s %s expo_line=0x%x is changned to below vts = 0x%x ecgc_support_type=0x%x support_expoline_offset=0x%x", 
+			BSHUTTER_LOG_TAG, __FUNCTION__,expo_line,expo_vts,isp_data.ecgc_support_type,sensor->support_expoline_offset);
+	}
+
+	/*all the tryae input para are tranlated to the sensor para, do the least thing in the eof interrupt*/
+	isp_data.b_shutter_tryae_aecagc.tryae_expo = expo_line<<4;
+	isp_data.b_shutter_tryae_aecagc.tryae_gain = gain;
+	isp_data.b_shutter_tryae_aecagc.tryae_vts  = expo_vts;
+	isp_data.b_shutter_tryae_aecagc.tryae_set_vts_flag = 0;//a lock is in need or not(logical being not),TBD
+
+	print_info("%s %s expo_line=0x%x gain=0x%x expo_vts=0x%x tryae_set_vts_flag=0n%d", BSHUTTER_LOG_TAG, __FUNCTION__,
+		isp_data.b_shutter_tryae_aecagc.tryae_expo,isp_data.b_shutter_tryae_aecagc.tryae_gain,isp_data.b_shutter_tryae_aecagc.tryae_vts,isp_data.b_shutter_tryae_aecagc.tryae_set_vts_flag);
+
+	return 0;
+}
+
 int inline ispv1_iso2gain(int iso, bool summary)
 {
 	int gain;
@@ -349,10 +494,9 @@ int ispv1_get_exposure_time(void)
 	}
 
 	denominator_expo_time = ispv1_expo_line2time(expo, fps, vts);
+
 	return denominator_expo_time;
 }
-
-
 u32 ispv1_get_awb_gain(int withShift)
 {
 	u16 b_gain, r_gain;
@@ -401,6 +545,11 @@ u32 ispv1_get_sensor_vts(void)
 	vts = basic_vts * full_fps / fps;
 
 	return vts;
+}
+
+int  ispv1_get_current_y(void)
+{
+	return   GETREG8(REG_ISP_CURRENT_Y);
 }
 
 u32 ispv1_get_current_ccm_rgain(void)
@@ -1474,6 +1623,11 @@ void ispv1_cmd_id_do_ecgc(struct work_struct *work)
 	u32 expo, gain;
 	camera_sensor *sensor = this_ispdata->sensor;
 	u8 wait_flag;
+	u32 frame_index=0;
+	int currBandingMode;
+	u32 banding_step;
+	u32 bandMode=100;
+
 #ifdef AP_WRITE_AE_TIME_PRINT
 	struct timeval tv_start, tv_end;
 	do_gettimeofday(&tv_start);
@@ -1507,6 +1661,31 @@ void ispv1_cmd_id_do_ecgc(struct work_struct *work)
 	if (CMD_WRITEBACK_EXPO_GAIN == isp_hw_data.aec_cmd_id ||
 		CMD_WRITEBACK_EXPO == isp_hw_data.aec_cmd_id ||
 		CMD_WRITEBACK_GAIN == isp_hw_data.aec_cmd_id) {
+
+			if(CAMERA_B_SHUTTER_MODE_ON == isp_data.b_shutter_state){//this branch is used for B_SHUTTER_Alog to support sensor long expo once
+				if(isp_data.b_shutter_hdr_aecagc.hdrCounter>0){//HDR mode or HDR&longExpo mode
+					expo=isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[isp_data.b_shutter_hdr_aecagc.currExcuteOrder].expo;
+					gain=isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[isp_data.b_shutter_hdr_aecagc.currExcuteOrder].gain;
+
+					isp_data.b_shutter_hdr_aecagc.currExcuteOrder++;
+				}else{//longExpo mode only
+					expo=isp_data.b_shutter_aecagc.expo;
+					gain=isp_data.b_shutter_aecagc.gain;
+				}
+
+				print_info("%s %s,expo_line=0x%x,gain=0x%x,currExcuteOrder=0n%d", BSHUTTER_LOG_TAG, __func__, expo,gain,isp_data.b_shutter_hdr_aecagc.currExcuteOrder);
+			}
+
+			if ((isp_data.pro_mode) && (isp_data.pro_cap_expo) && (isp_hw_data.cur_state == STATE_CAPTURE) ){
+
+				print_info("%s %s,expo_line=0x%x,gain=0x%x,", PRO_MODE, __func__, expo,gain);
+
+				if (isp_data.pro_cap_expo > PROCAM_TIME_BASE) {
+					expo = 0x100;
+					gain = 0x10;
+				}
+			}
+
 			if (sensor->set_exposure_gain) {
 				sensor->set_exposure_gain(expo, gain);
 			} else {
@@ -2442,6 +2621,14 @@ void ispv1_dynamic_framerate(camera_sensor *sensor, camera_iso iso)
 	u16 *auto_fps_th = effect->ae_param.auto_fps_th;
 	
 	camera_frame_rate_state state = ispv1_get_frame_rate_state();
+
+	static u16 restorAE = 0;
+	int fullfps =  sensor->frmsize_list[sensor->preview_frmsize_index].fps;
+	int vts =0 ;
+	int vts_org = sensor->frmsize_list[sensor->preview_frmsize_index].vts;
+	u32 expo_lines = 0;
+	u32 max_expo_gap = effect->ae_param.max_expo_gap;
+
 	if(state >= CAMERA_FRAME_RATE_STATE_MAX){
 		print_error("ispv1_get_frame_rate_state fail, state= %d", state);
 		return;		  
@@ -2453,7 +2640,84 @@ void ispv1_dynamic_framerate(camera_sensor *sensor, camera_iso iso)
 	gain_th_mid2low = auto_fps_th[3];
 
 
+	if (isp_data.pro_mode) {
+
+		if (isp_data.pro_pre_expo){
+
+			expo_lines = vts = (int64_t )isp_data.pro_pre_expo * fullfps * vts_org / PROCAM_TIME_BASE;
+
+			if (vts > sensor->support_max_vts)
+				vts = sensor->support_max_vts;
+
+			if (vts < vts_org)
+				vts = vts_org;
+
+			if (expo_lines >  (vts -max_expo_gap))
+				expo_lines = vts -max_expo_gap;
+			if (expo_lines < 10)
+				expo_lines = 10;
+
+			print_info("%s,enter %s:  expo time:%d,  vts:%d, expo_lines:%d, expo_gap%d",PRO_MODE, __func__,  
+				isp_data.pro_pre_expo, vts, expo_lines, max_expo_gap);
+
+			if (sensor->set_vts) {
+				sensor->set_vts(vts);
+			} else {
+				print_error("set_vts null");
+			}
+
+			SETREG32(REG_ISP_MAX_EXPOSURE, expo_lines);
+			SETREG32(REG_ISP_MIN_EXPOSURE, expo_lines);
+
+			ispv1_set_frame_rate_level(0);
+			ispv1_set_frame_rate_state(CAMERA_FPS_STATE_HIGH);
+
+			restorAE = 1;
+			return;
+
+		}else if (isp_data.pro_iso){
+
+			print_info("%s,enter %s: pro mode, auto expo, manual iso:%d ",PRO_MODE, __func__ , isp_data.pro_iso);
+
+			if (restorAE){//restor auto exposure functions
+
+				SETREG32(REG_ISP_MAX_EXPOSURE, vts_org - max_expo_gap);
+				SETREG32(REG_ISP_MIN_EXPOSURE, 10);
+
+				ispv1_change_frame_rate(&state, CAMERA_FRAME_RATE_DOWN, sensor);
+				ispv1_set_frame_rate_state(state);
+
+				restorAE = 0;
+				return;
+			}
+
+			if (state == CAMERA_EXPO_PRE_REDUCE1 || state == CAMERA_EXPO_PRE_REDUCE2) {
+				//|| ispv1_get_frame_rate_level() != 0) {
+				ispv1_change_frame_rate(&state, CAMERA_FRAME_RATE_UP, sensor);
+				ispv1_set_frame_rate_state(state);
+
+				return;
+			}
+			ispv1_mannal_iso_dynamic_framerate(sensor);
+			return;
+
+		}else{
+			print_debug("%s, enter %s,pro mode, auto expo, auto ISO mode", PRO_MODE, __func__);
+		}
+	}
+
+
 	if (CAMERA_ISO_AUTO != iso) {
+
+		print_debug("enter %s: non pro mode,  manual iso, state%d ", __func__ , state);
+
+		if (restorAE){//restor auto exposure function
+			SETREG32(REG_ISP_MAX_EXPOSURE, vts_org - max_expo_gap);
+			SETREG32(REG_ISP_MIN_EXPOSURE, 10);
+			restorAE = 0;
+		}
+
+
 		if (state == CAMERA_EXPO_PRE_REDUCE1 || state == CAMERA_EXPO_PRE_REDUCE2) {
 			//|| ispv1_get_frame_rate_level() != 0) {
 			ispv1_change_frame_rate(&state, CAMERA_FRAME_RATE_UP, sensor);
@@ -2463,6 +2727,14 @@ void ispv1_dynamic_framerate(camera_sensor *sensor, camera_iso iso)
 		}
 		ispv1_mannal_iso_dynamic_framerate(sensor);
 	} else {
+
+
+		if (restorAE){//restor auto exposure function
+			SETREG32(REG_ISP_MAX_EXPOSURE, vts_org - max_expo_gap);
+			SETREG32(REG_ISP_MIN_EXPOSURE, 10);
+			restorAE = 0;
+		}
+
 		if (state == CAMERA_EXPO_PRE_REDUCE1 || state == CAMERA_EXPO_PRE_REDUCE2) {
 			ret = ispv1_change_frame_rate(&state, CAMERA_FRAME_RATE_UP, sensor);
 			ispv1_set_frame_rate_state(state);
@@ -2602,7 +2874,8 @@ void ispv1_preview_done_do_tune(void)
 	} else if (afae_ctrl_is_valid() == true &&
 		((get_focus_state() == FOCUS_STATE_AF_PREPARING) ||
 		(get_focus_state() == FOCUS_STATE_AF_RUNNING) ||
-		(get_focus_state() == FOCUS_STATE_CAF_RUNNING))) {
+		(get_focus_state() == FOCUS_STATE_CAF_RUNNING)) &&
+		(!isp_data.pro_mode)) {
 		print_debug("focusing metering, should not change frame rate.");
 	} else if (isp_hw_data.ae_resume == true && ispdata->flash_on == false) {
 		ispv1_set_aecagc_mode(AUTO_AECAGC);
@@ -2676,6 +2949,195 @@ void ispv1_preview_done_do_tune(void)
       in dark condition*/
     ispv1_set_blc_clamp_mode(sensor);
 
+}
+
+void ispv1_capture_pro_mode_tune(void)
+{
+
+	isp_hw_data.frame_cap_count++;
+
+	camera_sensor *sensor = this_ispdata->sensor;
+	u32 frame_index = sensor->capture_frmsize_index;
+	u32 vts_org = sensor->frmsize_list[frame_index].vts;
+	effect_params *effect = get_effect_ptr();
+	u32 max_expo_gap = effect->ae_param.max_expo_gap;
+
+	u32 vts = 0;
+	u32  pclock = sensor->frmsize_list[frame_index].pclk;
+	u32  hts_org =  sensor->frmsize_list[frame_index].hts;
+
+	u32 gain = get_writeback_gain();
+	u32 expo = get_writeback_expo();
+
+
+	 if (isp_hw_data.frame_cap_count == 1){
+
+		vts =  (int64_t) isp_data.pro_cap_expo *  pclock /hts_org / PROCAM_TIME_BASE;
+
+		if (vts > sensor->support_max_vts)
+			vts = sensor->support_max_vts;
+
+		if (vts < vts_org)
+			vts = vts_org;
+
+
+		sensor->set_vts(vts);
+
+		if (sensor->set_exposure_gain) {
+			sensor->set_exposure_gain(expo, gain);
+		} else {
+			if (sensor->set_exposure)
+				sensor->set_exposure(expo);
+			if (sensor->set_gain)
+				sensor->set_gain(gain);
+		}
+
+	 }
+	else if (isp_hw_data.frame_cap_count == 2){
+
+		vts = vts_org;
+
+		sensor->set_vts(vts);
+		expo = vts - max_expo_gap;
+		expo = expo<<4;
+
+		if (sensor->set_exposure_gain) {
+			sensor->set_exposure_gain(expo, gain);
+		} else {
+			if (sensor->set_exposure)
+				sensor->set_exposure(expo);
+			if (sensor->set_gain)
+				sensor->set_gain(gain);
+		}
+
+	}
+	else{
+
+		/*set back to normal tracking mode after 2 frames*/
+	    if(sensor->set_blc_normal_mode_clamp){
+			print_info("set_blc_normal_mode_clamp");
+			sensor->set_blc_normal_mode_clamp();
+		}
+
+		vts = vts_org;
+		sensor->set_vts(vts);
+	}
+
+	print_info("%s,enter %s: capture pro mode  vts:%d expo%d, gain:%d ,frame_cap_count%d,", PRO_MODE, __func__, 
+		vts, expo, gain, isp_hw_data.frame_cap_count);
+
+}
+
+/*
+ **************************************************************************
+ * FunctionName: ispv1_capture_done_do_tune
+ * Description : used for B_Shutter hdr algo duing preview mode.
+ * Input           : NA;
+ * Output         : NA;
+ * ReturnValue : NA;
+ * Other           : NA
+ **************************************************************************
+ */
+void ispv1_preview_done_do_tryae_tune(void)
+{
+	camera_sensor *sensor = this_ispdata->sensor;
+
+	print_info("%s begin of %s: tryae_vts=0x%x,tryae_expo=0x%x,tryae_gain=0x%x tryae_set_vts_flag=0x%x", BSHUTTER_LOG_TAG, __func__,
+		isp_data.b_shutter_tryae_aecagc.tryae_vts,isp_data.b_shutter_tryae_aecagc.tryae_expo,isp_data.b_shutter_tryae_aecagc.tryae_gain,isp_data.b_shutter_tryae_aecagc.tryae_set_vts_flag);
+
+	if((isp_data.b_shutter_tryae_aecagc.tryae_set_vts_flag==1)&&(isp_data.b_shutter_tryae_aecagc.tryae_vts!=0)){
+		sensor->set_vts(isp_data.b_shutter_tryae_aecagc.tryae_vts);
+
+		print_debug("%s %s set_vts: tryae_vts=0x%x,tryae_expo=0x%x,tryae_gain=0x%x tryae_set_vts_flag=0x%x", BSHUTTER_LOG_TAG, __func__,
+			isp_data.b_shutter_tryae_aecagc.tryae_vts,isp_data.b_shutter_tryae_aecagc.tryae_expo,isp_data.b_shutter_tryae_aecagc.tryae_gain,isp_data.b_shutter_tryae_aecagc.tryae_set_vts_flag);
+
+		isp_data.b_shutter_tryae_aecagc.tryae_set_vts_flag = 0;
+		isp_data.b_shutter_tryae_aecagc.tryae_vts = 0;
+	}
+
+	if((isp_data.b_shutter_tryae_aecagc.tryae_expo!=0) && (isp_data.b_shutter_tryae_aecagc.tryae_gain!=0)){
+		if (sensor->set_exposure_gain) {
+			sensor->set_exposure_gain(isp_data.b_shutter_tryae_aecagc.tryae_expo, isp_data.b_shutter_tryae_aecagc.tryae_gain);
+		} else {
+			if (sensor->set_exposure)
+				sensor->set_exposure(isp_data.b_shutter_tryae_aecagc.tryae_expo);
+			if (sensor->set_gain)
+				sensor->set_gain(isp_data.b_shutter_tryae_aecagc.tryae_gain);
+		}
+
+		isp_data.b_shutter_tryae_aecagc.tryae_set_vts_flag++;//vts set must delay one frame eof after setting gain&expo, and they need take effect at the same frame
+
+		print_debug("%s %s set_exposure_gain:tryae_vts=0x%x,tryae_expo=0x%x,tryae_gain=0x%x tryae_set_vts_flag=0x%x",BSHUTTER_LOG_TAG, __func__,
+			isp_data.b_shutter_tryae_aecagc.tryae_vts,isp_data.b_shutter_tryae_aecagc.tryae_expo,isp_data.b_shutter_tryae_aecagc.tryae_gain,isp_data.b_shutter_tryae_aecagc.tryae_set_vts_flag);
+
+		isp_data.b_shutter_tryae_aecagc.tryae_expo = 0;
+		isp_data.b_shutter_tryae_aecagc.tryae_gain = 0;
+	}
+
+	print_info("%s end of %s: tryae_vts=0x%x,tryae_expo=0x%x,tryae_gain=0x%x tryae_set_vts_flag=0x%x",BSHUTTER_LOG_TAG, __func__,
+		isp_data.b_shutter_tryae_aecagc.tryae_vts,isp_data.b_shutter_tryae_aecagc.tryae_expo,isp_data.b_shutter_tryae_aecagc.tryae_gain,isp_data.b_shutter_tryae_aecagc.tryae_set_vts_flag);
+
+	return;
+}
+
+/*
+ **************************************************************************
+ * FunctionName: ispv1_capture_done_do_tune
+ * Description : used for B_Shutter hdr algo with  burstshot mode.
+ * Input           : NA;
+ * Output         : NA;
+ * ReturnValue : NA;
+ * Other           : NA
+ **************************************************************************
+ */
+void ispv1_capture_done_do_tune(void)
+{
+	u32 vts = 0;
+	u32 expo = 0;
+	u32 gain = 0;
+	camera_sensor *sensor = this_ispdata->sensor;
+	u8  wait_flag=0;
+	int skip_frame_num=1;//default CAPTURE_SKIP_1
+
+	if(CAPTURE_SKIP_2==sensor->capture_skip_frames){
+		skip_frame_num=2;//CAPTURE_SKIP_2 for sonyimx328
+	}else{
+		skip_frame_num=1;//CAPTURE_SKIP_1 for ov13850 &ov13850oflim
+	}
+
+	/*SET VTS calculated by currExcuteOrder algo expo*/
+	if(isp_data.b_shutter_hdr_aecagc.currExcuteOrder>skip_frame_num){
+		vts=isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[isp_data.b_shutter_hdr_aecagc.currExcuteOrder-skip_frame_num].vts;
+		sensor->set_vts(vts);
+	}
+
+	/*SET currExcuteOrder algo expo & gain to sensor*/
+	if((isp_data.b_shutter_hdr_aecagc.currExcuteOrder<isp_data.b_shutter_hdr_aecagc.hdrCounter+skip_frame_num-1) && (isp_data.b_shutter_hdr_aecagc.currExcuteOrder>(skip_frame_num-1))){
+		expo=isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[isp_data.b_shutter_hdr_aecagc.currExcuteOrder-skip_frame_num+1].expo;
+		gain=isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[isp_data.b_shutter_hdr_aecagc.currExcuteOrder-skip_frame_num+1].gain;
+
+		if (sensor->set_exposure_gain) {
+			sensor->set_exposure_gain(expo, gain);
+		} else {
+			if (sensor->set_exposure)
+				sensor->set_exposure(expo);
+			if (sensor->set_gain)
+				sensor->set_gain(gain);
+		}
+		//check I2C status
+		ispv1_check_i2c_ispbuf_write_ack_status();
+	}
+	print_info("%s %s CAMERA_B_SHUTTER_MODE_ON: vts=0x%x,expo_line=0x%x,gain=0x%x,currExcuteOrder=0n%d,skip_frame_num=0n%d",
+		BSHUTTER_LOG_TAG, __func__,vts,expo,gain,isp_data.b_shutter_hdr_aecagc.currExcuteOrder,skip_frame_num);
+
+	isp_data.b_shutter_hdr_aecagc.currExcuteOrder++;
+
+	if(isp_data.b_shutter_hdr_aecagc.currExcuteOrder>=isp_data.b_shutter_hdr_aecagc.hdrCounter+skip_frame_num){
+		print_info("%s %s memset currExcuteOrder=0x%x  skip_frame_num=0n%d", BSHUTTER_LOG_TAG, __func__, isp_data.b_shutter_hdr_aecagc.currExcuteOrder,skip_frame_num);
+		memset(&isp_data.b_shutter_hdr_aecagc,0,sizeof(isp_data.b_shutter_hdr_aecagc));
+	}
+
+	return;
 }
 
 /*

@@ -1,0 +1,31 @@
+
+/**
+ * Huawei Ltd.
+ * PhosphorV660
+ */
+
+
+/include/ "GRACE_TUGL_V1_config.dtsi"
+
+/ {
+	hisi,boardid = <1 4 0 2 >;
+	hisi,boardname = "GRACE_UL_V1";
+	hisi,modem_id = <0x3EB02000>;
+	hisi,config_profile = "normal";
+
+	bcm_wifi {
+		wifi_nvram_name = "/vendor/firmware/nvram4334_hw_fifa_ul.txt";
+	};
+	antenna_fpga{
+		compatible = "antenna_fpga";
+		status = "disabled";
+	};
+	nfc_exist {
+		nfc_exist_flag = "1";
+		status = "ok";
+	};
+	devcheck: devcheck {
+		antenna_ctl = <0>;
+		nfc = <1>;
+	};
+};

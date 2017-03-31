@@ -28,6 +28,8 @@ struct device_node;
  *		enable-method property.
  * @cpu_init:	Reads any data necessary for a specific enable-method from the
  *		devicetree, for a given cpu node and proposed logical id.
+ * @cpu_init_idle: Reads any data necessary to initialize CPU idle states from
+ *		devicetree, for a given cpu node and proposed logical id.
  * @cpu_prepare: Early one-time preparation step for a cpu. If there is a
  *		mechanism for doing so, tests whether it is possible to boot
  *		the given CPU.
@@ -39,6 +41,7 @@ struct device_node;
  * 		from the cpu to be killed.
  * @cpu_die:	Makes a cpu leave the kernel. Must not fail. Called from the
  *		cpu being killed.
+ * @cpu_kill:  Ensures a cpu has left the kernel. Called from another cpu.
  * @cpu_suspend: Suspends a cpu and saves the required context. May fail owing
  *               to wrong parameters or error conditions. Called from the
  *               CPU being suspended. Must be called with IRQs disabled.
@@ -46,6 +49,7 @@ struct device_node;
 struct cpu_operations {
 	const char	*name;
 	int		(*cpu_init)(struct device_node *, unsigned int);
+	int		(*cpu_init_idle)(struct device_node *, unsigned int);
 	int		(*cpu_prepare)(unsigned int);
 	int		(*cpu_boot)(unsigned int);
 	void		(*cpu_postboot)(void);

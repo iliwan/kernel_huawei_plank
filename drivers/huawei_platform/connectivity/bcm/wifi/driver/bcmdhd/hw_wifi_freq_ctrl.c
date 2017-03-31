@@ -87,6 +87,9 @@ typedef struct {
 
 #define DTS_COMP_WIFI_POWER_NAME "hisilicon,bcm_wifi"
 
+/* platform min freq */
+#define K3V3_PLUS_SCALING_MIN_FREQ 403200
+
 enum {
     /* indicate to set cpu/ddr max frequencies */
     SCALING_MAX_FREQ                        = 0,
@@ -303,21 +306,23 @@ static int set_cpu_freq(uint value, int type)
     }
 
     if(type == FREQ_UPGRADE) {
-        /* if dest freq is higher then current freq,
-           scaling_max_freq should be set, then scaling_min_freq */
-        if(value > cur_cpu_max_freq)
-            set_cpu_freq_raw(SCALING_MAX_FREQ, value);
-        set_cpu_freq_raw(SCALING_MIN_FREQ, value);
+        /* if dest freq is higher than current freq,
+           print warning and set scaling_min_freq to cur max,
+           else set scaling_min_freq to value*/
+        if(value > cur_cpu_max_freq) {
+            printk("warning: current max freq(%d) is lower than target(%d).",
+                    cur_cpu_max_freq, value);
+            set_cpu_freq_raw(SCALING_MIN_FREQ, cur_cpu_max_freq);
+        } else {
+            set_cpu_freq_raw(SCALING_MIN_FREQ, value);
+        }
     } else if (type == FREQ_DOWNGRADE) {
-        /* if dest freq is lower then current freq,
-           scaling_min_freq should be set, then scaling_max_freq */
+        /* if dest freq is lower than current freq,
+           scaling_min_freq should be set */
         set_cpu_freq_raw(SCALING_MIN_FREQ, value);
-        if(value > cur_cpu_max_freq)
-            set_cpu_freq_raw(SCALING_MAX_FREQ, value);
     } else if (type == FREQ_ORIGINAL) {
-        /* set scaling_max_freq and scaling_min_freq to original */
-        set_cpu_freq_raw(SCALING_MIN_FREQ, orig_cpu_min_freq);
-        set_cpu_freq_raw(SCALING_MAX_FREQ, orig_cpu_max_freq);
+        /* set scaling_min_freq to platform min freq */
+        set_cpu_freq_raw(SCALING_MIN_FREQ, K3V3_PLUS_SCALING_MIN_FREQ);
     } else {
         printk("error set_cpu_freq, invalid types\n");
         return -1;

@@ -245,14 +245,23 @@ void  *argp)
     struct sensor_cfg_data *data;
 
     int ret =0;
+    static bool ov8865c_power_on = false;
+	static bool csi_enable = false;
+
     data = (struct sensor_cfg_data *)argp;
     cam_debug("ov8865_carrera cfgtype = %d",data->cfgtype);
     switch(data->cfgtype){
         case SEN_CONFIG_POWER_ON:
+        if(!ov8865c_power_on){
             ret = si->vtbl->power_up(si);
+            ov8865c_power_on = true;
+        }
         break;
         case SEN_CONFIG_POWER_OFF:
+        if(ov8865c_power_on){
             ret = si->vtbl->power_down(si);
+            ov8865c_power_on = false;
+        }
         break;
         case SEN_CONFIG_WRITE_REG:
         break;
@@ -263,10 +272,16 @@ void  *argp)
         case SEN_CONFIG_READ_REG_SETTINGS:
         break;
         case SEN_CONFIG_ENABLE_CSI:
+        if(ov8865c_power_on && !csi_enable){
             ret = si->vtbl->csi_enable(si);
+            csi_enable = true;
+        }
         break;
         case SEN_CONFIG_DISABLE_CSI:
+        if(ov8865c_power_on && csi_enable){
             ret = si->vtbl->csi_disable(si);
+            csi_enable = false;
+        }
         break;
         case SEN_CONFIG_MATCH_ID:
             ret = si->vtbl->match_id(si,argp);

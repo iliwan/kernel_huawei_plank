@@ -132,6 +132,17 @@
 #define V4L2_CID_SET_ZOOM_CENTER		(V4L2_CID_PRIVACY + 211)
 #define V4L2_CID_GET_ZOOM_CENTER		(V4L2_CID_PRIVACY + 212)
 
+#define V4L2_CID_SET_B_SHUTTER_MODE		(V4L2_CID_PRIVACY + 215) //msg used for b shutter mode select
+#define V4L2_CID_SET_B_SHUTTER_LONG_AE	(V4L2_CID_PRIVACY + 216) //msg used for set longAE parm
+#define V4L2_CID_GET_AEC_STATE       	(V4L2_CID_PRIVACY + 217) //msg used for fetch  aecagc stable state
+#define V4L2_CID_SET_B_SHUTTER_HDR_AE  	(V4L2_CID_PRIVACY + 218) //msg used for set hdrAE parm
+#define V4L2_CID_SET_B_SHUTTER_ECGC     (V4L2_CID_PRIVACY + 219) //msg used for set tryAE parm
+
+//for proffessonal mode
+#define V4L2_CID_SET_PRO_MODE            (V4L2_CID_PRIVACY + 220)
+#define V4L2_CID_SET_PRO_MANUAL_ISO	     (V4L2_CID_PRIVACY + 221)
+#define V4L2_CID_SET_PRO_MANUAL_EXPO     (V4L2_CID_PRIVACY + 222)
+#define V4L2_CID_GET_PRO_AE_STATS        (V4L2_CID_PRIVACY + 223)
 
 #define V4L2_CID_HWA_BASE				(V4L2_CID_PRIVACY + 500)
 #define V4L2_CID_HWA_MAX				(V4L2_CID_HWA_BASE + 128)

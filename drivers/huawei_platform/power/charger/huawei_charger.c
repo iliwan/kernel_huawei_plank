@@ -33,7 +33,7 @@
 #include <linux/hw_dev_dec.h>
 #endif
 #include <linux/raid/pq.h>
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #include <huawei_platform_legacy/Seattle/power/bq_bci_battery.h>
 #include <huawei_platform/power/huawei_charger.h>
 #include <huawei_platform_legacy/Seattle/power/hisi_coul_drv.h>
@@ -59,6 +59,9 @@ struct hisi_charger_bootloader_info{
 extern char* get_charger_info_p();
 static struct hisi_charger_bootloader_info hisi_charger_info = {0};
 #define CHARGER_BASE_ADDR 512
+
+static void charge_turn_on_charging(struct charge_device_info *di);
+
 struct charger_dsm
 {
     int error_no;
@@ -619,7 +622,13 @@ static void fcp_charge_check(struct charge_device_info *di)
 static void charge_select_charging_current(struct charge_device_info *di)
 {
     static unsigned int first_in = 1;
-
+#ifdef CONFIG_GRACE_SELECT_2A_1A_AC
+    int i = 0;
+    int iBus_value = 0;
+    int iBus_arg_value = 0;
+    static int iin_current_final = 0;
+    static int ichrg_current_final = 0;
+#endif
     switch(di->charger_type)
     {
         case CHARGER_TYPE_USB:
@@ -669,6 +678,41 @@ static void charge_select_charging_current(struct charge_device_info *di)
             di->charge_current = ((di->charge_current < di->sysfs_data.ichg_rt) ? di->charge_current : di->sysfs_data.ichg_rt);
         }
     }
+ #ifdef CONFIG_GRACE_SELECT_2A_1A_AC
+    if((di->input_current == di->core_data->iin_max)&&(di->charger_type == CHARGER_TYPE_STANDARD)) {
+        if(di->pre_start_select_AC)
+        {
+            di->pre_start_select_AC = 0;
+            di->start_select_AC = 1;
+        }
+        if(di->start_select_AC) {
+            di->input_current = 2000;
+            di->charge_current = 1800;
+            charge_turn_on_charging(di);
+            msleep(500);
+            for(i=0; i<10; i++) {
+                iBus_value = iBus_value + di->ops->get_ibus();
+                msleep(100);
+            }
+            iBus_arg_value = iBus_value/10;
+            if(iBus_arg_value>1400){
+                hwlog_info("charge_monitor_work: select 2A charger!\n");
+                iin_current_final = 2000;
+                ichrg_current_final = 1500;
+                di->sysfs_data.selected_AC = 2;
+            }else{
+                hwlog_info("charge_monitor_work: select 1A charger!\n");
+                iin_current_final = 1200;
+                ichrg_current_final = 1000;
+                di->sysfs_data.selected_AC = 1;
+            }
+            di->start_select_AC = 0;
+        }
+        hwlog_info("charge_monitor_work: iin_current_final is %i, ichrg_current_final is %i\n", iin_current_final, ichrg_current_final);
+        di->input_current = iin_current_final;
+        di->charge_current = ichrg_current_final;
+     }
+#endif
 
     if (1 == di->sysfs_data.batfet_disable)
         di->input_current = CHARGE_CURRENT_2000_MA;
@@ -846,6 +890,10 @@ static void charge_start_charging(struct charge_device_info *di)
     wake_lock(&charge_lock);
     di->sysfs_data.charge_enable = TRUE;
     di->check_full_count = 0;
+#ifdef CONFIG_GRACE_SELECT_2A_1A_AC
+    di->sysfs_data.selected_AC = 0;
+    di->pre_start_select_AC = 1;
+#endif
     /*chip init*/
     ret = di->ops->chip_init();
     if(ret)
@@ -872,6 +920,9 @@ static void charge_stop_charging(struct charge_device_info *di)
     di->check_full_count = 0;
     di->charger_source = POWER_SUPPLY_TYPE_BATTERY;
     hisi_coul_charger_event_rcv(events);
+#ifdef CONFIG_GRACE_SELECT_2A_1A_AC
+    di->sysfs_data.selected_AC = 0;
+#endif
     ret = di->ops->set_charge_enable(FALSE);
     if(ret)
         hwlog_err("[%s]set charge enable fail!\n",__func__);
@@ -1040,7 +1091,6 @@ static void charge_turn_on_charging(struct charge_device_info *di)
     di->charge_enable = TRUE;
     /* check vbus voltage ,if vbus is abnormal disable charge or abort from fcp*/
     charge_vbus_voltage_check(di);
-    charge_select_charging_current(di);
     /*set input current*/
     ret = di->ops->set_input_current(di->input_current);
     if(ret > 0)
@@ -1101,6 +1151,8 @@ static void charge_monitor_work(struct work_struct *work)
     fcp_charge_check(di);
 
     di->core_data = charge_core_get_params();
+    charge_select_charging_current(di);
+
     charge_turn_on_charging(di);
 
     charge_full_handle(di);
@@ -1120,6 +1172,8 @@ static void charge_monitor_work(struct work_struct *work)
 static void charge_usb_work(struct work_struct *work)
 {
     struct charge_device_info *di = container_of(work, struct charge_device_info, usb_work);
+    /* move uevent into usb_work in case usb_notifier run in irq context*/
+    charge_send_uevent(di);
 
     switch (di->charger_type) {
     case CHARGER_TYPE_USB:
@@ -1163,7 +1217,6 @@ static int charge_usb_notifier_call(struct notifier_block *usb_nb, unsigned long
     struct charge_device_info *di = container_of(usb_nb, struct charge_device_info, usb_nb);
 
     charge_rename_charger_type((enum hisi_charger_type)event, di);
-    charge_send_uevent(di);
     schedule_work(&di->usb_work);
     return NOTIFY_OK;
 }
@@ -1242,6 +1295,9 @@ static struct charge_sysfs_field_info charge_sysfs_field_tbl[] = {
     CHARGE_SYSFS_FIELD_RW(enable_hiz,    HIZ),
     CHARGE_SYSFS_FIELD_RO(chargerType,    CHARGE_TYPE),
     CHARGE_SYSFS_FIELD_RO(bootloader_charger_info,    BOOTLOADER_CHARGER_INFO),
+#ifdef CONFIG_GRACE_SELECT_2A_1A_AC
+    CHARGE_SYSFS_FIELD_RO(selected_AC,    SELECTED_AC),
+#endif
 };
 
 static struct attribute *charge_sysfs_attrs[ARRAY_SIZE(charge_sysfs_field_tbl) + 1];
@@ -1359,6 +1415,10 @@ static ssize_t charge_sysfs_show(struct device *dev,
         }
         mutex_unlock(&di->sysfs_data.bootloader_info_lock);
         return ret;
+#ifdef CONFIG_GRACE_SELECT_2A_1A_AC
+    case CHARGE_SYSFS_SELECTED_AC:
+        return snprintf(buf,PAGE_SIZE, "%d\n", di->sysfs_data.selected_AC);
+#endif
     default:
         hwlog_err("(%s)NODE ERR!!HAVE NO THIS NODE:(%d)\n",__func__,info->name);
         break;
@@ -1393,6 +1453,9 @@ static ssize_t charge_sysfs_store(struct device *dev,
           include iin_thermal/ichg_thermal/iin_runningtest/ichg_runningtest node
         */
     case CHARGE_SYSFS_IIN_THERMAL:
+/*CONFIG_OVERHEATVER is only for high temperature runningtest.
+  we do not want charge current limited by non-battery temperature. */
+#ifndef CONFIG_HLTHERM_RUNTEST
         if((strict_strtol(buf, 10, &val) < 0)||(val < 0)||(val > 3000))
             return -EINVAL;
         if((val == 0)||(val == 1))
@@ -1405,8 +1468,10 @@ static ssize_t charge_sysfs_store(struct device *dev,
         if(di->input_current > di->sysfs_data.iin_thl)
             di->ops->set_input_current(di->sysfs_data.iin_thl);
         hwlog_info("THERMAL set input current = %d\n", di->sysfs_data.iin_thl);
+#endif
         break;
     case CHARGE_SYSFS_ICHG_THERMAL:
+#ifndef CONFIG_HLTHERM_RUNTEST
         if((strict_strtol(buf, 10, &val) < 0)||(val < 0)||(val > 3000))
             return -EINVAL;
         if((val == 0)||(val == 1))
@@ -1419,6 +1484,7 @@ static ssize_t charge_sysfs_store(struct device *dev,
         if(di->charge_current > di->sysfs_data.ichg_thl)
             di->ops->set_charge_current(di->sysfs_data.ichg_thl);
         hwlog_info("THERMAL set charge current = %d\n", di->sysfs_data.ichg_thl);
+#endif
         break;
     case CHARGE_SYSFS_IIN_RUNNINGTEST:
         if((strict_strtol(buf, 10, &val) < 0)||(val < 0)||(val > 3000))

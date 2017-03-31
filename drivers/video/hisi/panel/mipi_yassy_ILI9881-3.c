@@ -42,8 +42,10 @@
 #include <linux/lcd_tuning.h>
 
 #if defined (CONFIG_HUAWEI_DSM)
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #endif
+
+#include <huawei_platform/log/log_jank.h>
 
 #define PWM_LEVEL 100
 
@@ -2099,6 +2101,9 @@ static int mipi_yassy_panel_on(struct platform_device* pdev)
     {
         if (!g_display_on)
         {
+            /*Jank log*/
+            LOG_JANK_D(JLID_KERNEL_LCD_POWER_ON, "%s", "JL_KERNEL_LCD_POWER_ON");
+
             /* lcd pinctrl normal */
             pinctrl_cmds_tx(pdev, yassy_lcd_pinctrl_normal_cmds, \
                             ARRAY_SIZE(yassy_lcd_pinctrl_normal_cmds));
@@ -2119,6 +2124,7 @@ static int mipi_yassy_panel_on(struct platform_device* pdev)
             mipi_dsi_cmds_tx(yassy_display_on_cmds, \
                              ARRAY_SIZE(yassy_display_on_cmds), balongfd->dsi_base);
             balongfb_loge("ARRAY_SIZE(yassy_display_on_cmds):%d.\n", ARRAY_SIZE(yassy_display_on_cmds));
+
             g_display_on = true;
             /*first set sbl to panel*/
             if (balongfd->panel_info.sbl_enable)
@@ -2164,6 +2170,9 @@ static int mipi_yassy_panel_off(struct platform_device* pdev)
 
     if (g_display_on)
     {
+        /*Jank log*/
+        LOG_JANK_D(JLID_KERNEL_LCD_POWER_OFF, "%s", "JL_KERNEL_LCD_POWER_OFF");
+
         /* lcd display off sequence */
         mipi_dsi_cmds_tx(yassy_display_off_cmds, \
                          ARRAY_SIZE(yassy_display_off_cmds), balongfd->dsi_base);
@@ -2366,19 +2375,29 @@ static int mipi_yassy_panel_set_backlight(struct platform_device* pdev)
     bl_level_adjust[1] = level;
 
     mipi_dsi_cmds_tx(yassy_bl_level_adjust, ARRAY_SIZE(yassy_bl_level_adjust), balongfd->dsi_base);
-    if(level == 0)
+    if (level == 0)
     {
         vcc_cmds_tx(NULL, yassy_lcd_bl_disable_cmds, \
             ARRAY_SIZE(yassy_lcd_bl_disable_cmds));
     }
-    else if(last_level == 0 && level !=0)
+    else if (last_level == 0 && level !=0)
     {
+        /*Jank log*/
+        LOG_JANK_D(JLID_KERNEL_LCD_BACKLIGHT_ON, "JL_KERNEL_LCD_BACKLIGHT_ON,%u", level);
         vcc_cmds_tx(NULL, yassy_lcd_bl_enable_cmds, \
             ARRAY_SIZE(yassy_lcd_bl_enable_cmds));
     }
-    last_level = level;
+    #ifdef FINAL_RELEASE_MODE
+    if ((level == 0) || (last_level == 0 && level !=0))
+    {
+        //modified for beta test, it will be modified after beta test.
+        balongfb_loge(" set backlight succ ,balongfd->bl_level = %d, level = %d \n",balongfd->bl_level,level);
+    }
+    #else
     //modified for beta test, it will be modified after beta test.
-    balongfb_loge(" set backlight succ ,balongfd->bl_level = %d, level = %d \n", balongfd->bl_level, level);
+    balongfb_logi(" set backlight succ ,balongfd->bl_level = %d, level = %d \n",balongfd->bl_level,level);
+    #endif
+    last_level = level;
     return 0;
 }
 

@@ -129,6 +129,7 @@
 #       define R300_VAP_OUTPUT_VTX_FMT_1__TEX_5_COMP_CNT_SHIFT 15
 #       define R300_VAP_OUTPUT_VTX_FMT_1__TEX_6_COMP_CNT_SHIFT 18
 #       define R300_VAP_OUTPUT_VTX_FMT_1__TEX_7_COMP_CNT_SHIFT 21
+/* END: Wild guesses */
 
 #define R300_SE_VTE_CNTL                  0x20b0
 #	define     R300_VPORT_X_SCALE_ENA                0x00000001
@@ -252,6 +253,7 @@
 #define R300_VAP_INPUT_ROUTE_1_6            0x21F8
 #define R300_VAP_INPUT_ROUTE_1_7            0x21FC
 
+/* END: Vertex data assembly */
 
 /* gap */
 
@@ -290,6 +292,7 @@
 
 #define R300_VAP_PVS_UPLOAD_DATA            0x2208
 
+/* END: Upload vertex program and data */
 
 /* gap */
 
@@ -703,6 +706,7 @@
 #		define R300_RS_ROUTE_1_COLOR1_DEST_SHIFT 17
 #		define R300_RS_ROUTE_1_COLOR1_DEST_MASK  (31 << 17)
 #		define R300_RS_ROUTE_1_UNKNOWN11         (1 << 11)
+/* END: Rasterization / Interpolators - many guesses */
 
 /* Hierarchical Z Enable */
 #define R300_SC_HYPERZ                   0x43a4
@@ -782,6 +786,7 @@
 #       define R300_SCISSORS_X_MASK              (0x1FFF << 0)
 #       define R300_SCISSORS_Y_SHIFT             13
 #       define R300_SCISSORS_Y_MASK              (0x1FFF << 13)
+/* END: Scissors and cliprects */
 
 /* BEGIN: Texture specification */
 
@@ -950,12 +955,14 @@
 #       define R300_TXO_MICRO_TILE_SQUARE        (2 << 3)
 #       define R300_TXO_OFFSET_MASK              0xffffffe0
 #       define R300_TXO_OFFSET_SHIFT             5
+	/* END: Guess from R200 */
 
 /* 32 bit chroma key */
 #define R300_TX_CHROMA_KEY_0                      0x4580
 /* ff00ff00 == { 0, 1.0, 0, 1.0 } */
 #define R300_TX_BORDER_COLOR_0              0x45C0
 
+/* END: Texture specification */
 
 /* BEGIN: Fragment program instruction set */
 
@@ -1248,6 +1255,7 @@
 #       define R300_FPI2_OUTA_RSQ                (11 << 23)
 #       define R300_FPI2_OUTA_SAT                (1 << 30)
 #       define R300_FPI2_UNKNOWN_31              (1 << 31)
+/* END: Fragment program instruction set */
 
 /* Fog state and color */
 #define R300_RE_FOG_STATE                   0x4BC0
@@ -1676,6 +1684,7 @@
 #define R300_VPI_IN_NEG_Y                       (1 << 26)
 #define R300_VPI_IN_NEG_Z                       (1 << 27)
 #define R300_VPI_IN_NEG_W                       (1 << 28)
+/* END: Vertex program instruction set */
 
 /* BEGIN: Packet 3 commands */
 
@@ -1738,6 +1747,7 @@
 #define R300_PACKET3_3D_DRAW_VBUF_2         0x00003400
 #define R300_PACKET3_3D_DRAW_INDX_2         0x00003600
 
+/* END: Packet 3 commands */
 
 
 /* Color formats for 2d packets

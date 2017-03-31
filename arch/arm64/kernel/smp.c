@@ -503,8 +503,6 @@ static DEFINE_RAW_SPINLOCK(stop_lock);
 /*
  * ipi_cpu_stop - handle IPI from smp_send_stop()
  */
-
-#ifndef CONFIG_HISI_3635
 static void ipi_cpu_stop(unsigned int cpu)
 {
 	if (system_state == SYSTEM_BOOTING ||
@@ -523,27 +521,6 @@ static void ipi_cpu_stop(unsigned int cpu)
 	while (1)
 		cpu_relax();
 }
-#else
-static void ipi_cpu_stop(unsigned int cpu, struct pt_regs *regs)
-{
-	if (system_state == SYSTEM_BOOTING ||
-	    system_state == SYSTEM_RUNNING) {
-		raw_spin_lock(&stop_lock);
-		pr_crit("CPU%u: stopping\n", cpu);
-		__show_regs(regs);
-		dump_stack();
-		raw_spin_unlock(&stop_lock);
-	}
-
-	set_cpu_online(cpu, false);
-
-	local_fiq_disable();
-	local_irq_disable();
-
-	while (1)
-		cpu_relax();
-}
-#endif
 
 static cpumask_t backtrace_mask;
 static DEFINE_RAW_SPINLOCK(backtrace_lock);
@@ -626,11 +603,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 
 	case IPI_CPU_STOP:
 		irq_enter();
-#ifndef CONFIG_HISI_3635
-		ipi_cpu_stop(cpus);
-#else
-		ipi_cpu_stop(cpu, regs);
-#endif
+		ipi_cpu_stop(cpu);
 		irq_exit();
 		break;
 

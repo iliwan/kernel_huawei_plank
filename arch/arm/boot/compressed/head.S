@@ -186,6 +186,7 @@ not_angel:
 		ldr	r4, =zreladdr
 #endif
 
+#if 0
        /*read ARM MIDR register, [bit15:4]A53:0xD03,A7:0xC07*/
         mrc    p15, 0, r0, c0, c0, 0
 	ldr    r1,=0xFFF0
@@ -195,6 +196,8 @@ not_angel:
         mrceq p15, 0, r0, c1, c0, 0
         orreq r0, r0, #0x20
         mcreq p15, 0, r0, c1, c0, 0    @ ARM A53 cp15 barrier enable
+#endif
+
 		bl	cache_on
 
 restart:	adr	r0, LC0

@@ -99,7 +99,7 @@ enum hissc_jack_states {
 
 enum headset_voltage {/*mV*/
 	HS_3_POLE_MAX_VOLTAGE = 8,
-	HS_4_POLE_MIN_VOLTAGE = 1350,
+	HS_4_POLE_MIN_VOLTAGE = 900,
 	HS_4_POLE_MAX_VOLTAGE = 2565,
 	HS_MAX_VOLTAGE = 2650,
 };
@@ -1756,8 +1756,12 @@ static int hissc_pll_supply_power_mode_event(struct snd_soc_dapm_widget *w,
 		if (ret) {
 			loge("codec 49.15M clken fail\n");
 		}
+		logi("[AUDIO] inform lpm3 to remote sleep. \n");
+		BSP_IPC_IntSend(IPC_CORE_MCU, (IPC_INT_LEV_E)IPC_MCU_INT_SRC_ACPU_I2S_REMOTE_SLEEP);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
+		logi("[AUDIO] inform lpm3 to remote invalid. \n");
+		BSP_IPC_IntSend(IPC_CORE_MCU, (IPC_INT_LEV_E)IPC_MCU_INT_SRC_ACPU_I2S_REMOTE_INVALID);
 		clk_disable_unprepare(priv->codec_soc);
 		break;
 	default :
@@ -3488,6 +3492,10 @@ static const struct snd_soc_dapm_route hissc_route_map[] =
 	{"S1_IF_CLK_EN PGA",                          NULL,                  "PLL"},
 	{"S2_IF_CLK_EN PGA",                          NULL,                  "PLL"},
 	{"S3_IF_CLK_EN PGA",                          NULL,                  "PLL"},
+	{"DACL_MIXER_EN MIXER",                    NULL,                  "PLL"},
+	{"DACR_MIXER_EN MIXER",                   NULL,                  "PLL"},
+	{"ADCL_PGA_EN PGA",                          NULL,                  "PLL"},
+	{"ADCR_PGA_EN PGA",                         NULL,                   "PLL"},
 	{"SMT_LINEPGAL_PD PGA",                    NULL,                  "Backup_PLL"},
 	{"SMT_LINEPGAR_PD PGA",                   NULL,                  "Backup_PLL"},
 
@@ -5069,7 +5077,7 @@ static int set_headset_keys_config(struct hissc_priv *priv)
 {
 	/* config the headset */
 	priv->headset_voltage->hs_3_pole_max_voltage = 8;
-	priv->headset_voltage->hs_4_pole_min_voltage = 1350;
+	priv->headset_voltage->hs_4_pole_min_voltage = 900;
 	priv->headset_voltage->hs_4_pole_max_voltage = 2565;
 	logi("headset_voltage {3pole=%d, 4pole=(%d-%d)}\n",
 		priv->headset_voltage->hs_3_pole_max_voltage,

@@ -23,7 +23,7 @@ extern "C" {
 	/* 非标准频段 begin */
 #define LTE_COMM_NONSTANDARD_BAND_BEGIN                     101
 #define LTE_COMM_NONSTANDARD_BAND_END                       116
-	
+
 #define LTE_COMM_NONSTANDARD_BAND_MAX_COUNT                 16
 	/* 非标准频段 end */
 
@@ -49,6 +49,10 @@ extern "C" {
 #define RRC_MAX_NUM_OF_BANDS                    (64)
 #define RRC_MAX_NUM_OF_CDMA_BAND_CLASS          (32)
 #define RRC_MAX_NUM_OF_FEATURE_GROUP            (32)
+/* add for MFBI begin */
+#define RRC_FGI_MULTIBAND_SUPPORT_IN_ARRAY      (30)
+/* add for MFBI end */
+
 /* v7r2 LLD begin */
 #if 0
 #define RRC_MAX_NUM_OF_BAND_COMB_R10            (128)
@@ -72,6 +76,12 @@ extern "C" {
 #define RRC_NUM_OF_MCC_CA_NV                    (7)     /* mcc NV个数 */
 #define RRC_MAX_NUM_OF_MCC                      (15)    /* 规格值100，NV超出大小，拆成7个NV */
 #define RRC_MAX_NUM_OF_CA_PER_MCC               (32)
+
+/* Begin: add for DTS20150401 Report Ue Capability By MCC */
+#define RRC_NUM_OF_MCC_BAND_NV                       (70)     /* mcc NV个数 */
+#define LRRC_LTE_MAX_NUM_OF_BAND_PER_MCC             (16)
+#define LRRC_UTRAN_MAX_NUM_OF_BAND_PER_MCC           (8)
+/* End: add for DTS20150401 Report Ue Capability By MCC */
 
 /*****************************************************************************
   3 Massage Declare
@@ -1981,6 +1991,7 @@ typedef struct
     /* v7r2 LLD end */
 }RRC_UE_EUTRA_CAP_V920_IES_STRU;
 
+/* add by lishangfeng for NorStandard begin */
 /*****************************************************************************
  结构名    : LTE_NON_STANDARD_BAND_STRU
  协议表格  :
@@ -2046,6 +2057,7 @@ typedef struct
     VOS_UINT32                                  aulReservered[16];
 }LTE_COMM_NON_STANDARD_BAND_COMM_STRU;
 
+/* add by lishangfeng for NorStandard end */
 
 /*****************************************************************************
  结构名    : RRC_UE_CAP_MCC_STRU
@@ -2069,6 +2081,37 @@ typedef struct
 {
     RRC_UE_CAP_MCC_STRU     astUeCapMcc[RRC_MAX_NUM_OF_MCC];
 }RRC_UE_CAP_MCC_CA_INFO_STRU;
+
+/* Begin: add for DTS20150401 Report Ue Capability By MCC */
+/*****************************************************************************
+ 结构名    : RRC_UE_CAP_MCC_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 每个MCC对应的Band组合结构 132Byte
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT16              usMcc;
+    VOS_UINT8               ucLteSupportBandNum;                                /* 指示该MCC下支持的 Lte Band个数 */
+    VOS_UINT8               ucUtranSupportBandNum;                              /* 指示该MCC下支持的 Utran Band个数 */
+    VOS_UINT8               aucMccLteSupportBand[LRRC_LTE_MAX_NUM_OF_BAND_PER_MCC];
+    VOS_UINT8               aucMccUtranSupportBand[LRRC_UTRAN_MAX_NUM_OF_BAND_PER_MCC];
+}RRC_UE_CAP_MCC_BAND_STRU;
+
+/*****************************************************************************
+ 结构名    : RRC_UE_CAP_MCC_BAND_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 根据MCC上报Band结构
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT32                   ulMccNum;                                      /* 指示多少组MCC有效 */
+    RRC_UE_CAP_MCC_BAND_STRU     astUeCapMccBand[RRC_NUM_OF_MCC_BAND_NV];
+}RRC_UE_CAP_MCC_BAND_INFO_STRU;
+
+/* End: add for DTS20150401 Report Ue Capability By MCC */
+
 
 /*****************************************************************************
   6 UNION

@@ -6,6 +6,10 @@ obj-y			+= mali4_32/
 endif
 endif
 
-ifdef CONFIG_ARCH_HI3XXX
-obj-y			+= malit6_64/
+ifdef CONFIG_HISI_3635
+obj-y                   += r8p0-01dev0/
+endif
+
+ifdef CONFIG_ARCH_HI3630
+obj-y                   += r8p0-01dev0/
 endif

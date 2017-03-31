@@ -504,6 +504,7 @@ static int mmc_host_set_ffu(struct mmc_card *card, u32 ffu_enable)
 }
 
 #define CID_MANFID_SAMSUNG             0x15
+#define CID_MANFID_TOSHIBA             0x11
 
 int mmc_ffu_download(struct mmc_card *card, struct mmc_command *cmd,
 	u8 *data, int buf_bytes)
@@ -618,6 +619,28 @@ int mmc_ffu_install(struct mmc_card *card)
 
 	/* check mode operation */
 	if (!FFU_FEATURES(ext_csd[EXT_CSD_FFU_FEATURES])) {
+
+		/*work around for toshiba eMMC*/
+		if(card->cid.manfid == CID_MANFID_TOSHIBA)
+		{
+			pr_err("FFU: %s: toshiba emmc need to check FFU_STATUS before restart eMMC.\n", __func__);
+			/* read ext_csd */
+			err = mmc_send_ext_csd(card, ext_csd);
+			if (err) {
+				pr_err("FFU: %s: error %d sending ext_csd before restart eMMC\n",
+					mmc_hostname(card->host), err);
+				goto exit;
+			}
+			/* return status */
+			err = ext_csd[EXT_CSD_FFU_STATUS];
+			if (err) {
+				pr_err("FFU: %s: error %d FFU install before restart eMMC:\n",
+					mmc_hostname(card->host), err);
+				err = -EINVAL;
+				goto exit;
+			}
+		}
+
 		/* restart the eMMC */
 		err = mmc_ffu_restart(card);
 		if (err) {

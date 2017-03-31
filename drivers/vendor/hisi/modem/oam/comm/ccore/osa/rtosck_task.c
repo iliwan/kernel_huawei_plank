@@ -360,7 +360,7 @@ VOS_UINT32 VOS_SuspendTask( VOS_UINT32 ulTaskID )
     ulResult = SRE_TaskSuspend( ulTaskPID );
 
     if ( SRE_OK == ulResult )
-    {
+    {
         return(VOS_OK);
     }
     else

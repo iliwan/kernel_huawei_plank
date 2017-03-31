@@ -1162,6 +1162,7 @@ static VOS_BOOL at_ftm_fstart_setparaIsCorrect(FTM_SET_F_TRIGGER_REQ_STRU* pstFt
     else if( START_TRIGGER_TYPE_RX == pstFtmReq->ucType)
     {
         /* 0x3E 等于 CT_F_STEPS_DONE_FCHANS | CT_F_STEPS_DONE_FSEGMENT |CT_F_STEPS_DONE_FPOWS |CT_F_STEPS_DONE_FPAS|CT_F_STEPS_DONE_FLNAS */
+        /* Added by daizhicheng without CT_F_STEPS_DONE_FPOWS*/
         ulStepFlag = CT_F_STEPS_DONE_FSEGMENT |CT_F_STEPS_DONE_FCHANS|CT_F_STEPS_DONE_FPAS | CT_F_STEPS_DONE_FLNAS;
         if (ftm_CheckCmdSteps(ulStepFlag) == FALSE)
         {
@@ -1171,6 +1172,7 @@ static VOS_BOOL at_ftm_fstart_setparaIsCorrect(FTM_SET_F_TRIGGER_REQ_STRU* pstFt
     else if( START_TRIGGER_TYPE_TXRX == pstFtmReq->ucType)
     {
         /* 0x3E 等于 CT_F_STEPS_DONE_FCHANS | CT_F_STEPS_DONE_FSEGMENT |CT_F_STEPS_DONE_FPOWS |CT_F_STEPS_DONE_FPAS|CT_F_STEPS_DONE_FLNAS */
+        /* Added by daizhicheng without CT_F_STEPS_DONE_FPOWS*/
         ulStepFlag = CT_F_STEPS_DONE_FSEGMENT |CT_F_STEPS_DONE_FCHANS|CT_F_STEPS_DONE_FPAS | CT_F_STEPS_DONE_FLNAS;
         if (ftm_CheckCmdSteps(ulStepFlag) == FALSE)
         {
@@ -1383,6 +1385,7 @@ VOS_UINT32 at_ftm_frssis_set(VOS_VOID* pParam)
 
     /* 拷贝全局变量中的结果，用于填充响应结构，并发出 */
     stCnf.ulErrCode    = ERR_MSP_SUCCESS;
+    /*Modify by daizhicheng for using at^flnas channel number */
     //stCnf.usRSSIPowNum = pstFtmFastCtInfo->usCurTxPowerNum;
     stCnf.usRSSIPowNum = pstFtmFastCtInfo->usCurAagcNum;
     MSP_MEMCPY(stCnf.ausRxANT1RSSI, pstFtmFastCtInfo->ausRxANT1RSSI[usTmp], sizeof(stCnf.ausRxANT1RSSI));

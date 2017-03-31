@@ -32,8 +32,10 @@ enum RRMM_RAT_TYPE_ENUM
     RRMM_RAT_TYPE_GSM = 0,                           /* GSM接入技术 */
     RRMM_RAT_TYPE_WCDMA,                             /* WCDMA接入技术 */
     RRMM_RAT_TYPE_LTE,                               /* LTE接入技术 */
+    /*Modify by sunbing 49683 for CL multimode 2014-01-09 begin*/
     RRMM_RAT_TYPE_CDMA1X,                            /* 1x接入技术*/
     RRMM_RAT_TYPE_HRPD,                              /* HRPD接入技术*/
+    /*Modify by sunbing 49683 for CL multimode 2014-01-09 end*/
     RRMM_RAT_TYPE_BUTT
 };
 typedef VOS_UINT8 RRMM_RAT_TYPE_ENUM_UINT8;

@@ -102,7 +102,7 @@ struct hisi_sensor_fn_t mt9m114_func_tbl = {
 
 static int32_t mt9m114_sensor_probe(struct platform_device *pdev)
 {
-	int32_t rc = 0;
+	int32_t rc = -1;
 	struct hisi_sensor_t *sensor = NULL;
 
 	cam_info("%s pdev name %s\n", __func__, pdev->name);
@@ -120,19 +120,26 @@ static int32_t mt9m114_sensor_probe(struct platform_device *pdev)
 		rc = hisi_sensor_get_dt_data(pdev, sensor);
 		if (rc < 0) {
 			cam_err("%s failed line %d\n", __func__, __LINE__);
-			return rc;
+			goto mt9m114_sensor_probe_fail;
 		}
 	} else {
 		cam_err("%s mt9m114 of_node is NULL.\n", __func__);
+		goto mt9m114_sensor_probe_fail;
 	}
 
 	rc = hisi_sensor_add(sensor);
 	if (rc < 0) {
 		cam_err("%s fail to add sensor into sensor array.\n", __func__);
+		goto mt9m114_sensor_probe_fail;
 	}
 	if (!dev_get_drvdata(&pdev->dev)) {
 		dev_set_drvdata(&pdev->dev, (void *)sensor);
 	}
+	return rc;
+mt9m114_sensor_probe_fail:
+	cam_err("%s error exit.\n", __func__);
+	kfree(sensor);
+	sensor = NULL;
 	return rc;
 }
 
@@ -169,7 +176,7 @@ static int __init mt9m114_module_init(void)
 	rc = platform_driver_probe(&mt9m114_platform_driver,
 		mt9m114_platform_probe);
 	if (rc < 0) {
-		cam_err("%s platform_driver_probe error(%d).\n", __func__, rc);
+		cam_notice("%s platform_driver_probe error(%d).\n", __func__, rc);
 	}
 	return rc;
 }

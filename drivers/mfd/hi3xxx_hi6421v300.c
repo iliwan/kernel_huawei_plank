@@ -35,7 +35,7 @@
 #include <linux/of_irq.h>
 #include <linux/mfd/hi3xxx_hi6421v300.h>
 #include <linux/irq.h>
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #ifdef CONFIG_HISI_BALONG_MODEM
 #include "bsp_icc.h"
 #endif
@@ -247,19 +247,18 @@ static irqreturn_t hi6421_irq_handler(int irq, void *data)
 
 		/*After HPD,software close LDO*/
 		if (HI6421_IRQ_HPD_NUM == i) {
-			pr_info("[%s:%d]:sim pending value is 0x%x!\n", __func__, __LINE__, pending);
 			if((pending & HI6421_IRQ_HPD0_VALUE)) {
 				pr_info("[%s:%d]:IRQ HPD0 happend,software close ldo11!\n", __func__, __LINE__);
 				/*close ldo11*/
-				hi6421_pmic_write(pmic, HI6421_IRQ_LDO11_ADDR, HI6421_IRQ_LDO11_VALUE);
 				hi6421_pmic_sim_hpd_msg_to_ccore(SIM0);
+				hi6421_pmic_write(pmic, HI6421_IRQ_LDO11_ADDR, HI6421_IRQ_LDO11_VALUE);
 			}
 
 			if ((pending & HI6421_IRQ_HPD1_VALUE)) {
 				pr_info("[%s:%d]:IRQ HPD1 happend,software close ldo12!\n", __func__, __LINE__);
 				/*close ldo12*/
-				hi6421_pmic_write(pmic, HI6421_IRQ_LDO12_ADDR, HI6421_IRQ_LDO12_VALUE);
 				hi6421_pmic_sim_hpd_msg_to_ccore(SIM1);
+				hi6421_pmic_write(pmic, HI6421_IRQ_LDO12_ADDR, HI6421_IRQ_LDO12_VALUE);
 			}
 		}
 

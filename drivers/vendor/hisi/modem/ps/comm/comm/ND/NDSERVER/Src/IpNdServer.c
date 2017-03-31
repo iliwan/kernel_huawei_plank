@@ -76,10 +76,12 @@ VOS_VOID IP_NDSERVER_SaveTeDetectIp( const VOS_UINT8* pucTeGlobalAddr )
     /* 相同Prefix的地址是否已经存在 */
     while(ulIndex != g_astNdServerTeDetectBuf.ulTail)
     {
+        /* modify by jiqiang 2014.04.13 pclint 960 begin */
         /*lint -e960*/
         if((IP_TRUE == g_astNdServerTeDetectBuf.astTeIpBuf[ulIndex].ulValid)
             && (0 == IP_MEM_CMP(pucTeGlobalAddr, g_astNdServerTeDetectBuf.astTeIpBuf[ulIndex].aucTeGlobalAddr, ND_IP_IPV6_PREFIX_LENGTH)))
         /*lint +e960*/
+        /* modify by jiqiang 2014.04.13 pclint 960 end */
             {
             /* 相同Prefix只保留一个地址 */
             IP_MEM_CPY(g_astNdServerTeDetectBuf.astTeIpBuf[ulIndex].aucTeGlobalAddr, pucTeGlobalAddr, IP_IPV6_ADDR_LEN);
@@ -111,10 +113,12 @@ VOS_UINT8* IP_NDSERVER_GetTeDetectIp( const VOS_UINT8* pucPrefixAddr )
     VOS_UINT32  ulIndex = g_astNdServerTeDetectBuf.ulHead;
     while(ulIndex != g_astNdServerTeDetectBuf.ulTail)
     {
+        /* modify by jiqiang 2014.04.13 pclint 960 begin */
         /*lint -e960*/
         if((IP_TRUE == g_astNdServerTeDetectBuf.astTeIpBuf[ulIndex].ulValid)
             && (0 == IP_MEM_CMP(pucPrefixAddr, g_astNdServerTeDetectBuf.astTeIpBuf[ulIndex].aucTeGlobalAddr, ND_IP_IPV6_PREFIX_LENGTH)))
         /*lint +e960*/
+        /* modify by jiqiang 2014.04.13 pclint 960 end */
         {
             g_astNdServerTeDetectBuf.astTeIpBuf[ulIndex].ulValid = IP_FALSE;
 
@@ -1740,6 +1744,7 @@ VOS_UINT32 IP_NDSERVER_IsSelfIPAddr
                 pstNwPara->astPrefixList[0].aucPrefix,
                 ND_IP_IPV6_ADDR_LENGTH - ND_IP_IPV6_IFID_LENGTH);
 
+    /* modify by jiqiang 2014.03.19 pclint 960 begin */
     /*lint -e960*/
     if ((IP_NULL == IP_MEM_CMP(  aucIPAddr,
                                  aucLinkLocalIPAddr,
@@ -1749,6 +1754,7 @@ VOS_UINT32 IP_NDSERVER_IsSelfIPAddr
                                     IP_IPV6_ADDR_LEN)))
 
     /*lint +e960*/
+    /* modify by jiqiang 2014.03.19 pclint 960 end */
     {
         return IP_TRUE;
     }
@@ -1791,10 +1797,12 @@ VOS_VOID IP_NDSERVER_RcvTeDetectionAddr
 
     IP_ASSERT(ulIndex < IP_NDSERVER_ADDRINFO_MAX_NUM);
     pstTeInfo = IP_NDSERVER_ADDRINFO_GET_TEINFO(ulIndex);
+    /* modify by jiqiang 2014.04.13 pclint 960 begin */
     /*lint -e960*/
     if ((IP_NDSERVER_TE_ADDR_REACHABLE == pstTeInfo->enTeAddrState)
             && (IP_NULL == IP_MEM_CMP(pstTeInfo->aucTeGlobalAddr, aucIPAddr, IP_IPV6_ADDR_LEN)))
     /*lint +e960*/
+    /* modify by jiqiang 2014.04.13 pclint 960 end */
     {
         return;
     }
@@ -2001,11 +2009,13 @@ VOS_UINT32 IP_NDSERVER_EqualSavedTeAddr
     IP_ASSERT_RTN(ulIndex < IP_NDSERVER_ADDRINFO_MAX_NUM, IP_FALSE);
     pstTeInfo = IP_NDSERVER_ADDRINFO_GET_TEINFO(ulIndex);
 
+    /* modify by jiqiang 2014.03.19 pclint 960 begin */
     /*lint -e960*/
     if ((IP_NDSERVER_TE_ADDR_REACHABLE == pstTeInfo->enTeAddrState)
             && (IP_NULL == IP_MEM_CMP(pstTeInfo->aucTeGlobalAddr, aucIPAddr, IP_IPV6_ADDR_LEN))
             && (IP_NULL == IP_MEM_CMP(pstTeInfo->aucTeLinkLayerAddr, aucMACAddr, IP_MAC_ADDR_LEN)))
     /*lint +e960*/
+    /* modify by jiqiang 2014.03.19 pclint 960 end */
     {
         return IP_TRUE;
     }

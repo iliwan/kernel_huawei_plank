@@ -26,11 +26,14 @@
 #include <linux/iommu.h>
 #include <linux/platform_device.h>
 #include <media/v4l2-fh.h>
+#include <linux/pm_qos.h>
 #include "hisi_cam_module.h"
 #include "hisi_subdev.h"
 
 static struct v4l2_device *hisi_v4l2_dev;
 static int is_fpga = 0; //default is no fpga
+bool camera_open = false;
+static const char *g_product_name = NULL;
 
 static void hisi_sd_unregister_subdev(struct video_device *vdev)
 {
@@ -121,6 +124,13 @@ int is_fpga_board(void)
 }
 EXPORT_SYMBOL(is_fpga_board);
 
+char *get_product_name(void)
+{
+	cam_notice("%s product name: %s\n", __func__, g_product_name);
+	return (char *)g_product_name;
+}
+EXPORT_SYMBOL(get_product_name);
+
 void camdrv_msleep(unsigned int ms)
 {
 	struct timeval now;
@@ -192,6 +202,13 @@ static int hisi_camera_get_dt_data(struct platform_device *pdev)
 		cam_err("%s failed %d\n", __func__, __LINE__);
 	}
 
+	rc = of_property_read_string(pdev->dev.of_node, "hisi,product_name",
+			&g_product_name);
+	if(rc < 0) {
+		cam_err("%s failed %d\n", __func__, __LINE__);
+	}
+	cam_notice("%s: product name -> %s\n", __func__, g_product_name);
+
 	return rc;
 }
 
@@ -252,11 +269,97 @@ register_fail:
 #if defined(CONFIG_MEDIA_CONTROLLER)
 media_fail:
 	kfree(hisi_v4l2_dev->mdev);
+    hisi_v4l2_dev->mdev = NULL;
 mdev_fail:
 	kfree(hisi_v4l2_dev);
+    hisi_v4l2_dev = NULL;
 #endif
 
 probe_end:
+	return rc;
+}
+
+static struct pm_qos_request qos_request_ddr_low;
+static struct pm_qos_request qos_request_ddr_high;
+void k3_isp_fix_ddrfreq(unsigned int ddr_bandwidth)
+{
+	qos_request_ddr_low.pm_qos_class = 0;
+	pm_qos_add_request(&qos_request_ddr_low, PM_QOS_MEMORY_THROUGHPUT, ddr_bandwidth);
+	qos_request_ddr_high.pm_qos_class = 0;
+	pm_qos_add_request(&qos_request_ddr_high, PM_QOS_MEMORY_THROUGHPUT_UP_THRESHOLD, ddr_bandwidth);
+}
+void k3_isp_update_ddrfreq(unsigned int ddr_bandwidth)
+{
+	pm_qos_update_request(&qos_request_ddr_low, ddr_bandwidth);
+	pm_qos_update_request(&qos_request_ddr_high, ddr_bandwidth);
+}
+
+void k3_isp_release_ddrfreq(void)
+{
+	pm_qos_remove_request(&qos_request_ddr_low);
+	pm_qos_remove_request(&qos_request_ddr_high);
+}
+
+extern int k3_isp_init(struct device *pdev);
+extern int k3_isp_deinit(void);
+extern int k3_isp_poweron(void);
+extern int k3_isp_poweroff(void);
+/*
+ **************************************************************************
+ * FunctionName: hisi_camera_suspend;
+ * Description : Suspend isp and camera sensor;
+ * Input       : NA;
+ * Output      : NA;
+ * ReturnValue : NA;
+ * Other       : NA;
+ **************************************************************************
+ */
+static int hisi_camera_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	int rc = 0;
+	cam_notice("%s+\n",__func__);
+
+	if (camera_open) {
+		rc = k3_isp_poweroff();
+		if (rc)
+			cam_err("failed to poweroff isp!");
+
+		k3_isp_release_ddrfreq();
+	}
+
+	cam_notice("%s-\n",__func__);
+	return rc;
+}
+
+/*
+ **************************************************************************
+ * FunctionName: hisi_camera_resume;
+ * Description : Resume isp and camera sensor;
+ * Input       : NA;
+ * Output      : NA;
+ * ReturnValue : NA;
+ * Other       : NA;
+ **************************************************************************
+ */
+static int hisi_camera_resume(struct platform_device *pdev)
+{
+	int rc = 0;
+	cam_notice("%s+\n",__func__);
+
+	if (camera_open) {
+		k3_isp_fix_ddrfreq(DDR_BANDWITH(DDR_BACK_FREQ));
+
+		if (0 != k3_isp_poweron()) {
+			cam_err("Failed to init isp while resuming");
+			k3_isp_poweroff();
+			k3_isp_release_ddrfreq();
+			rc = -1;
+			goto fail;
+		}
+		rc = 0;
+	}
+fail:
+	cam_notice("%s-\n",__func__);
 	return rc;
 }
 
@@ -267,6 +370,8 @@ static const struct of_device_id hisi_camera_dt_match[] = {
 MODULE_DEVICE_TABLE(of, hisi_camera_dt_match);
 static struct platform_driver hisi_camera_driver = {
 	.probe = hisi_camera_probe,
+	.suspend = hisi_camera_suspend,
+	.resume = hisi_camera_resume,
 	.driver = {
 		.name = "hisi_camera",
 		.owner = THIS_MODULE,
@@ -281,8 +386,12 @@ static int __init hisi_camera_init(void)
 
 static void __exit hisi_camera_exit(void)
 {
-	kfree(hisi_v4l2_dev->mdev);
-	kfree(hisi_v4l2_dev);
+    if (NULL != hisi_v4l2_dev->mdev)
+        kfree(hisi_v4l2_dev->mdev);
+
+    if (NULL != hisi_v4l2_dev)
+        kfree(hisi_v4l2_dev);
+
 	platform_driver_unregister(&hisi_camera_driver);
 }
 

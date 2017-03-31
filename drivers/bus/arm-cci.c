@@ -728,7 +728,7 @@ EXPORT_SYMBOL_GPL(cci_disable_port_by_cpu);
  * any failure this never returns as the inability to enable the CCI is
  * fatal and there is no possible recovery at this stage.
  */
-#if 0
+#ifdef CONFIG_ARCH_HI3630
 asmlinkage void __naked cci_enable_port_for_self(void)
 {
 	asm volatile ("\n"
@@ -1044,7 +1044,7 @@ static int __init cci_probe(void)
 	 * Multi-cluster systems may need this data when non-coherent, during
 	 * cluster power-up/power-down. Make sure it reaches main memory.
 	 */
-#ifndef CONFIG_ARCH_HI3XXX
+#ifndef CONFIG_HISI_3635
 	sync_cache_w(&cci_ctrl_base);
 	sync_cache_w(&cci_ctrl_phys);
 	sync_cache_w(&ports);

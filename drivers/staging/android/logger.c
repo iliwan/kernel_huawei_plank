@@ -533,9 +533,7 @@ static ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	ssize_t ret = 0;
 	int logctl_flag = 0;
 	char priority = 0;
-
 	logctl_flag = get_logctl_flag();
-
 	priority = get_log_priority(iov);
 	if (priority < 0) {
 		hwlog_err("%s: get_log_priority fail %d\n", __func__, priority);
@@ -1057,7 +1055,7 @@ static int __init logger_init(void)
 		goto out;
 
 #ifdef FINAL_RELEASE_MODE
-	ret = create_log(LOGGER_LOG_EVENTS, 16*1024);
+	ret = create_log(LOGGER_LOG_EVENTS, 128*1024);
 #else
 	ret = create_log(LOGGER_LOG_EVENTS, 256*1024);
 #endif

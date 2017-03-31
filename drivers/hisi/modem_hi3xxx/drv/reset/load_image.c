@@ -42,8 +42,11 @@ Return:		    0: OK  ÆäËû: ERRORÂë
 ******************************************************************************/
 static s32 TEEK_init(TEEC_Session *session, TEEC_Context *context)
 {
-	TEEC_Result result;
-	TEEC_UUID svc_uuid = TEE_SERVICE_SECBOOT;  
+    TEEC_Result result;
+    TEEC_UUID svc_uuid = TEE_SERVICE_SECBOOT;
+    TEEC_Operation operation = {0};
+    u8 package_name[] = "sec_boot";
+    u32 root_id = 0;
 
 	mutex_lock(&trans_lock);
 
@@ -51,20 +54,31 @@ static s32 TEEK_init(TEEC_Session *session, TEEC_Context *context)
 			               NULL,
 			               context);
 
-	if(result != TEEC_SUCCESS) {
-		sec_print_err("TEEK_InitializeContext failed!\n");
-		result = SEC_ERROR;
-		goto error1;
-	}
+    if(result != TEEC_SUCCESS) {
+        sec_print_err("TEEK_InitializeContext failed!\n");
+        result = SEC_ERROR;
+        goto error1;
+    }
+    operation.started = 1;
+    operation.cancel_flag = 0;
+    operation.paramTypes = TEEC_PARAM_TYPES(
+            TEEC_NONE,
+            TEEC_NONE,
+            TEEC_MEMREF_TEMP_INPUT,
+            TEEC_MEMREF_TEMP_INPUT);
+    operation.params[2].tmpref.buffer = (void *)(&root_id);
+    operation.params[2].tmpref.size = sizeof(root_id);
+    operation.params[3].tmpref.buffer = (void *)(package_name);
+    operation.params[3].tmpref.size = strlen(package_name) + 1;
 
     result = TEEK_OpenSession(
-    			context,
-                session,
-                &svc_uuid,
-                TEEC_LOGIN_PUBLIC,
-                NULL,
-                NULL,
-                NULL);
+            context,
+            session,
+            &svc_uuid,
+            TEEC_LOGIN_IDENTIFY,
+            NULL,
+            &operation,
+            NULL);
 
 	if (result != TEEC_SUCCESS) 
 	{

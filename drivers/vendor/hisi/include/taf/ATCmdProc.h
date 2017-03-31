@@ -254,12 +254,16 @@ typedef TAF_UINT8   AT_MSG_DELETE_ENUM_U8;
 #define AT_QRY_PARA_TIME   (30000) /*<==A32D12429*/
 #define AT_TEST_PARA_TIME  (30000)
 
+#define AT_SET_CGLA_PARA_TIME   (90000)
+
 /* 解决DCM 461-0701-0202 461-0701-0203重传过程中AT命令提前结束问题 */
 #define AT_SMS_SET_PARA_TIME   (105000) /*<==A32D12591*/
 
 #if (FEATURE_IMS == FEATURE_ON)
 /* increase 15s for CMGS and CMSS set command */
-#define AT_SMS_CMGS_SET_PARA_TIME        (180000)
+
+#define AT_SMS_CMGS_SET_PARA_TIME        (210000)
+
 #define AT_SMS_CMSS_SET_PARA_TIME        (180000)
 /* increase 15s for SS service request command */
 #define AT_SS_CUSD_SET_PARA_TIME         (45000)
@@ -465,6 +469,22 @@ VOS_VOID AT_RcvFuncReg(AT_PHY_PORT_ENUM_UINT32 ulPhyPort, CPM_RCV_FUNC pRcvFunc)
 #endif
 
 /*****************************************************************************
+ 枚举名    : AT_VOICE_DOMAIN_TYPE_ENUM
+ 协议表格  :
+ 枚举说明  : 优选域类型
+*****************************************************************************/
+enum AT_VOICE_DOMAIN_TYPE_ENUM
+{
+    AT_VOICE_DOMAIN_TYPE_CS_ONLY            = 1,
+    AT_VOICE_DOMAIN_TYPE_CS_PREFERRED       = 2,
+    AT_VOICE_DOMAIN_TYPE_IMS_PS_PREFERRED   = 3,
+    AT_VOICE_DOMAIN_TYPE_IMS_PS_ONLY        = 4,
+    AT_VOICE_DOMAIN_TYPE_BUTT
+};
+typedef VOS_UINT32 AT_VOICE_DOMAIN_TYPE_ENUM_UINT32;
+
+
+/*****************************************************************************
  枚举名    : AT_TEMPPRT_STATUS_IND_ENUM
  结构说明  :
              0: AT_TEMPPRT_STATUS_IND_DISABLE  温保状态上报NV项关闭
@@ -659,6 +679,11 @@ typedef enum
     AT_CMD_CBND,
     AT_CMD_CPDW,
     AT_CMD_NVIM,
+    /* Modified by c00318887 for file refresh需要触发背景搜, 2015-3-27, begin */
+    AT_CMD_REFRESH_STUB,
+    AT_CMD_DELAYBG_STUB,
+    /* Modified by c00318887 for file refresh需要触发背景搜, 2015-3-27, end */
+    AT_CMD_AUTO_RESEL_STUB,
     AT_CMD_PIDREINIT,
     AT_CMD_IMSRATSTUB,
     AT_CMD_IMSCAPSTUB,
@@ -1114,6 +1139,9 @@ typedef enum
     AT_CMD_NVRDLEN,
     AT_CMD_NVRDEX,
     AT_CMD_NVWREX,
+
+    AT_CMD_NVWRPART,
+
     AT_CMD_STCFGDPCH,
     AT_CMD_STRXBER,
 
@@ -1140,6 +1168,7 @@ typedef enum
     AT_CMD_CHIPSN,
     AT_CMD_HANDLEDECT,
 
+    /* Added by zhuli for VSIM, 2013-10-15 Begin */
     AT_CMD_HVSDH,
     AT_CMD_HVSST,
     AT_CMD_HVSCONT,
@@ -1147,6 +1176,7 @@ typedef enum
     AT_CMD_SCICHG,
     AT_CMD_HVTEE,
     AT_CMD_HVCHECKCARD,
+    /* Added by zhuli for VSIM, 2013-10-15 end */
 
     AT_CMD_EOPLMN,
 
@@ -1217,13 +1247,24 @@ typedef enum
 #if (FEATURE_ON == FEATURE_HUAWEI_VP)
     AT_CMD_VOICEPREFER,
 #endif
+    /*Added by z00306637 for RATRFSWITCH, 2015-01-04, begin*/
     AT_CMD_RATRFSWITCH,
+    /*Added by z00306637 for RATRFSWITCH, 2015-01-04, end*/
 
     AT_CMD_APDSFLOWRPTCFG,
 
     AT_CMD_DSFLOWNVWRCFG,
+    
+    /* Added by zwx247453 for VOLTE SWITCH, 2015-02-02, Begin */
+    AT_CMD_IMSSWITCH,
+    AT_CMD_CEVDP,
+    /* Added by zwx247453 for VOLTE SWITCH, 2015-02-02, End */
 
     AT_CMD_NVWRSECCTRL,
+
+    /* Added by z00301431 for ACT_PDP_STUB, 2015-11-4, begin */
+    AT_CMD_ACTPDPSTUB,
+    /* Added by z00301431 for ACT_PDP_STUB, 2015-11-4, end */
 
     AT_CMD_COMM_BUTT,
 
@@ -1980,6 +2021,12 @@ typedef enum
     AT_CMD_CALL_MODIFY_ANS_SET,
     AT_CMD_ECONF_DIAL_SET,
     AT_CMD_CLCCECONF_QRY,
+    /* Added by zwx247453 for VOLTE SWITCH, 2015-02-02, Begin */
+    AT_CMD_IMS_SWITCH_SET,
+    AT_CMD_IMS_SWITCH_QRY,
+    AT_CMD_VOICE_DOMAIN_SET,
+    AT_CMD_VOICE_DOMAIN_QRY,
+    /* Added by zwx247453 for VOLTE SWITCH, 2015-02-02, End */
 #endif
     AT_CMD_CHLD_EX_SET,
     AT_CMD_APDS_SET,
@@ -3240,7 +3287,7 @@ extern TAF_UINT32   AT_CountDigit(TAF_UINT8 *pData,TAF_UINT32 ulLen,TAF_UINT8 Ch
 extern TAF_UINT16   At_UnicodeFormatPrint(const TAF_UINT8 *pSrc, TAF_UINT8 *pDest, TAF_UINT32 Dcs);
 extern TAF_UINT32   At_Ascii2UnicodePrint(TAF_UINT32 MaxLength,TAF_INT8 *headaddr,TAF_UINT8 *pucDst, TAF_UINT8 *pucSrc, TAF_UINT16 usSrcLen);
 extern TAF_UINT16   At_PrintReportData(TAF_UINT32 MaxLength,TAF_INT8 *headaddr,TAF_UINT8 ucDataCodeType,TAF_UINT8 *pucDst,TAF_UINT8 *pucSrc,TAF_UINT16 usSrcLen);
-extern TAF_UINT32   At_ChgTafErrorCode(TAF_UINT8 ucIndex,TAF_UINT16 usTafErrorCode);
+extern TAF_UINT32   At_ChgTafErrorCode(TAF_UINT8 ucIndex,TAF_ERROR_CODE_ENUM_UINT32 enTafErrorCode);
 /* Del At_AbortCmdProc */
 extern TAF_UINT32   At_CheckCharWcmd(TAF_UINT8 * pData, TAF_UINT16 usLen);
 extern TAF_UINT32   At_ParseWCmd(TAF_UINT8 * pData, TAF_UINT16 usLen);
@@ -3647,8 +3694,8 @@ VOS_UINT32 AT_AbortNetScan(
     VOS_UINT8                           ucIndex
 );
 
-extern TAF_UINT32   At_SetImeiPara(TAF_UINT8 ucIndex);
-extern TAF_UINT32   At_SetTrigPara(TAF_UINT8 ucIndex);
+extern TAF_UINT32   At_SetImeiPara(TAF_UINT8 ucIndex); /*added by luojian 60022475 2006.12.20*/
+extern TAF_UINT32   At_SetTrigPara(TAF_UINT8 ucIndex); /*added by sunshaohua 62952 2007.06.20*/
 
 #ifndef _PS_COMPILE_EDGE_ADAPT_MOIRI_B073_
 extern TAF_UINT32   At_SetGcfIndPara(TAF_UINT8 ucIndex);
@@ -3664,6 +3711,12 @@ extern VOS_UINT32   AT_SetVertime ( VOS_UINT8 ucIndex );
 /*内部设置和查询NV项命令*/
 #if ( VOS_WIN32 == VOS_OS_VER )
 extern VOS_UINT32   AT_SetNvimPara(VOS_UINT8 ucIndex);
+
+/* Modified by c00318887 for DPlmn扩容和优先接入HPLMN, 2015-5-18, begin */
+extern VOS_UINT32 AT_ResetNplmn ( VOS_UINT8 ucIndex );
+/* Modified by c00318887 for DPlmn扩容和优先接入HPLMN, 2015-5-18, end */
+
+
 extern VOS_UINT32 AT_SetPidReinitPara ( VOS_UINT8 ucIndex );
 extern VOS_UINT32   AT_SetRplmnStub( VOS_UINT8 ucIndex );
 VOS_UINT32  AT_SetDamParaStub( VOS_UINT8 ucIndex );
@@ -3690,6 +3743,11 @@ extern VOS_UINT32 AT_SetImsVoiceInterSysLauEnableStub(VOS_UINT8 ucIndex);
 extern VOS_UINT32 AT_SetImsVoiceMMEnableStub(VOS_UINT8 ucIndex);
 extern VOS_UINT32 AT_SetHighRatPlmnSearchActiveStub(VOS_UINT8 ucFlag);
 extern VOS_UINT32 AT_SetCmdImsUssdStub(VOS_UINT8 ucIndex);
+
+/* Added by c00318887 for 移植T3402 , 2015-6-18, begin */
+extern VOS_UINT32 AT_SetT3402Stub(VOS_UINT8 ucIndex);
+/* Added by c00318887 for 移植T3402 , 2015-6-18, end */
+
 #endif
 
 /*测试用PDP打桩命令*/
@@ -3771,6 +3829,13 @@ extern TAF_UINT32   At_QryCpin2Para(TAF_UINT8 ucIndex);
 extern TAF_UINT32   At_QryCpinStatus(TAF_UINT8 ucIndex);
 extern TAF_UINT32   At_QryCardlockPara(TAF_UINT8 ucIndex);
 extern TAF_UINT32   At_SetCardATRPara(TAF_UINT8 ucIndex);
+/* Modified by c00318887 for file refresh需要触发背景搜, 2015-3-31, begin */
+VOS_UINT32 At_SetRefreshStub(VOS_UINT8 ucIndex);
+#if ( VOS_WIN32 == VOS_OS_VER )
+VOS_UINT32 At_SetDelayBgStub(VOS_UINT8 ucIndex);
+#endif
+/* Modified by c00318887 for file refresh需要触发背景搜, 2015-3-31, end */
+VOS_UINT32 At_SetAutoReselStub(VOS_UINT8 ucIndex);
 extern TAF_UINT32   At_QryCpbsPara(TAF_UINT8 ucIndex);
 extern TAF_UINT32   At_QryCfunPara(TAF_UINT8 ucIndex);
 extern TAF_UINT32   At_QryCpamPara(TAF_UINT8 ucIndex);
@@ -4575,10 +4640,10 @@ extern VOS_UINT8 AT_CalculateLTEAntennaLevel(
     VOS_INT16 usRsrp
 );
 
-extern TAF_VOID AT_CalculateLTESignalValue(  
+extern TAF_VOID AT_CalculateLTESignalValue(
     VOS_INT16    *psRssi,
     VOS_UINT8    *pusLevel,
-    VOS_INT16    *pusRsrp,             
+    VOS_INT16    *pusRsrp,
     VOS_INT16    *pusRsrq
 );
 #endif
@@ -4904,6 +4969,8 @@ extern VOS_UINT32 atSetFPDPOWSPara(VOS_UINT8 ucClientId);
 extern VOS_UINT32 atSetFPDPOWSParaCnfProc(VOS_UINT8 ucClientId, VOID *pMsgBlock);
 extern VOS_UINT32 atSetFQPDDCRESPara(VOS_UINT8 ucClientId);
 extern VOS_UINT32 atSetFQPDDCRESParaCnfProc(VOS_UINT8 ucClientId, VOID *pMsgBlock);
+
+extern VOS_UINT32 AT_SetNVWRPartPara(VOS_UINT8 ucClientId);
 
 extern VOS_UINT32 atSetFTXONPara(VOS_UINT8 ucClientId);
 extern VOS_UINT32 atSetFTXONParaCnfProc(VOS_UINT8 ucClientId, VOS_VOID *pMsgBlock);
@@ -5556,9 +5623,13 @@ VOS_UINT32 AT_SetRefclkfreqPara(VOS_UINT8 ucIndex);
 VOS_UINT32 AT_QryRefclkfreqPara(VOS_UINT8 ucIndex);
 
 
+/* Added by d0212987 for OM output log , 2013-6-4, begin */
 VOS_UINT32 At_SetPullomlogrrcPara(VOS_UINT8 ucIndex);
+/* Added by d0212987 for OM output log , 2013-6-4, end*/
+/* Added by d0212987 for read die id and chip id, 2013-6-4, begin */
 VOS_UINT32 At_SetDieSNPara(VOS_UINT8 ucIndex);
 VOS_UINT32 At_SetChipSNPara(VOS_UINT8 ucIndex);
+/* Added by d0212987 for read die id and chip id, 2013-6-4, end */
 VOS_UINT32 At_QryHandleDect(VOS_UINT8 ucIndex);
 
 VOS_UINT32 At_SetHandleDect(VOS_UINT8 ucIndex);
@@ -5659,6 +5730,18 @@ VOS_UINT32 AT_SetCallModifyAnsPara(VOS_UINT8 ucIndex);
 VOS_UINT32 AT_SetEconfDialPara(VOS_UINT8 ucIndex);
 VOS_UINT32 AT_QryClccEconfInfo(VOS_UINT8 ucIndex);
 VOS_UINT32 AT_QryEconfErrPara(VOS_UINT8 ucIndex);
+
+/* Added by zwx247453 for VOLTE SWITCH, 2015-02-02, Begin */
+extern VOS_UINT32 AT_SetImsSwitchPara(VOS_UINT8 ucIndex);
+extern VOS_UINT32 AT_QryImsSwitchPara(VOS_UINT8 ucIndex);
+extern VOS_UINT32 AT_SetCevdpPara(VOS_UINT8 ucIndex);
+extern VOS_UINT32 AT_QryCevdpPara(VOS_UINT8 ucIndex);
+extern VOS_UINT32 AT_InputValueTransToVoiceDomain(
+    VOS_UINT32                          ulValue,
+    TAF_MMA_VOICE_DOMAIN_ENUM_UINT32   *penVoiceDomain
+);
+/* Added by zwx247453 for VOLTE SWITCH, 2015-02-02, End */
+
 #endif
 VOS_UINT32 AT_FillCalledNumPara(
     VOS_UINT8                          *pucAtPara,
@@ -5698,8 +5781,11 @@ VOS_UINT32 AT_QryVoicePreferPara(VOS_UINT8 ucIndex);
 
 VOS_UINT32 At_SetFemCtrl(VOS_UINT8 ucIndex);
 
+/*Added by z00306637 for RATRFSWITCH, 2015-01-04, begin*/
 extern VOS_UINT32 At_SetRatRfSwitch(VOS_UINT8 ucIndex);
 extern VOS_UINT32 At_QryRatRfSwitch(VOS_UINT8 ucIndex);
+/*Added by z00306637 for RATRFSWITCH, 2015-01-04, end*/
+
 extern TAF_UINT32 At_AsciiNum2HexString(TAF_UINT8 *pucSrc, TAF_UINT16 *pusSrcLen);
 
 #if ((TAF_OS_VER == TAF_WIN32) || (TAF_OS_VER == TAF_NUCLEUS))

@@ -477,7 +477,7 @@ VOS_UINT32 CSIMA_SendTPDUOnLogicChan(CSIMA_CBP_CTPDU_MSG_STRU *pstCtpduMsg)
                                        sizeof(stRtpdu));
 
 
-        return ulResult;
+        return ulResult;
     }
 
     /* 通过通道号获取sessionID */
@@ -1100,7 +1100,7 @@ VOS_VOID CSIMA_CardStatusMsgSend(CSIMA_CBP_CARD_STATUS_ENUM_UINT16 enCardStatus,
     {
         CSIMA_ERROR_LOG("CSIMA_CardStatusMsgSend: Send Msg To CBPCA fail");
     }
-
+    /*lint -save -e539 -e732 -e830 */
     if (CSIMA_CBP_CARD_READY == enCardStatus)
     {
         g_enEventListReSendFlag = CSIMA_EVENTLIST_NEED_RESEND;
@@ -1192,7 +1192,7 @@ VOS_VOID CSIMA_FirstCardStatusInd(PS_USIM_STATUS_IND_STRU *pstMsg)
 
     return;
 }
-
+/*lint -restore*/
 /*****************************************************************************
 函 数 名  : CSIMA_CardStatusInd
 功能描述  : CSIMA模块非首次收到卡状态消息

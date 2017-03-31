@@ -280,6 +280,7 @@ void w_conn_id_status_change(void *p)
 
 	/* B-Device connector (Device Mode) */
 	if (gotgctl.b.conidsts) {
+#if 0
 		dwc_otg_disable_global_interrupts(core_if);
 		/* Wait for switch to device mode. */
 		while (!dwc_otg_is_device_mode(core_if)) {
@@ -297,6 +298,8 @@ void w_conn_id_status_change(void *p)
 		dwc_otg_core_init(core_if);
 		cil_pcd_start(core_if);
 		dwc_otg_enable_global_interrupts(core_if);
+#endif
+
 #ifndef CONFIG_HI3635_USB
         hisi_usb_id_change(ID_RISE_EVENT);
 #endif

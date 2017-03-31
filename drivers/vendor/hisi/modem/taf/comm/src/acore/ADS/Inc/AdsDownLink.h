@@ -172,7 +172,6 @@ VOS_UINT32 ADS_DL_IsFcAssemTuneNeeded(VOS_UINT32 ulRdNum);
 
 #if (FEATURE_OFF == FEATURE_SKB_EXP)
 VOS_INT32 ADS_DL_IpfAdqEmptyCB(IPF_ADQ_EMPTY_E eAdqEmpty);
-VOS_VOID ADS_DL_ProcIpfAdqEmtpyEvent(VOS_VOID);
 VOS_VOID ADS_DL_RcvTiAdqEmptyExpired(
     VOS_UINT32                          ulParam,
     VOS_UINT32                          ulTimerName

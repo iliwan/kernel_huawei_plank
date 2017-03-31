@@ -36,6 +36,8 @@
 #include <linux/proc_fs.h>
 
 #define PHONE_NAME_ALICE    "Alice"
+#define PHONE_NAME_CARMEL	"carmel"
+
 #define CY_DATA_HEAD_LEN      10
 #define CY_READ_CMD_MAX_LEN   128
 #define CY_READ_DATA_LEN      100

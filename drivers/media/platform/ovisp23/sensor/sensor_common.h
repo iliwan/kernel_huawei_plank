@@ -82,6 +82,8 @@
 #define REG_GPIO_R_REQ_CTRL_72        	(0x63d72)
 #define REG_GPIO_R_REQ_CTRL_74        	(0x63d74)
 
+#define MAX_WRITE_READ_SEQ_SIZE    (4096)
+
 /********************extern function declare**************************/
 int hisi_sensor_power_up(struct hisi_sensor_ctrl_t *s_ctrl);
 int hisi_sensor_power_down(struct hisi_sensor_ctrl_t *s_ctrl);
@@ -89,5 +91,8 @@ int hisi_sensor_i2c_read(struct hisi_sensor_ctrl_t *s_ctrl, void *data);
 int hisi_sensor_i2c_write(struct hisi_sensor_ctrl_t *s_ctrl, void *data);
 int hisi_sensor_i2c_read_seq(struct hisi_sensor_ctrl_t *s_ctrl, void *data);
 int hisi_sensor_i2c_write_seq(struct hisi_sensor_ctrl_t *s_ctrl, void *data);
+int hisi_sensor_apply_expo_gain(struct hisi_sensor_ctrl_t *s_ctrl, void *data);
+int hisi_sensor_suspend_eg_task(struct hisi_sensor_ctrl_t *s_ctrl, void *data);
+int hisi_sensor_apply_bshutter_expo_gain(struct hisi_sensor_ctrl_t *s_ctrl, void *data);
 
 #endif /*_SENSOR_DRIVER_H_*/

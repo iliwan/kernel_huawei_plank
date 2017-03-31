@@ -465,6 +465,10 @@ jmem_init(
     mm->free_page_count = mm->num_pages;
     mm->alloc_page_count = 0;
 
+    if (NULL == mm->page_list) {
+        return -1;
+    }
+
     for (i=0; i<mm->num_pages; i++) {
         mm->page_list[i].pageno       = i;
         mm->page_list[i].addr         = mm->base_addr + i*JMEM_PAGE_SIZE;

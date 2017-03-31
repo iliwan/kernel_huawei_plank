@@ -30,6 +30,8 @@ HWLOG_REGIST();
 
 static struct dsm_server g_dsm_server;
 static struct work_struct dsm_work;
+static struct dsm_client *ext_dsm_client[EXTERN_DSM_CLIENT_MAX];
+static struct dsm_dev ext_dev[EXTERN_DSM_CLIENT_MAX];
 
 struct dsm_client *dsm_register_client (struct dsm_dev *dev)
 {
@@ -300,6 +302,35 @@ out:
 	return client;
 }
 
+static int dsm_register_extern_client(struct dsm_extern_client* ext_client)
+{
+	static int ext_client_cnt = 0;
+
+	ext_dev[ext_client_cnt].buff_size = ext_client->buf_size;
+	ext_dev[ext_client_cnt].name = ext_client->client_name;
+
+	if (0 >= ext_dev[ext_client_cnt].buff_size || NULL == ext_dev[ext_client_cnt].name
+			|| ext_client_cnt >= EXTERN_DSM_CLIENT_MAX) {
+		DSM_LOG_ERR("[dsm_register_extern_client]client name or buf_size is fault."
+				"don't register!\n");
+		return -ENOENT;
+	} else if (NULL != dsm_find_client(ext_dev[ext_client_cnt].name)) {
+		DSM_LOG_ERR("[dsm_register_extern_client]register %s has exist, dont register again!\n",
+				ext_dev[ext_client_cnt].name);
+		return -EEXIST;
+	}
+
+	ext_dsm_client[ext_client_cnt] = dsm_register_client(&ext_dev[ext_client_cnt]);
+	if (!ext_dsm_client[ext_client_cnt]) {
+		DSM_LOG_ERR("[dsm_register_extern_client]register %s failed!\n",
+				ext_dev[ext_client_cnt].name);
+		return -ENOMEM;
+	}
+
+	ext_client_cnt++;
+	return 0;
+}
+
 static inline void dsm_client_set_idle(struct dsm_client *client)
 {
 	client->used_size = 0;
@@ -508,6 +539,7 @@ static long dsm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	long ret = 0;
 	int error = 0;
 	char buff[CLIENT_NAME_LEN]={0};
+	struct dsm_extern_client tmp_ext_client;
 
 	DSM_LOG_DEBUG("%s enter,\n",__func__);
 
@@ -595,6 +627,14 @@ static long dsm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				ret = copy_to_user(argp, client->module_name, DSM_MAX_MODULE_NAME_LEN);
 			} else {
 				ret = -ENXIO;
+			}
+			break;
+		case DSM_IOCTL_REGISTER_EXTERN_CLIENT:
+			if (copy_from_user(&tmp_ext_client, (struct dsm_extern_client *)arg,
+				sizeof(struct dsm_extern_client))) {
+				ret = -EFAULT;
+			} else {
+				dsm_register_extern_client(&tmp_ext_client);
 			}
 			break;
 		default:

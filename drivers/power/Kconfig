@@ -369,7 +369,7 @@ config MTCMOS_HI6XXX
 
 config POWER_HUAWEI
     bool "huawei power driver"
-    default y
+    default n
 	help
 		support huawei power driver
 

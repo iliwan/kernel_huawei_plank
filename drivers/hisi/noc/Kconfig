@@ -33,3 +33,10 @@ config HISI_NOC_HI3650_PLATFORM
 	help
 	   platform	   
 
+
+config HISI_NOC_HI3630_PLATFORM
+        depends on HISI_NOC
+        bool "Support HiSilicon Hisi NOC"
+        default n
+        help
+           platform

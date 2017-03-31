@@ -46,7 +46,7 @@ static void mali_control_timer_callback(void *arg)
 #endif
 		}
 
-		if (MALI_TRUE == need_add_timer) {
+		if ((MALI_TRUE == need_add_timer) && (0 != util_data->utilization_gpu)) {
 			mali_control_timer_add(mali_control_timeout);
 		}
 	}

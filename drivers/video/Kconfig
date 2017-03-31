@@ -42,7 +42,7 @@ config HDMI
 config HDMI_K3
         bool "K3 HDMI support"
         depends on ARCH_HISI
-        default y
+        default n
 config HDCP_ENABLE_K3
         bool "HDCP enable in K3 HDMI module"
         depends on HDMI_K3

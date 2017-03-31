@@ -194,10 +194,18 @@ s5k4e1ga_sunny_match_id(
     struct sensor_cfg_data *cdata = (struct sensor_cfg_data *)data;
     uint16_t sensor_id = 0;
     uint8_t modue_id = 0;
+    uint8_t retry = 0;
 
     cam_info("%s TODO.", __func__);
-
-    misp_get_module_info(sensor->board_info->sensor_index,&sensor_id,&modue_id);
+    for(retry = 0;retry < 2; retry++){
+        misp_get_module_info(sensor->board_info->sensor_index,&sensor_id,&modue_id);
+        if(sensor_id==0){
+            cam_info("%s try to read camera id again",__func__);
+            continue;
+        }else{
+            break;
+        }
+    }
 
     if(sensor_id == 0xf541) {
         cdata->data = sensor->board_info->sensor_index;
@@ -233,14 +241,23 @@ s5k4e1ga_sunny_config(
 	struct sensor_cfg_data *data;
 
 	int ret =0;
+	static bool s5ke1ga_power_on = false;
+	static bool csi_enable = false;
+
 	data = (struct sensor_cfg_data *)argp;
 	cam_debug("s5k4e1ga_sunny cfgtype = %d",data->cfgtype);
 	switch(data->cfgtype){
 		case SEN_CONFIG_POWER_ON:
-			ret = si->vtbl->power_up(si);
+			if(!s5ke1ga_power_on) {
+				ret = si->vtbl->power_up(si);
+				s5ke1ga_power_on = true;
+			}
 			break;
 		case SEN_CONFIG_POWER_OFF:
-			ret = si->vtbl->power_down(si);
+			if(s5ke1ga_power_on) {
+				ret = si->vtbl->power_down(si);
+				s5ke1ga_power_on = false;
+			}
 			break;
 		case SEN_CONFIG_WRITE_REG:
 			break;
@@ -251,10 +268,16 @@ s5k4e1ga_sunny_config(
 		case SEN_CONFIG_READ_REG_SETTINGS:
 			break;
 		case SEN_CONFIG_ENABLE_CSI:
-			ret = si->vtbl->csi_enable(si);
+			if(s5ke1ga_power_on && !csi_enable) {
+				ret = si->vtbl->csi_enable(si);
+				csi_enable = true;
+			}
 			break;
 		case SEN_CONFIG_DISABLE_CSI:
-			ret = si->vtbl->csi_disable(si);
+			if(s5ke1ga_power_on && csi_enable) {
+				ret = si->vtbl->csi_disable(si);
+				csi_enable = false;
+			}
 			break;
 		case SEN_CONFIG_MATCH_ID:
 			ret = si->vtbl->match_id(si,argp);

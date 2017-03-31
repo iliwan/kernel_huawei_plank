@@ -171,6 +171,7 @@ static int __write_jank_kernel(struct my_work_struct  *pjanklog)
 
 int log_to_jank(int tag, int prio, const char* fmt, ...)
 {
+    unsigned long           flags;
     va_list                 args;
     struct my_work_struct  *pWork = NULL;
     int                     len;
@@ -184,11 +185,11 @@ int log_to_jank(int tag, int prio, const char* fmt, ...)
     uptime = (u64)upts.tv_sec*1000 + upts.tv_nsec/1000000;
     realtime = (u64)realts.tv_sec*1000 + realts.tv_nsec/1000000;
 
-    raw_spin_lock(&janklog_spinlock);
+    raw_spin_lock_irqsave(&janklog_spinlock, flags);
     if (!bInited)
     {
         hwlog_err("janklog_workqueue is null.\n");
-        raw_spin_unlock(&janklog_spinlock);
+        raw_spin_unlock_irqrestore(&janklog_spinlock, flags);
         return -1;
     }
     pWork = &janklog_work[nwork_index];
@@ -203,7 +204,7 @@ int log_to_jank(int tag, int prio, const char* fmt, ...)
     {
         pWork = NULL;
     }
-    raw_spin_unlock(&janklog_spinlock);
+    raw_spin_unlock_irqrestore(&janklog_spinlock, flags);
 
     if (NULL == pWork)
     {

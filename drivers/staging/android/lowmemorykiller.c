@@ -39,10 +39,9 @@
 #include <linux/sched.h>
 #include <linux/rcupdate.h>
 #include <linux/notifier.h>
-#include <linux/mutex.h>
-#include <linux/delay.h>
 #include <linux/swap.h>
 #include <linux/fs.h>
+#include <linux/freezer.h>
 
 #ifdef CONFIG_HIGHMEM
 #define _ZONE ZONE_HIGHMEM
@@ -54,7 +53,6 @@
 #endif
 
 static uint32_t lowmem_debug_level = 1;
-static int lowmem_dumpmem_adj = 1000;
 static short lowmem_adj[6] = {
 	0,
 	1,
@@ -71,8 +69,8 @@ static int lowmem_minfree[6] = {
 static int lowmem_minfree_size = 4;
 static int lmk_fast_run = 1;
 
-static ulong lowmem_kill_count = 0;
-static ulong lowmem_free_mem = 0;
+static ulong lowmem_kill_count;
+static ulong lowmem_free_mem;
 
 static unsigned long lowmem_deathpending_timeout;
 
@@ -81,22 +79,7 @@ static unsigned long lowmem_deathpending_timeout;
 		if (lowmem_debug_level >= (level))	\
 			pr_info(x);			\
 	} while (0)
-static int test_task_flag(struct task_struct *p, int flag)
-{
-	struct task_struct *t = p;
 
-	do {
-		task_lock(t);
-		if (test_tsk_thread_flag(t, flag)) {
-			task_unlock(t);
-			return 1;
-		}
-		task_unlock(t);
-	} while_each_thread(p, t);
-
-	return 0;
-}
-static DEFINE_MUTEX(scan_mutex);
 int can_use_cma_pages(gfp_t gfp_mask)
 {
 	int can_use = 0;
@@ -147,21 +130,23 @@ void tune_lmk_zone_param(struct zonelist *zonelist, int classzone_idx,
 							       NR_FILE_PAGES)
 					      - zone_page_state(zone, NR_SHMEM);
 		} else if (zone_idx < classzone_idx) {
-			if (zone_watermark_ok(zone, 0, 0, classzone_idx, 0)) {
-				if (!use_cma_pages) {
-					*other_free -= min(
-					  zone->lowmem_reserve[classzone_idx] +
-					  zone_page_state(
-					    zone, NR_FREE_CMA_PAGES),
-					  zone_page_state(
-					    zone, NR_FREE_PAGES));
+			if (other_free != NULL) {
+				if (zone_watermark_ok(zone, 0, 0, classzone_idx, 0)) {
+					if (!use_cma_pages) {
+						*other_free -= min(
+						  zone->lowmem_reserve[classzone_idx] +
+						  zone_page_state(
+						    zone, NR_FREE_CMA_PAGES),
+						  zone_page_state(
+						    zone, NR_FREE_PAGES));
+					} else {
+						*other_free -=
+						  zone->lowmem_reserve[classzone_idx];
+					}
 				} else {
 					*other_free -=
-					  zone->lowmem_reserve[classzone_idx];
+						   zone_page_state(zone, NR_FREE_PAGES);
 				}
-			} else {
-				*other_free -=
-					   zone_page_state(zone, NR_FREE_PAGES);
 			}
 		}
 	}
@@ -294,6 +279,18 @@ static void dump_meminfo(void)
 	dump_tasks();
 }
 
+static void dump_threads(struct task_struct *tsk)
+{
+	struct task_struct *t;
+
+	for_each_thread(tsk, t) {
+		lowmem_print(1,
+			     "pid=%d tgid=%d %s mm=%d frozen=%d 0x%lx 0x%x\n",
+			     t->pid, t->tgid, t->comm, t->mm ? 1 : 0,
+			     frozen(t), t->state, t->flags);
+	}
+}
+
 static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 {
 	struct task_struct *tsk;
@@ -309,11 +306,8 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	int other_free;
 	int other_file;
 	unsigned long nr_to_scan = sc->nr_to_scan;
+	static atomic_t atomic_lmk = ATOMIC_INIT(0);
 
-	if (nr_to_scan > 0) {
-		if (mutex_lock_interruptible(&scan_mutex) < 0)
-			return 0;
-	}
 	other_free = global_page_state(NR_FREE_PAGES);
 
 	if (global_page_state(NR_SHMEM) + total_swapcache_pages() <
@@ -349,12 +343,14 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		lowmem_print(5, "lowmem_shrink %lu, %x, return %d\n",
 			     nr_to_scan, sc->gfp_mask, rem);
 
-		if (nr_to_scan > 0)
-			mutex_unlock(&scan_mutex);
-
 		return rem;
 	}
 	selected_oom_score_adj = min_score_adj;
+
+	if (atomic_inc_return(&atomic_lmk) > 1) {
+		atomic_dec(&atomic_lmk);
+		return 0;
+	}
 
 	rcu_read_lock();
 	for_each_process(tsk) {
@@ -364,19 +360,24 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		if (tsk->flags & PF_KTHREAD)
 			continue;
 
-		if (time_before_eq(jiffies, lowmem_deathpending_timeout)) {
-			if (test_task_flag(tsk, TIF_MEMDIE)) {
-				rcu_read_unlock();
-				/* give the system time to free up the memory */
-				msleep_interruptible(20);
-				mutex_unlock(&scan_mutex);
-				return 0;
-			}
-		}
-
 		p = find_lock_task_mm(tsk);
 		if (!p)
 			continue;
+
+		if (test_tsk_thread_flag(p, TIF_MEMDIE)) {
+			if (time_before_eq(jiffies,
+					   lowmem_deathpending_timeout)) {
+				task_unlock(p);
+				rcu_read_unlock();
+				atomic_dec(&atomic_lmk);
+				return 0;
+			} else {
+				lowmem_print(1, "timeout '%s' (%d)\n",
+					     p->comm, p->pid);
+				dump_threads(tsk);
+				show_stack(p, NULL);
+			}
+		}
 
 		oom_score_adj = p->signal->oom_score_adj;
 		if (oom_score_adj < min_score_adj) {
@@ -401,11 +402,11 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			     p->comm, p->pid, oom_score_adj, tasksize);
 	}
 	if (selected) {
-		lowmem_print(1, "Killing '%s' (%d), adj %hd,\n" \
+		lowmem_print(1, "Killing '%s' (%d), tgid=%d, adj %hd,\n" \
 				"   to free %ldkB on behalf of '%s' (%d) because\n" \
 				"   cache %ldkB is below limit %ldkB for oom_score_adj %hd\n" \
 				"   Free memory is %ldkB above reserved\n",
-			     selected->comm, selected->pid,
+			     selected->comm, selected->pid, selected->tgid,
 			     selected_oom_score_adj,
 			     selected_tasksize * (long)(PAGE_SIZE / 1024),
 			     current->comm, current->pid,
@@ -413,29 +414,33 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			     minfree * (long)(PAGE_SIZE / 1024),
 			     min_score_adj,
 			     other_free * (long)(PAGE_SIZE / 1024));
-		lowmem_deathpending_timeout = jiffies + HZ;
-		if (lowmem_dumpmem_adj >= 0 && selected_oom_score_adj <= lowmem_dumpmem_adj) {
+
+		if (selected_oom_score_adj == 0)
 			dump_meminfo();
-		}
 
 		lowmem_kill_count++;
 		lowmem_free_mem += selected_tasksize * (long)(PAGE_SIZE / 1024) / 1024;
 
 #ifdef CONFIG_HUAWEI_KSTATE
-        hwkillinfo(selected->tgid, SIGKILL);
+		hwkillinfo(selected->tgid, 0); /* 0 stand for low memory kill */
 #endif
+
+		task_lock(selected);
 		send_sig(SIGKILL, selected, 0);
-		set_tsk_thread_flag(selected, TIF_MEMDIE);
+		if (selected->mm) {
+			set_tsk_thread_flag(selected, TIF_MEMDIE);
+			__thaw_task(selected);
+		}
+		task_unlock(selected);
+
+		lowmem_deathpending_timeout = jiffies + HZ;
 		rem -= selected_tasksize;
-		rcu_read_unlock();
-		/* give the system time to free up the memory */
-		msleep_interruptible(20);
-	} else
-		rcu_read_unlock();
+	}
 
 	lowmem_print(4, "lowmem_shrink %lu, %x, return %d\n",
 		     nr_to_scan, sc->gfp_mask, rem);
-	mutex_unlock(&scan_mutex);
+	rcu_read_unlock();
+	atomic_dec(&atomic_lmk);
 	return rem;
 }
 
@@ -549,7 +554,6 @@ module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
 			 S_IRUGO | S_IWUSR);
 module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
 module_param_named(lmk_fast_run, lmk_fast_run, int, S_IRUGO | S_IWUSR);
-module_param_named(debug_dumpmem_adj, lowmem_dumpmem_adj, int, S_IRUGO | S_IWUSR);
 module_param_named(kill_count, lowmem_kill_count, ulong, S_IRUGO | S_IWUSR);
 module_param_named(free_mem, lowmem_free_mem, ulong, S_IRUGO | S_IWUSR);
 

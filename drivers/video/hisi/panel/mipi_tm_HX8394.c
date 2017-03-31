@@ -43,7 +43,7 @@
 #include <huawei_platform/log/log_jank.h>
 
 #if defined (CONFIG_HUAWEI_DSM)
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #endif
 
 #define PWM_LEVEL 100
@@ -68,7 +68,7 @@ static char tm_power_on_param2[] =
 static char tm_power_on_param3[] =
 {
     0xB1,
-    0x6C, 0x0E, 0x0E, 0x37, 0x04, 0x11, 0xF1, 0x80, 0xE8, 0x95, 0x23, 0x80, 0xC0, 0xD2, 0x18,
+    0x7C, 0x0B, 0x11, 0x37, 0x04, 0x11, 0xF1, 0x80, 0xE1, 0x4D, 0x23, 0x80, 0xC0, 0xD2, 0x18,
 };
 
 static char tm_power_on_param4[] =
@@ -80,14 +80,9 @@ static char tm_power_on_param4[] =
 static char tm_power_on_param5[] =
 {
     0xB4,
-    0x00, 0xFF, 0x03, 0x50, 0x03, 0x50, 0x03, 0x50, 0x01, 0x6A, 0x01, 0x6A,
+    0x00, 0xFF, 0x03, 0x50, 0x03, 0x50, 0x03, 0x50, 0x01, 0x6A, 0x01, 0x5A,
 };
 
-static char tm_power_on_param6[] =
-{
-    0xBF,
-    0x41, 0x0E, 0x01,
-};
 // as CTP spec. GIP timing  20141025
 static char tm_power_on_param7[] =
 {
@@ -110,7 +105,7 @@ static char tm_power_on_param9[] =
 static char tm_power_on_param10[] =
 {
     0xE0,
-    0x07, 0x1F, 0x23, 0x38, 0x3B, 0x3F, 0x2E, 0x46, 0x08, 0x0B, 0x0D, 0x17, 0x0F, 0x12, 0x15, 0x13, 0x14, 0x08, 0x12, 0x16, 0x19, 0x07, 0x1F, 0x23, 0x38, 0x3B, 0x3F, 0x2E, 0x46, 0x08, 0x0B, 0x0D, 0x17, 0x0F, 0x12, 0x15, 0x13, 0x14, 0x08, 0x12, 0x16, 0x19,
+    0x07, 0x1F, 0x23, 0x38, 0x3B, 0x3F, 0x2E, 0x48, 0x08, 0x0B, 0x0D, 0x17, 0x0E, 0x11, 0x13, 0x11, 0x13, 0x07, 0x12, 0x16, 0x19, 0x07, 0x1F, 0x23, 0x38, 0x3B, 0x3F, 0x2E, 0x48, 0x08, 0x0B, 0x0D, 0x17, 0x0E, 0x11, 0x13, 0x11, 0x13, 0x07, 0x12, 0x16, 0x19,
 };
 // set Gamma code
 static char tm_power_on_param11[] =
@@ -129,23 +124,13 @@ static char tm_power_on_param13[] =
     0x30, 0x14,
 };
 
-static char tm_power_on_param14[] =
-{
-    0xBC,
-    0x07,
-};
 
 static char tm_power_on_PWM[] =
 {
     0xC9,
-    0x1F, 0x00, 0x12, 0x1E, 0x81, 0x1E, 0x00,
+    0x1F, 0x00, 0x0E, 0x1E, 0x01, 0x1E, 0x00, 0x80, 0x44,
 };
 
-static char tm_power_on_param15[] =
-{
-    0x35,
-    0x00 ,
-};
 // The reg E4h/E5h/E6h is used for CE function.
 static char tm_power_on_param16[] =
 {
@@ -343,18 +328,14 @@ static struct dsi_cmd_desc tm_display_on_cmds[] =
     },
     {
         DTYPE_DCS_LWRITE, 0, 100, WAIT_TYPE_US,
-        sizeof(tm_power_on_param6), tm_power_on_param6
-    },
-    {
-        DTYPE_DCS_LWRITE, 0, 100, WAIT_TYPE_US,
         sizeof(tm_power_on_param7), tm_power_on_param7
     },
     {
-        DTYPE_DCS_LWRITE, 0, 100, WAIT_TYPE_US,
+        DTYPE_DCS_LWRITE, 0, 5, WAIT_TYPE_MS,
         sizeof(tm_power_on_param8), tm_power_on_param8
     },
     {
-        DTYPE_DCS_LWRITE, 0, 100, WAIT_TYPE_US,
+        DTYPE_DCS_LWRITE, 0, 5, WAIT_TYPE_MS,
         sizeof(tm_power_on_param9), tm_power_on_param9
     },
     {
@@ -375,18 +356,10 @@ static struct dsi_cmd_desc tm_display_on_cmds[] =
     },
     {
         DTYPE_DCS_LWRITE, 0, 100, WAIT_TYPE_US,
-        sizeof(tm_power_on_param14), tm_power_on_param14
-    },
-    {
-        DTYPE_DCS_LWRITE, 0, 100, WAIT_TYPE_US,
         sizeof(tm_power_on_PWM), tm_power_on_PWM
     },
     {
-        DTYPE_DCS_WRITE1, 0, 100, WAIT_TYPE_US,
-        sizeof(tm_power_on_param15), tm_power_on_param15
-    },
-	{
-        DTYPE_DCS_LWRITE, 0, 100, WAIT_TYPE_US,
+        DTYPE_DCS_LWRITE, 0, 5, WAIT_TYPE_MS,
         sizeof(tm_power_on_param16), tm_power_on_param16
     },
     {
@@ -917,9 +890,17 @@ static int mipi_tm_panel_set_backlight(struct platform_device* pdev)
         vcc_cmds_tx(NULL, tm_lcd_bl_enable_cmds, \
                     ARRAY_SIZE(tm_lcd_bl_enable_cmds));
     }
-    last_level = level;
+    #ifdef FINAL_RELEASE_MODE
+    if ((level == 0) || (last_level == 0 && level !=0))
+    {
+        //modified for beta test, it will be modified after beta test.
+        balongfb_loge(" set backlight succ ,balongfd->bl_level = %d, level = %d \n",balongfd->bl_level,level);
+    }
+    #else
     //modified for beta test, it will be modified after beta test.
-    balongfb_loge(" set backlight succ ,balongfd->bl_level = %d, level = %d \n", balongfd->bl_level, level);
+    balongfb_logi(" set backlight succ ,balongfd->bl_level = %d, level = %d \n",balongfd->bl_level,level);
+    #endif
+    last_level = level;
 
     if (unlikely(g_debug_enable)) {
         LOG_JANK_D(JLID_KERNEL_LCD_BACKLIGHT_ON, "JL_KERNEL_LCD_BACKLIGHT_ON,%u", level);

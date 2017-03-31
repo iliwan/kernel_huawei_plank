@@ -300,8 +300,10 @@ int hw_flash_config(struct hw_flash_ctrl_t *flash_ctrl, void *arg)
         break;
     case CFG_FLASH_GET_FLASH_NAME:
         mutex_lock(flash_ctrl->hw_flash_mutex);
-        strncpy(cdata->cfg.name, flash_ctrl->flash_info.name,
-            sizeof(cdata->cfg.name) - 1);
+        memset(cdata->cfg.name, 0, sizeof(cdata->cfg.name));
+        if (flash_ctrl->flash_info.name)
+            strncpy(cdata->cfg.name, flash_ctrl->flash_info.name,
+                    sizeof(cdata->cfg.name) - 1);
         mutex_unlock(flash_ctrl->hw_flash_mutex);
         break;
     case CFG_FLASH_GET_FLASH_STATE:

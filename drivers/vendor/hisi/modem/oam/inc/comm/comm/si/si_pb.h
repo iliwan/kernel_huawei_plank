@@ -735,6 +735,8 @@ extern VOS_VOID SI_PB_InitIAPContentMsgProc(PBMsgBlock *pstMsg);
 
 extern VOS_VOID SI_PB_InitSYNCHProc(PBMsgBlock *pstMsg);
 
+extern VOS_VOID SI_PB_InitInfoAppDebug(PBMsgBlock *pstMsg);
+
 extern VOS_UINT16  SI_PB_TransferFileCnt2ExtFileID(VOS_UINT32 PBFileCnt, VOS_UINT32 *pulPBType);
 
 extern VOS_VOID SI_PB_SearchResultProc(VOS_UINT8 *pucReadString, VOS_UINT8 *pucSearchResult, VOS_UINT8 ucMatchNum, VOS_UINT8 ucTotalNum);

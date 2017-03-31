@@ -1478,7 +1478,7 @@ STATIC inline int32 expand_assemble_info_space(struct sk_buff* skb)
         hdr      = *((struct hcc_header *)skb->data);
         new_hdr  = (struct hcc_header *)(__skb_push(skb, HCC_ASSEMBLE_INFO_SIZE));
         *new_hdr = hdr;
-        new_hdr->option = 1;
+        new_hdr->option = 1;
     }
     else
     {
@@ -3946,8 +3946,7 @@ struct hcc_handler* hcc_alloc(struct hi110x_device *hi110x_dev, struct iodevice 
     hcc->assembled_cnt = 0;
     hcc_assemble_count = MIN(hcc_assemble_count, (uint32)HCC_MAX_ASSEMBLE_NUM);
     HWIFI_PERFORM("Hcc max assemble count %u", hcc_assemble_count);
-
-    hcc->tx_buf_size = MIN(bus_get_max_transfer_size(io_dev), (uint32)TXRX_BUF_MAX_SIZE);
+    hcc->tx_buf_size = HCC_MAX_ASSEMBLE_NUM * SINGLE_PACKET_MAX_SIZE;
     HWIFI_INFO("Hcc max tx buf size %u", hcc->tx_buf_size);
     hwifi_union_log_register(&hwifi_hcc_log, (void*)hcc);
     hcc->tx_buf = (uint8 *)kzalloc(hcc->tx_buf_size, GFP_KERNEL);

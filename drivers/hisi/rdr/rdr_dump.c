@@ -58,10 +58,16 @@ int rdr_wait4partition(char *path, int timeouts)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_POSTFSDATA
+extern int wait_for_postfsdata(unsigned int timeout);
+#endif
 int wait_for_fs_ready(void)
 {
 	int ret = 0;
 
+#ifdef CONFIG_PROC_POSTFSDATA
+	wait_for_postfsdata(0);
+#endif
 	ret += rdr_wait4partition("/data/lost+found", 30);
 	ret += rdr_wait4partition("/dev/block", 30);
 
@@ -300,7 +306,10 @@ int rdr_mov2up(char *fullname, char *dstfullname, u32 arg2)
 
 #define RDRDIRSIZ 1024
 
-int rdr_dir_list(char *path, rdr_funcptr_3 f, u64 arg1, u64 arg2, int *cnt, int type)
+int rdr_dir_list(char *path, rdr_funcptr_3 f,
+        unsigned long  arg1,
+        unsigned long  arg2,
+        int *cnt, int type)
 {
 	int fd = -1, nread, bpos, ret = 0, tmp_cnt = 0;
 	char *buf;
@@ -344,8 +353,7 @@ int rdr_dir_list(char *path, rdr_funcptr_3 f, u64 arg1, u64 arg2, int *cnt, int 
 			d_type = *(buf + bpos + d->d_reclen - 1);
 			if ((d_type == type) && (f != NULL)) {
 				snprintf(fullname, sizeof(fullname), "%s%s", path, d->d_name);
-				rdr_debug("fullname:%s", fullname);
-				f((u64)fullname, arg1, arg2);
+				f((unsigned long )fullname, arg1, arg2);
 			}
 			if (d_type == type)
 				tmp_cnt++;
@@ -439,7 +447,7 @@ int rdr_rm_dir(char *path)
 
 #define RDR_RGZNAME_SZ 64
 
-int rdr_get_8m_name(char *fullname, u64 rgz_name_tab, u32 cnt)
+int rdr_get_8m_name(char *fullname, unsigned long  rgz_name_tab, u32 cnt)
 {
 	int i;
 	char *tab = (char *)rgz_name_tab;
@@ -466,7 +474,7 @@ int rdr_get_8m_name(char *fullname, u64 rgz_name_tab, u32 cnt)
 #define RDR_TIME_DIR_FORMAT "20110101105748_00085.128125"
 #define RDR_DIR_LEN strlen(RDR_TIME_DIR_FORMAT)
 
-int rdr_get_timedir_name(char *fullname, u64 rgz_name_tab, u32 cnt)
+int rdr_get_timedir_name(char *fullname, unsigned long rgz_name_tab, u32 cnt)
 {
 	int i;
 	char *tab = (char *)rgz_name_tab;
@@ -488,7 +496,7 @@ int rdr_get_timedir_name(char *fullname, u64 rgz_name_tab, u32 cnt)
 	return 0;
 }
 
-int rdr_getname(char *fullname, u64 rgz_name_tab, u32 cnt)
+int rdr_getname(char *fullname, unsigned long  rgz_name_tab, u32 cnt)
 {
 	int i;
 	char *tab = (char *)rgz_name_tab;
@@ -508,7 +516,7 @@ int rdr_getname(char *fullname, u64 rgz_name_tab, u32 cnt)
 	return 0;
 }
 
-int rdr_file2zfile(char *fullname, u64 zipfd, u64 zip_head)
+int rdr_file2zfile(char *fullname, unsigned long  zipfd, unsigned long zip_head)
 {
 	int ret, fd, i, j, out_cnt, err = 0, in_len;
 	struct rdr_zip_file *zfile = (struct rdr_zip_file *)zip_head;
@@ -669,7 +677,7 @@ int rdr_zip_dir(char *path, char *rgz, size_t rgz_flen)
 			return -1;
 		}
 		rdr_dir_list(path, (rdr_funcptr_3)rdr_file2zfile,
-					(u64)zipfd, (u64)dst, &ret, DT_REG);
+					(unsigned long )zipfd, (unsigned long )dst, &ret, DT_REG);
 
 		/* exit zip env */
 		rdr_zip_init(0);
@@ -850,7 +858,7 @@ void rdr_rm_over3_file(char *path)
 		}
 		memset(name_tab, 0, tab_siz);
 		rdr_dir_list(path, (rdr_funcptr_3)rdr_get_timedir_name,
-				(u64)name_tab, (u64)ret, (int *)0, DT_DIR);
+				(unsigned long )name_tab, (unsigned long )ret, (int *)0, DT_DIR);
 
 		for (i = 0; i < ret; i++) {
 			pn = name_tab + i * RDR_RGZNAME_SZ;
@@ -922,7 +930,7 @@ void rdr_upload(char *path, char *timedir, char *ecore)
 		}
 		memset(name_tab, 0, tab_siz);
 		rdr_dir_list(dst, (rdr_funcptr_3)rdr_get_8m_name,
-				(u64)name_tab, (u64)ret, (int *)0, DT_REG);
+				(unsigned long )name_tab, (unsigned long )ret, (int *)0, DT_REG);
 
 		for (i = 0; i < ret; i++) {
 			pn = name_tab + i * RDR_RGZNAME_SZ;
@@ -1014,7 +1022,7 @@ void rdr_upload_and_archive(char *path, char *timedir, char *ecore)
 	rdr_dir_list(dst, (rdr_funcptr_3)rdr_rm_file, 0, 0, (int *)0, DT_REG);
 
 	/* find dfx/rdr/rdx file and mov to up dir */
-	rdr_dir_list(path, (rdr_funcptr_3)rdr_mov2up, (u64)dst, 0, (int *)0, DT_REG);
+	rdr_dir_list(path, (rdr_funcptr_3)rdr_mov2up, (unsigned long )dst, 0, (int *)0, DT_REG);
 	rdr_dir_list(dst, NULL, 0, 0, &ret, DT_REG);
 	if (ret > 1) {
 		char *name_tab;
@@ -1028,7 +1036,7 @@ void rdr_upload_and_archive(char *path, char *timedir, char *ecore)
 		}
 		memset(name_tab, 0, tab_siz);
 		rdr_dir_list(dst, (rdr_funcptr_3)rdr_getname,
-				(u64)name_tab, (u64)ret, (int *)0, DT_REG);
+				(unsigned long )name_tab, (unsigned long )ret, (int *)0, DT_REG);
 		sort(name_tab, ret, RDR_RGZNAME_SZ, rdr_cmp, NULL);
 
 		for (i = 0; i < ret; i++) {
@@ -1112,7 +1120,7 @@ void rdr_upload_and_archive(char *path, char *timedir, char *ecore)
 		}
 		memset(rgz_name_tab, 0, tab_siz);
 		rdr_dir_list(dst, (rdr_funcptr_3)rdr_getname,
-				(u64)rgz_name_tab, (u64)ret, (int *)0, DT_REG);
+				(unsigned long )rgz_name_tab, (unsigned long )ret, (int *)0, DT_REG);
 		sort(rgz_name_tab, ret, RDR_RGZNAME_SZ, rdr_cmp, NULL);
 
 		for (i = 0; i < (ret - 3); i++) {
@@ -1411,12 +1419,21 @@ int rdr_loopwrite_open(char *filename, int *fd)
 {
 	int ret = 0;
 
+#ifdef CONFIG_ARM64
 	ret = rdr_create_dir(filename);
 	if (0 != ret) {
 		pr_err("<%s()>, create dir [%s] failed! ret = %d\n",
 				__func__, filename, ret);
 		goto out;
 	}
+#else
+    ret = rdr_create_dir(OM_ROOT_PATH);
+	if (0 != ret) {
+		pr_err("<%s()>, create dir [%s] failed! ret = %d\n",
+				__func__, OM_ROOT_PATH, ret);
+		goto out;
+	}
+#endif
 
 	ret = sys_access(filename, 0);
 	if (ret == 0) {

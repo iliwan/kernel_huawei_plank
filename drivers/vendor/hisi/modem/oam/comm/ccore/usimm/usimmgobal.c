@@ -110,6 +110,10 @@ VOS_UINT8                           *g_pucUSIMMVsimData = VOS_NULL_PTR;
 #endif
 
 
+VOS_UINT32                          g_ulCsimSessionId = VOS_NULL_DWORD;
+
+
+
 USIMM_FEATURE_CFG_STRU              g_stUsimmFeatureCfg;
 
 VOS_UINT32                          g_ulATTSpecErrSWCnt;    /* ATT特殊处理的SW计数 */
@@ -830,7 +834,8 @@ USIMM_CARD_INIT_FUNC g_aUsimInitCardProcFuncTbl[USIMM_INIT_USIM_CARD_NUM]=
     {USIMM_AdjudgeCardState         },
     {USIMM_InitUsimEccFile          },
     {USIMM_InsertLPFileToPool       },
-    {USIMM_InitUsimCardFileMap      }
+    {USIMM_InitUsimCardFileMap      },
+    {USIMM_OpenChannelForCSIM       }
 };
 
 /*Sim 卡初始化过程函数列表*/

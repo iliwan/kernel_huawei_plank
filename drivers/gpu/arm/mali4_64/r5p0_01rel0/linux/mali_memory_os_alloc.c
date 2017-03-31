@@ -153,7 +153,7 @@ static int mali_mem_os_alloc_pages(mali_mem_allocation *descriptor, u32 size)
 #else
 	/* After 3.15.0 kernel use ZONE_DMA replace ZONE_DMA32 */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 15, 0)
-		flags |= GFP_DMA32;
+		flags |= GFP_DMA32 | GFP_USER;
 #else
 		flags |= GFP_DMA;
 #endif

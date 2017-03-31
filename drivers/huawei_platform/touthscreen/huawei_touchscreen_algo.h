@@ -8,7 +8,7 @@
 #define TP_GLOVE 				6
 #define FILTER_GLOVE_NUMBER	4
 
-#define PEN_MOV_LENGTH      50   //move length (pixels)
+#define PEN_MOV_LENGTH      120  //move length (pixels)
 #define FINGER_REL_TIME     300  //the time pen checked after finger released shouldn't less than this value(ms)
 
 enum TP_state_machine {

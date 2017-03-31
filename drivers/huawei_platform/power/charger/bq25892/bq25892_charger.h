@@ -294,13 +294,13 @@ struct bq25892_device_info {
 #define BOOSTV_MAX_5510             (5510)
 #define BOOSTV_STEP_64                 (64)
 #define BOOST_LIM_MIN_500       (500)
-#define BOOST_LIM_MIN_700        (700)
-#define BOOST_LIM_MIN_1100        (1100)
-#define BOOST_LIM_MIN_1300        (1300)
-#define BOOST_LIM_MIN_1600        (1600)
-#define BOOST_LIM_MIN_1800        (1800)
-#define BOOST_LIM_MIN_2100        (2100)
-#define BOOST_LIM_MAX_2400      (2400)
+#define BOOST_LIM_750        (750)
+#define BOOST_LIM_1200        (1200)
+#define BOOST_LIM_1400        (1400)
+#define BOOST_LIM_1650        (1650)
+#define BOOST_LIM_1875        (1875)
+#define BOOST_LIM_2150        (2150)
+#define BOOST_LIM_MAX_2450      (2450)
 
 
 

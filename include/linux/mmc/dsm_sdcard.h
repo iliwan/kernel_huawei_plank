@@ -1,7 +1,7 @@
 #ifndef LINUX_MMC_DSM_SDCARD_H
 #define LINUX_MMC_DSM_SDCARD_H
 
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 
 #define DSM_REPORT_UEVENT_TRUE 		  1
 #define DSM_REPORT_UEVENT_FALSE		  0	

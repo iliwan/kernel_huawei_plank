@@ -191,6 +191,10 @@ extern VOS_UINT32 NAS_SetLteRplmnId(TAF_PLMN_ID_STRU *pstPlmnId,
                                                                       VOS_UINT32 ulRac);
 
 
+/* Modified by c00318887 for DPlmn扩容和优先接入HPLMN, 2015-5-18, begin */
+VOS_VOID NAS_STUB_AT_ResetNplmn(VOS_VOID);
+/* Modified by c00318887 for DPlmn扩容和优先接入HPLMN, 2015-5-18, end */
+
 extern VOS_UINT32 NAS_SetDamCfg(
      VOS_UINT8 ucEnableLteTrigPlmnSearch,
      VOS_UINT8 ucAddDamPlmnInDisabledPlmnList,
@@ -200,6 +204,11 @@ extern VOS_UINT32 NAS_SetDamCfg(
      TAF_PLMN_ID_STRU *pstDamPlmnList);
 extern  VOS_UINT32 NAS_SetTinType(VOS_UINT8  ucTinType);
 extern VOS_UINT32 NAS_SetPsBearerIsrFlg(VOS_UINT8  ucNsapi,VOS_UINT8  ucPdpIsrFlg,VOS_UINT8 ucPdpStatus);
+
+/* Added by c00318887 for file refresh需要触发背景搜, 2015-4-28, begin */
+extern VOS_UINT32 NAS_SetHighPrioPlmnRefreshTriggerBGSearchCfg(VOS_UINT8 ulOnOff, VOS_UINT32 ulDelayLen);
+/* Added by c00318887 for file refresh需要触发背景搜, 2015-4-28, end */
+
 
 extern VOS_UINT32 NAS_SetPsRegContainDrx(VOS_UINT8 ucDrx);
 extern  VOS_UINT32 NAS_SetLteImsSupportFlag(VOS_UINT8 ucLteImsSupportFlg, VOS_UINT8 ucLteEmsSupportFlg);
@@ -1026,7 +1035,7 @@ TAF_UINT32 At_Gsm7BitFormat(TAF_UINT8   *pucSrc,
         pucDst[usIndex] = pucSrc[usIndex];
    }
 
-   *pusDstLen = usSrcLen;     /* [false alarm]: 不会越界 */         
+   *pusDstLen = usSrcLen;     /* [false alarm]: 不会越界 */
 
    return AT_SUCCESS;
 }
@@ -8575,6 +8584,102 @@ TAF_UINT32 At_SetCardATRPara(TAF_UINT8 ucIndex)
     {
         return AT_ERROR;
     }
+}
+
+/* Modified by c00318887 for file refresh需要触发背景搜, 2015-4-28, begin */
+
+VOS_UINT32 At_SetRefreshStub(VOS_UINT8 ucIndex)
+{
+    TAF_MMA_REFRESH_STUB_SET_REQ_STRU                       stRefreshStub;
+    VOS_UINT8                                               i;
+    VOS_UINT32                                              ulTotalNum;
+    VOS_UINT32                                              ulRefreshFileType;
+    VOS_UINT32                                              ulReceivePid;
+    VOS_UINT32                                              ulFileId;
+
+    ulTotalNum        = 0;
+    ulRefreshFileType = 0;
+    ulReceivePid      = 0;
+    ulFileId          = 0;
+    PS_MEM_SET(&stRefreshStub, 0, sizeof(stRefreshStub));
+
+
+    At_String2Hex(gastAtParaList[0].aucPara, gastAtParaList[0].usParaLen, &ulReceivePid);
+    At_String2Hex(gastAtParaList[1].aucPara, gastAtParaList[1].usParaLen, &ulRefreshFileType);
+    At_String2Hex(gastAtParaList[2].aucPara, gastAtParaList[2].usParaLen, &ulTotalNum);
+
+    stRefreshStub.ulReceivePid      = ulReceivePid;
+    stRefreshStub.ucTotalNum        = (VOS_UINT8)ulTotalNum;
+    stRefreshStub.usRefreshFileType = (VOS_UINT8)ulRefreshFileType;
+
+    if (stRefreshStub.ucTotalNum > TAF_MMA_MAX_FILE_ID_NUM)
+    {
+        stRefreshStub.ucTotalNum = TAF_MMA_MAX_FILE_ID_NUM;
+    }
+
+    for (i = 0; i < stRefreshStub.ucTotalNum; i++)
+    {
+        At_String2Hex(gastAtParaList[i+3].aucPara, gastAtParaList[i+3].usParaLen, &ulFileId);
+        stRefreshStub.ausEfId[i] = (VOS_UINT16)ulFileId;
+    }
+
+    TAF_SetRefreshStub(gastAtClientTab[ucIndex].usClientId,
+                    gastAtClientTab[ucIndex].opId,
+                    &stRefreshStub);
+
+    return AT_OK;
+}
+
+
+
+#if ( VOS_WIN32 == VOS_OS_VER )
+/*****************************************************************************
+ 函 数 名  : At_SetDelayBgStub
+ 功能描述  : 对 en_NV_Item_HIGH_PRIO_PLMN_REFRESH_TRIGGER_BG_SEARCH_CFG 打桩
+             AT^DELAYBGSTUB=<OnOff>,<DelayLen>
+             第1个参数为OnOff,1--使能，0--关闭
+             第2个参数为DelayLen ---延时时长，单位; 秒；
+ 输出参数  : VOS_VOID
+ 返 回 值  : VOS_VOID
+ 调用函数  :
+ 被调函数  :
+
+ 修改历史      :
+  1.日    期   : 2015年5月6日
+    作    者   : c00318887
+    修改内容   : 新增函数
+*****************************************************************************/
+VOS_UINT32 At_SetDelayBgStub(VOS_UINT8 ucIndex)
+{
+    VOS_UINT32                                              ulDelayLen;
+    VOS_UINT32                                              ulOnOff;
+
+    ulDelayLen        = 0;
+    ulOnOff          = 0;
+
+    At_String2Hex(gastAtParaList[0].aucPara, gastAtParaList[0].usParaLen, &ulOnOff);
+    At_String2Hex(gastAtParaList[1].aucPara, gastAtParaList[1].usParaLen, &ulDelayLen);
+
+    NAS_SetHighPrioPlmnRefreshTriggerBGSearchCfg((VOS_UINT8)ulOnOff, ulDelayLen);
+
+    return AT_OK;
+}
+#endif
+/* Added by c00318887 for file refresh需要触发背景搜, 2015-4-28, end */
+
+VOS_UINT32 At_SetAutoReselStub(VOS_UINT8 ucIndex)
+{
+    TAF_MMA_AUTO_RESEL_STUB_SET_REQ_STRU                    stAutoReselStub;
+
+    PS_MEM_SET(&stAutoReselStub, 0, sizeof(stAutoReselStub));
+
+    stAutoReselStub.ucActiveFlg = (VOS_UINT8)gastAtParaList[0].ulParaValue;
+
+    TAF_SetAutoReselStub(gastAtClientTab[ucIndex].usClientId,
+                    gastAtClientTab[ucIndex].opId,
+                    &stAutoReselStub);
+
+    return AT_OK;
 }
 
 
@@ -24410,6 +24515,18 @@ VOS_UINT32 AT_SetVertime ( VOS_UINT8 ucIndex )
 }
 
 #if ( VOS_WIN32 == VOS_OS_VER )
+
+/* Modified by c00318887 for DPlmn扩容和优先接入HPLMN, 2015-5-18, begin */
+
+VOS_UINT32 AT_ResetNplmn ( VOS_UINT8 ucIndex )
+{
+#ifdef DMT
+    NAS_STUB_AT_ResetNplmn();
+#endif
+    return AT_OK;
+}
+/* Modified by c00318887 for DPlmn扩容和优先接入HPLMN, 2015-5-18, end */
+
 VOS_UINT32 AT_SetNvimPara ( VOS_UINT8 ucIndex )
 {
     NV_ID_ENUM_U16                      eNvimTempId;
@@ -27238,7 +27355,80 @@ VOS_UINT32 AT_SetCmdImsUssdStub(VOS_UINT8 ucIndex)
     return AT_OK;
 }
 
+
+/* Added by c00318887 for 移植T3402 , 2015-6-18, begin */
+/*****************************************************************************
+ 函 数 名  : AT_SetT3402Stub
+ 功能描述  : 对T3402相关设置进行打桩以便DMT用例测试
+ 输入参数  : ucIndex - 索引
+ 输出参数  : 无
+ 返 回 值  : 执行结果
+ 调用函数  :
+ 被调函数  :
+
+ 修改历史      :
+  1.日    期   : 2015年6月18日
+    作    者   : c00318887
+    修改内容   : 新生成函数
+
+*****************************************************************************/
+VOS_UINT32  AT_SetT3402Stub( VOS_UINT8 ucIndex )
+{
+    VOS_UINT8                           i;
+    VOS_UINT8                           ucParaIndex;
+
+    /* 参数过多 */
+    if ( gucAtParaIndex > 2 )
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    /* 参数为空 */
+    if ( 0 == gastAtParaList[0].usParaLen )
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    if ( 0 == gastAtParaList[1].usParaLen )
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    /* 第一个参数为 disable lte start T3402 enable lte FLAG  */
+    if(AT_FAILURE == At_String2Hex(gastAtParaList[0].aucPara,gastAtParaList[0].usParaLen,&gastAtParaList[0].ulParaValue))
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    if ( (0 != gastAtParaList[0].ulParaValue)
+      && (1 != gastAtParaList[0].ulParaValue))
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    if(AT_FAILURE == At_String2Hex(gastAtParaList[1].aucPara,gastAtParaList[1].usParaLen,&gastAtParaList[1].ulParaValue))
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    if ( (0 != gastAtParaList[1].ulParaValue)
+      && (1 != gastAtParaList[1].ulParaValue))
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    NAS_MML_SetDisableLteStartT3402EnableLteFlag(gastAtParaList[0].ulParaValue);
+
+    NAS_MML_SetHighPrioRatBgEnableLteFlag(gastAtParaList[1].ulParaValue);
+
+    return AT_OK;
+}
+
+/* Added by c00318887 for 移植T3402 , 2015-6-18, end */
+
 #endif
+
+
 VOS_UINT32 AT_SetDnsQueryPara(VOS_UINT8 ucIndex)
 {
 
@@ -32019,6 +32209,175 @@ VOS_UINT32 AT_SetEconfDialPara(VOS_UINT8 ucIndex)
 
     return AT_ERROR;
 }
+
+/* Added by zwx247453 for VOLTE SWITCH, 2015-02-02, Begin */
+/*****************************************************************************
+ 函 数 名  : AT_SetImsSwitchPara
+ 功能描述  : 设置IMS 打开和关闭
+             AT^IMSSWITCH=<value>
+ 输入参数  : ucIndex - 端口索引
+ 输出参数  : 无
+ 返 回 值  : VOS_UINT32
+ 调用函数  :
+ 被调函数  :
+
+ 修改历史      :
+  1.日    期   : 2015年02月02日
+    作    者   : zwx247453
+    修改内容   : 新生成函数
+*****************************************************************************/
+VOS_UINT32 AT_SetImsSwitchPara(VOS_UINT8 ucIndex)
+{
+    VOS_UINT32                          ulRst;
+    TAF_MMA_IMS_SWITCH_SET_ENUM_UINT8   enImsSwitch;
+
+    /* 参数检查 */
+    if (AT_CMD_OPT_SET_PARA_CMD != g_stATParseCmd.ucCmdOptType)
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    /* 参数个数检查 */
+    if (1 != gucAtParaIndex)
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    /* 参数为空 */
+    if (0 == gastAtParaList[0].usParaLen)
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    enImsSwitch = (TAF_MMA_IMS_SWITCH_SET_ENUM_UINT8)gastAtParaList[0].ulParaValue;
+
+    ulRst = TAF_MMA_SetImsSwitchReq(WUEPS_PID_AT,
+                                    gastAtClientTab[ucIndex].usClientId,
+                                    0,
+                                    enImsSwitch);
+    if (VOS_TRUE != ulRst)
+    {
+        return AT_ERROR;
+    }
+
+    gastAtClientTab[ucIndex].CmdCurrentOpt = AT_CMD_IMS_SWITCH_SET;
+
+    return AT_WAIT_ASYNC_RETURN;
+}
+
+/*****************************************************************************
+ 函 数 名  : AT_InputValueTransToVoiceDomain
+ 功能描述  : 将AT输入的参数值转换为与modem侧对应的voice domain值
+ 输入参数  : ulValue
+ 输出参数  : penVoiceDomain
+ 返 回 值  : VOS_TRUE
+             VOS_FALSE
+ 调用函数  :
+ 被调函数  :
+
+ 修改历史      :
+  1.日    期   : 2015年02月04日
+    作    者   : zwx247453
+    修改内容   : 新生成函数
+*****************************************************************************/
+VOS_UINT32 AT_InputValueTransToVoiceDomain(
+    VOS_UINT32                          ulValue,
+    TAF_MMA_VOICE_DOMAIN_ENUM_UINT32   *penVoiceDomain
+)
+{
+    VOS_UINT32                          ulRst;
+
+    ulRst = VOS_TRUE;
+
+    switch (ulValue)
+    {
+        case AT_VOICE_DOMAIN_TYPE_CS_ONLY:
+            *penVoiceDomain = TAF_MMA_VOICE_DOMAIN_CS_ONLY;
+            break;
+
+        case AT_VOICE_DOMAIN_TYPE_CS_PREFERRED:
+            *penVoiceDomain = TAF_MMA_VOICE_DOMAIN_CS_PREFERRED;
+            break;
+
+        case AT_VOICE_DOMAIN_TYPE_IMS_PS_PREFERRED:
+            *penVoiceDomain = TAF_MMA_VOICE_DOMAIN_IMS_PS_PREFERRED;
+            break;
+
+       case AT_VOICE_DOMAIN_TYPE_IMS_PS_ONLY:
+            *penVoiceDomain = TAF_MMA_VOICE_DOMAIN_IMS_PS_ONLY;
+            break;
+
+        default:
+            *penVoiceDomain = TAF_MMA_VOICE_DOMAIN_BUTT;
+            ulRst = VOS_FALSE;
+            break;
+    }
+
+    return ulRst;
+}
+
+/*****************************************************************************
+ 函 数 名  : AT_SetCevdpPara
+ 功能描述  : 设置语音优选域
+             AT+CEVDP=[<setting>] (1:cs only 2:cs prefer 3:ps prefer 4:ps only)
+ 输入参数  : ucIndex - 端口索引
+ 输出参数  : 无
+ 返 回 值  : VOS_UINT32
+ 调用函数  :
+ 被调函数  :
+
+ 修改历史      :
+  1.日    期   : 2015年02月02日
+    作    者   : zwx247453
+    修改内容   : 新生成函数
+*****************************************************************************/
+VOS_UINT32 AT_SetCevdpPara(VOS_UINT8 ucIndex)
+{
+    TAF_MMA_VOICE_DOMAIN_ENUM_UINT32    enVoiceDomain;
+    VOS_UINT32                          ulRst;
+
+    ulRst         = VOS_FALSE;
+    enVoiceDomain = TAF_MMA_VOICE_DOMAIN_BUTT;
+
+    /* 参数检查 */
+    if (AT_CMD_OPT_SET_PARA_CMD != g_stATParseCmd.ucCmdOptType)
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    /* 参数个数检查 */
+    if (1 != gucAtParaIndex)
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    /* 参数为空，协议没有明确规定默认值，此处默认设置为CS ONLY */
+    if (0 == gastAtParaList[0].usParaLen)
+    {
+        enVoiceDomain = TAF_MMA_VOICE_DOMAIN_CS_ONLY;
+    }
+    else
+    {
+        if (VOS_TRUE != AT_InputValueTransToVoiceDomain(gastAtParaList[0].ulParaValue, &enVoiceDomain))
+        {
+            return AT_CME_INCORRECT_PARAMETERS;
+        }
+    }
+
+    ulRst = TAF_MMA_SetVoiceDomainReq(WUEPS_PID_AT,
+                                      gastAtClientTab[ucIndex].usClientId,
+                                      0,
+                                      enVoiceDomain);
+    if (VOS_TRUE != ulRst)
+    {
+        return AT_ERROR;
+    }
+
+    gastAtClientTab[ucIndex].CmdCurrentOpt = AT_CMD_VOICE_DOMAIN_SET;
+
+    return AT_WAIT_ASYNC_RETURN;
+}
+/* Added by zwx247453 for VOLTE SWITCH, 2015-02-02, End */
 
 #endif
 

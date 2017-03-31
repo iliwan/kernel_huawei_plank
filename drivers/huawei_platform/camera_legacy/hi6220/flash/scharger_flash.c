@@ -50,7 +50,7 @@
 #include "../isp/k3_isp_io.h"
 
 #if defined (CONFIG_HUAWEI_DSM)
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #endif
 
 #ifdef LOG_TAG

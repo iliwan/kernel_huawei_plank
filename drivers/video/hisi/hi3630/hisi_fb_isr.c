@@ -137,7 +137,7 @@ irqreturn_t dss_pdp_isr(int irq, void *ptr)
 					}
 				}
 			}
-			hisifd->dsi_bit_clk_updated = false;
+            hisifd->dsi_bit_clk_updated = false;
 		}
 
 		if (isr_s2 & BIT_VACTIVE0_START_INT) {
@@ -146,6 +146,11 @@ irqreturn_t dss_pdp_isr(int irq, void *ptr)
 		}
 
 		if (isr_s2 & vsync_isr_bit) {
+			if (g_enable_te_debug) {
+				HISI_FB_INFO("te isr received!\n");
+				g_enable_te_debug = 0;
+			}
+
 			if (hisifd->vsync_isr_handler) {
 				hisifd->vsync_isr_handler(hisifd);
 			}
@@ -177,11 +182,14 @@ irqreturn_t dss_pdp_isr(int irq, void *ptr)
 			outp32(hisifd->dss_base + PDP_LDI_CPU_IRQ_MSK, mask);
 
 			if (hisifd->ldi_data_gate_en == 0) {
-				hisifd->dss_exception.underflow_exception = 1;
-#if defined (CONFIG_HUAWEI_DSM)
-				if (hisifd->dss_debug_workqueue)
-					queue_work(hisifd->dss_debug_workqueue, &hisifd->dss_debug_work);
-#endif
+				if (is_mipi_cmd_panel(hisifd)) {
+					hisifd->dss_exception.underflow_exception = 1;
+				#if defined (CONFIG_HUAWEI_DSM)
+					if (hisifd->dss_debug_workqueue)
+						queue_work(hisifd->dss_debug_workqueue, &hisifd->dss_debug_work);
+				#endif
+				}
+
 				HISI_FB_ERR("ldi underflow!\n");
 			}
 		}

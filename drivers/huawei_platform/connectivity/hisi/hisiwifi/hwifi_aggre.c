@@ -319,7 +319,7 @@ int32 hwifi_set_amsdu(struct cfg_struct *cfg, struct aggre_cfg_param *param)
 
     HWIFI_ASSERT(NULL != cfg);
 
-    if(param->amsdu_action_type == A_MSDU_START)
+    if(param->amsdu_action_type == A_MSDU_START)
     {
         msg_size = sizeof(struct set_start_amsdu_msg);
         if (msg_size > MAX_MSG_LEN)

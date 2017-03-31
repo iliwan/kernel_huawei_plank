@@ -66,7 +66,8 @@ int oem_get_gpio_number(char *str, int *gpio);
 #define ASC_NTF_RX_POST       0x1002 /* notifer the device CBP stop tx data*/
 
 #define ASC_NAME_LEN   (64)
-
+#define MDM_RESETINFO_SIZE  (1024)
+#define CBP_EXCEPT_STACK_LEN (512)
 /*used to register handle*/
 struct asc_config{
     int gpio_ready;
@@ -83,6 +84,15 @@ struct asc_infor {
     char name[ASC_NAME_LEN];
 };
 
+struct cbp_reset_info_s {
+    u8  task_name[ASC_NAME_LEN];
+    u32 modid;
+    u8  stack[CBP_EXCEPT_STACK_LEN];
+};
+
+/*save gpio level when dack ack time out*/
+extern char g_modem_gpio_level_buffer[CBP_EXCEPT_STACK_LEN];
+
 #define CBP_TX_HD_NAME "TxHdCbp"
 #define CBP_TX_USER_NAME "cbp"
 
@@ -92,6 +102,10 @@ struct asc_infor {
 #define RAWBULK_RX_USER_NAME "rawbulk"
 
 #define ASC_PATH(hd, user) hd"."user
+
+#define CBP_EXCEPT_REASON_RILD "RILD"
+#define CBP_EXCEPT_REASON_SPI "SPI"
+#define CBP_EXCEPT_RILD_AT_TIMEOUT "2"
 
 int asc_tx_register_handle(struct asc_config *cfg);
 int asc_tx_set_sleep(const char *name);
@@ -124,6 +138,22 @@ enum clock_event_nofitiers {
     MDM_EVT_NOTIFY_HD_ERR,
     MDM_EVT_NOTIFY_HD_ENHANCE,
     MDM_EVT_NOTIFY_NUM
+};
+
+enum cbp_except_type_e {
+    CBP_EXCE_TYPE_RILD = 0,
+    CBP_EXCE_TYPE_SPI,
+    CBP_EXCE_TYPE_NUM
+};
+
+enum cbp_except_modid_e{
+    CBP_EXCE_MID_RILD_AT_TIMEOUT = 0x0100,
+
+    CBP_EXCE_MID_SPI_READ_TIMEOUT = 0x0200,
+    CBP_EXCE_MID_SPI_WRITE_TIMEOUT,
+    CBP_EXCE_MID_SPI_SFLOW_TIMEOUT,
+    CBP_EXCE_MID_SPI_CFLAG80_PKT_TIMEOUT,
+    CBP_EXCE_MID_SPI_ETS_SFLOW_RESET,
 };
 
 void modem_notify_event(int event);

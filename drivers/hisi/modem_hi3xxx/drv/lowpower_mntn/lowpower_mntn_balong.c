@@ -114,12 +114,20 @@ int ccpu_lp_mntn_notify(struct notifier_block *nb, unsigned long event, void *du
 	return 0;
 }
 #ifdef CONFIG_HISI_BALONG_MODEM
-
+extern u32 hisi_sec_pericrg_offset_readl(unsigned long offset);
 void bsp_modem_error_handler(u32  p1,  void* p2, void* p3, void* p4)
 {
 	unsigned int regval = 0;
-	if(!lp_ctrl.pmctrl_base||!lp_ctrl.pericrg_base)
+	if(!lp_ctrl.pmctrl_base)
 		return;
+	#ifndef CONFIG_HISI_SEC_PERICRG_ENABLE
+	if(!lp_ctrl.pericrg_base)
+		return;
+	regval = readl_relaxed(lp_ctrl.pericrg_base  + 0x68);
+	#else
+	regval = hisi_sec_pericrg_offset_readl((unsigned long)0x68);
+	#endif
+	mntn_printf("pericrg offset:0x68    :MODEM NOC perrststat0 = 0x%x\n", regval);
 	regval = readl_relaxed(lp_ctrl.pmctrl_base + 0x3A0);
 	mntn_printf("pmc offset:0x3A0    :PERI INTO MASK = 0x%x\n", regval);
 	regval = readl_relaxed(lp_ctrl.pmctrl_base + 0x3A4);
@@ -130,8 +138,6 @@ void bsp_modem_error_handler(u32  p1,  void* p2, void* p3, void* p4)
 	mntn_printf("pmc offset:0x384     :NOC_POWER_IDLEACK = 0x%x\n", regval);
 	regval = readl_relaxed(lp_ctrl.pmctrl_base + 0x388);
 	mntn_printf("pmc offset:0x388     :NOC_POWER_IDLE = 0x%x\n", regval);
-	regval = readl_relaxed(lp_ctrl.pericrg_base  + 0x68);
-	mntn_printf("pericrg offset:0x68    :MODEM NOC perrststat0 = 0x%x\n", regval);
 }
 #endif
 static int __init bsp_lowpower_mntn_init_acore(void)
@@ -140,7 +146,9 @@ static int __init bsp_lowpower_mntn_init_acore(void)
 	register_pm_notifier(&modem_lowpower_mntn_notify);
 #ifdef CONFIG_HISI_BALONG_MODEM
 	lp_ctrl.pmctrl_base = ioremap(HI_NOC_PMC_REG_ADDR,HI_NOC_PMC_REG_SIZE);
+	#ifndef CONFIG_HISI_SEC_PERICRG_ENABLE
 	lp_ctrl.pericrg_base = ioremap(HI_LP_PERI_CRG_REG_ADDR,HI_LP_PERI_CRG_REG_SIZE);
+	#endif
 #endif
 	return 0;
 }

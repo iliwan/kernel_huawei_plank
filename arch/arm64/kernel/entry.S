@@ -91,6 +91,19 @@
 	.if	\el == 0
 	ldr	x23, [sp, #S_SP]		// load return stack pointer
 	msr sp_el0, x23
+
+#ifdef CONFIG_ARM64_ERRATUM_845719
+	tbz	x22, #4, 1f
+#ifdef CONFIG_PID_IN_CONTEXTIDR
+	mrs 	x29, contextidr_el1
+	msr 	contextidr_el1, x29
+1:
+#else
+	msr 	contextidr_el1, xzr
+1:
+#endif
+#endif
+
 	.endif
 	msr elr_el1, x21 // set up the return data
 	msr spsr_el1, x22

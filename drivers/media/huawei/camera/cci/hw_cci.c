@@ -88,6 +88,11 @@ int hw_isp_read_sensor_byte(i2c_t *i2c_info, u16 reg, u16 *val)
 	volatile int device_id, firmware_id;
 	u8 byte_ctrl = 0;
 
+	if (reg > MAX_SENSOR_REG_VALUE) {
+		cam_err("%s: sensor reg value(%u) out of bounds", __func__, reg);
+		return -EINVAL;
+	}
+
 	if (i2c_info->index == I2C_PRIMARY) {
 		reg_device_id = REG_SCCB_MAST1_SLAVE_ID;
 		reg_firmware_id = REG_SCCB_FIRMWARE1_ID;
@@ -204,6 +209,11 @@ int hw_isp_write_sensor_byte(i2c_t *i2c_info, u16 reg, u16 val, u8 mask)
 	int reg_value_h, reg_value_l, reg_value_len, reg_bus_mutex;
 	u16 old_val = 0;
 	u8 byte_ctrl = 0;
+
+	if (reg > MAX_SENSOR_REG_VALUE) {
+		cam_err("%s: sensor reg value(%u) out of bounds", __func__, reg);
+		return -EINVAL;
+	}
 
 	if (i2c_info->index == I2C_PRIMARY) {
 		reg_device_id = REG_SCCB_MAST1_SLAVE_ID;

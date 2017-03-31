@@ -1,6 +1,8 @@
-EXTRA_CFLAGS += -I$(BALONG_TOPDIR)/include/drv/
-EXTRA_CFLAGS += -I$(BALONG_TOPDIR)/config/product/$(OBB_PRODUCT_NAME)/config/
-EXTRA_CFLAGS += -I$(BALONG_TOPDIR)/platform/$(CFG_PLATFORM)/soc/
+subdir-ccflags-y 		+= -I$(BALONG_TOPDIR)/include/drv/
+subdir-ccflags-y        += -I$(BALONG_TOPDIR)/config/product/$(OBB_PRODUCT_NAME)/config
+subdir-ccflags-y        += -I$(BALONG_TOPDIR)/ap/platform/$(CFG_PLATFORM)/
+subdir-ccflags-y        += -I$(BALONG_TOPDIR)/ap/platform/$(CFG_PLATFORM)/soc/
+
 EXTRA_CFLAGS += -I$(srctree)/drivers/hisi/hifi_mailbox/ipcm
 EXTRA_CFLAGS += -DBSP_CORE_APP
 ifdef CONFIG_HIFI_RESET

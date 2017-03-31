@@ -23,7 +23,10 @@
 #ifdef CONFIG_ARCH_HI6XXX
 #define NVE_HEADER_NAME         "Hisi-K3v200-NV-Partition"   /* ReliableData area */
 #define NV_DEVICE_NAME          BLK_MTD_NVME
-#elif defined (CONFIG_ARCH_HI3XXX)
+#elif defined (CONFIG_ARCH_HI3630)
+#define NVE_HEADER_NAME         "Hisi-NV-Partition"   /* ReliableData area */
+#define NV_DEVICE_NAME          "block2mtd: /dev/block/mmcblk0p6"
+#elif defined (CONFIG_HISI_3635)
 #define NVE_HEADER_NAME         "Hisi-NV-Partition"   /* ReliableData area */
 #define NV_DEVICE_NAME          "block2mtd: /dev/block/mmcblk0p7"
 #endif

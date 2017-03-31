@@ -447,6 +447,14 @@ AT_PAR_CMD_ELEMENT_STRU g_astAtDeviceCmdTbl[] = {
     VOS_NULL_PTR,        AT_NOT_SET_TIME,
     AT_ERROR, CMD_TBL_PIN_IS_LOCKED,
     (VOS_UINT8*)"^NVWR",(VOS_UINT8*)"(0-65535),(0-2048),(@data),(@data),(@data),(@data),(@data),(@data),(@data),(@data),(@data),(@data),(@data),(@data),(@data)"},
+
+    {AT_CMD_NVWRPART,
+    AT_SetNVWRPartPara,       AT_SET_PARA_TIME,  VOS_NULL_PTR,        AT_NOT_SET_TIME,  VOS_NULL_PTR, AT_NOT_SET_TIME,
+    VOS_NULL_PTR,        AT_NOT_SET_TIME,
+    AT_ERROR, CMD_TBL_PIN_IS_LOCKED,
+    (VOS_UINT8*)"^NVWRPART",(VOS_UINT8*)"(0-65535),(0-2048),(0-2048),(@data),(@data),(@data),(@data),(@data),(@data),(@data),(@data),(@data),(@data),(@data),(@data)"},
+
+
     {AT_CMD_CURC,
     At_SetCurcPara,      AT_NOT_SET_TIME,     At_QryCurcPara,     AT_QRY_PARA_TIME, VOS_NULL_PTR,    AT_NOT_SET_TIME,
     VOS_NULL_PTR,        AT_NOT_SET_TIME,
@@ -2514,6 +2522,142 @@ VOS_UINT32 AT_SetNVWritePara(VOS_UINT8 ucIndex)
 
     return AT_OK;
 }
+VOS_UINT32 AT_SetNVWRPartPara(VOS_UINT8 ucClientId)
+{
+    VOS_UINT32                          ulRet;
+    VOS_UINT16                          usNVID;
+    VOS_UINT32                          ulNVWrTotleLen;
+    VOS_UINT32                          ulNVLen;
+    VOS_UINT16                          usNVWrLen;
+    VOS_UINT8                          *pucNvWrData = VOS_NULL_PTR;
+    VOS_UINT32                          ulNVNum;
+    VOS_UINT32                          i;
+    VOS_UINT8                           aucData[128];
+    VOS_UINT16                          usOffset;
+    MODEM_ID_ENUM_UINT16                enModemId;
+
+    i                       = 0;
+    ulNVLen                 = 0;
+    gstAtSendData.usBufLen  = 0;
+    ulNVWrTotleLen          = 0;
+    PS_MEM_SET(aucData,0,sizeof(aucData));
+
+    if(AT_CMD_OPT_SET_PARA_CMD != g_stATParseCmd.ucCmdOptType)
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    if( (0 == gastAtParaList[0].usParaLen)
+     || (0 == gastAtParaList[1].usParaLen)
+     || (0 == gastAtParaList[2].usParaLen)
+     || (0 == gastAtParaList[3].usParaLen) )
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    usNVID       = (VOS_UINT16)gastAtParaList[0].ulParaValue;
+    usOffset     = (VOS_UINT16)gastAtParaList[1].ulParaValue;
+    usNVWrLen    = (VOS_UINT16)gastAtParaList[2].ulParaValue;
+
+    if (VOS_TRUE != AT_IsNVWRAllowedNvId(usNVID))
+    {
+        return AT_CME_OPERATION_NOT_ALLOWED;
+    }
+
+    /* check param#3 usNVWrLen */
+    if (usNVWrLen == 0)
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    /* get NV length */
+    ulRet        = NV_GetLength(usNVID, &ulNVWrTotleLen);
+    if(ERR_MSP_SUCCESS != ulRet)
+    {
+        return AT_ERROR;
+    }
+
+    /* check param#2 usOffset */
+    if(((VOS_UINT32)usOffset > (ulNVWrTotleLen - 1)) || ((VOS_UINT32)(usOffset + usNVWrLen) > ulNVWrTotleLen))
+    {
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    pucNvWrData = PS_MEM_ALLOC(WUEPS_PID_AT, usNVWrLen);
+    if(NULL == pucNvWrData)
+    {
+        return AT_ERROR;
+    }
+
+    /* get NV value form param#4\5\...\#16 */
+    while(0 != gastAtParaList[3UL + i].usParaLen)
+    {
+        ulRet = AT_NVWRGetParaInfo((AT_PARSE_PARA_TYPE_STRU*)(&(gastAtParaList[3UL + i])), aucData, (VOS_UINT32 *)&ulNVNum);
+        if(VOS_OK != ulRet)
+        {
+            PS_MEM_FREE(WUEPS_PID_AT, pucNvWrData);
+            return AT_CME_INCORRECT_PARAMETERS;
+        }
+
+        if(ulNVNum > 128)
+        {
+            PS_MEM_FREE(WUEPS_PID_AT, pucNvWrData);
+            return AT_CME_INCORRECT_PARAMETERS;
+        }
+
+        if((ulNVLen+ulNVNum) > usNVWrLen)
+        {
+            PS_MEM_FREE(WUEPS_PID_AT, pucNvWrData);
+            return AT_CME_INCORRECT_PARAMETERS;
+        }
+
+        PS_MEM_CPY(((VOS_UINT8*)pucNvWrData + ulNVLen), (VOS_UINT8*)aucData, ulNVNum);
+
+        ulNVLen += ulNVNum;
+        i++;
+
+        if(i >= (AT_MAX_PARA_NUMBER - 3))
+        {
+            break;
+        }
+
+    }
+
+    /* check all the nv value have the exact length by param#3 */
+    if(ulNVLen != usNVWrLen)
+    {
+        PS_MEM_FREE(WUEPS_PID_AT, pucNvWrData);
+        return AT_CME_INCORRECT_PARAMETERS;
+    }
+
+    ulRet = AT_GetModemIdFromClient(ucClientId, &enModemId);
+    if (VOS_OK != ulRet)
+    {
+        AT_ERR_LOG("AT_SetNVWritePara:Get modem id fail");
+        PS_MEM_FREE(WUEPS_PID_AT, pucNvWrData);
+        return AT_ERROR;
+    }
+
+    if (enModemId >= MODEM_ID_BUTT)
+    {
+        PS_MEM_FREE(WUEPS_PID_AT, pucNvWrData);
+        return AT_ERROR;
+    }
+
+    ulRet = NV_WritePartEx(enModemId, usNVID, usOffset, (VOS_VOID*)pucNvWrData, usNVWrLen);
+    if(ERR_MSP_SUCCESS != ulRet)
+    {
+        PS_MEM_FREE(WUEPS_PID_AT, pucNvWrData);
+        return AT_ERROR;
+    }
+
+    PS_MEM_FREE(WUEPS_PID_AT, pucNvWrData);
+
+    return AT_OK;
+}
+
+
+
 VOS_VOID AT_GetNvRdDebug(VOS_VOID)
 {
     vos_printf("\n g_ulNVRD=0x%x \n",g_ulNVRD);

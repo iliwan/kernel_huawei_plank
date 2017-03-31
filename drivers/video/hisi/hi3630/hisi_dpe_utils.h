@@ -67,6 +67,7 @@ void dpe_init_ct_cscValue(void);
 void dpe_store_ct_cscValue(unsigned int csc_value[]);
 void dpe_update_g_comform_discount(unsigned int value);
 void dpe_update_g_starlight_discount(unsigned int value);
+void dpe_update_g_acm_state(unsigned int value);
 int dpe_set_ct_cscValue(struct hisi_fb_data_type *hisifd);
 ssize_t dpe_show_ct_cscValue(char *buf);
 void dpe_init_led_rg_ct_cscValue(void);
@@ -77,5 +78,7 @@ int dpe_set_comform_ct_cscValue(struct hisi_fb_data_type *hisifd);
 ssize_t dpe_show_comform_ct_cscValue(char *buf);
 int dpe_set_starlight_ct_cscValue(struct hisi_fb_data_type *hisifd);
 ssize_t dpe_show_starlight_ct_cscValue(char *buf);
+void dpe_set_acm_state(struct hisi_fb_data_type *hisifd);
+ssize_t dpe_show_acm_state(char *buf);
 
 #endif

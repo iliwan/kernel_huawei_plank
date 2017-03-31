@@ -317,7 +317,7 @@ static ssize_t iovapoolinfo_show(struct device *dev, struct device_attribute *at
 	int ret = 0;
 	size_t size, available;
 	size = hisi_iommu_iova_size();
-	available = hisi_iommu_iova_available();
+	available = hisi_iommu_iova_available(1);
 	
 	printk(KERN_INFO "iova pool info: size: 0x%lx, available: 0x%lx\n",
 			size, available);

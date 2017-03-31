@@ -5,9 +5,16 @@ EXTRA_CFLAGS += -I$(BALONG_TOPDIR)/platform/$(CFG_PLATFORM)/soc/
 EXTRA_CFLAGS += -I$(srctree)/drivers/hisi/hifi_mailbox/mailbox
 EXTRA_CFLAGS += -I$(srctree)/drivers/hisi/hifi_mailbox/ipcm
 endif
-
+subdir-ccflags-y               += -I$(BALONG_TOPDIR)/include/drv/
+subdir-ccflags-y        += -I$(BALONG_TOPDIR)/config/product/$(OBB_PRODUCT_NAME)/config
+subdir-ccflags-y        += -I$(BALONG_TOPDIR)/ap/platform/$(CFG_PLATFORM)/
+subdir-ccflags-y        += -I$(BALONG_TOPDIR)/ap/platform/$(CFG_PLATFORM)/soc/
 # HI3630 Platform Support
+ifeq ($(CONFIG_SND_HI3630_HI6401),y)
+snd-soc-hi3630-objs := hi3630_sio.o hi3630_srcup_normal.o hi3630_srcup_dsp.o hi3630_asp_common.o hi3630_srcdown.o hi3630_fake_fm.o hi3630_fake_sio.o hi3630_asp_dma_k3v3.o
+else
 snd-soc-hi3630-objs := hi3630_sio.o hi6210_pcm.o hi3630_srcup_dsp.o hi3630_asp_common.o hi3630_srcdown.o hi3630_fake_fm.o hi3630_fake_sio.o
+endif
 
 ifeq ($(CONFIG_HDMI_K3), y)
 snd-soc-hi3630-objs += hi3630_pcm_hdmi.o hi3630_hdmi_i2s.o

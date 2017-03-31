@@ -227,7 +227,7 @@ VOS_VOID QosFc_ChannelRestore(VOS_UINT8 ucRabId)
     return;
 }
 VOS_VOID QosFc_UpdateChannelQos(VOS_UINT8 ucRabId, QCI_TYPE_ENUM_UINT8 enQci)
-{
+{
     VOS_UINT32  i,j;
 
     for(i = 0; i < FC_MAX_RAB_NUM; i++)

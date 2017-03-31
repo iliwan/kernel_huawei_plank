@@ -27,13 +27,13 @@
 #include "switch_chip.h"
 #include <linux/huawei/usb/hisi_usb.h>
 #ifdef CONFIG_HDMI_K3
-#include <../video/k3/hdmi/k3_hdmi.h>
+#include <../../../../../../kernel/drivers/video/hisi/hdmi/k3_hdmi.h>
 #endif
 #ifdef CONFIG_HUAWEI_HW_DEV_DCT
 #include <linux/hw_dev_dec.h>
 #endif
 #include <huawei_platform/log/hw_log.h>
-#include <huawei_platform/usb/hw_rwswitch.h>
+#include <chipset_common/hwusb/hw_usb_rwswitch.h>
 #include <huawei_platform/usb/switch/switch_fsa9685.h>
 #include <huawei_platform/power/huawei_charger.h>
 
@@ -49,7 +49,7 @@ static struct work_struct   g_intb_work;
 static struct delayed_work   detach_delayed_work;
 #ifdef CONFIG_FSA9685_DEBUG_FS
 static int reg_locked = 1;
-static char chip_regs[0x5c] = { 0 };
+static char chip_regs[0x5c+2] = { 0 };
 #endif
 static struct device *otg_status_dev = NULL;
 
@@ -290,7 +290,7 @@ static void fsa9685_intb_work(struct work_struct *work)
     static int invalid_times = 0;
     static int otg_attach = 0;
     static int pedestal_attach = 0;
-    char event_string[13];
+    char event_string[13] ={0};
     char *envp[] = { event_string, NULL };
 
     reg_intrpt = fsa9685_read_reg(FSA9685_REG_INTERRUPT);
@@ -324,6 +324,15 @@ static void fsa9685_intb_work(struct work_struct *work)
             }
             if (reg_dev_type1 & FSA9685_MHL_DETECTED) {
                 hwlog_info("%s: FSA9685_MHL_DETECTED\n", __func__);
+                unsigned int is_Recovery_mode = get_boot_into_recovery_flag();
+                hwlog_info("%s: FSA9685_MHL_DETECTED is_fastbootmode:%d\n", __func__, is_Recovery_mode);
+#ifdef CONFIG_HDMI_K3
+                if (!is_Recovery_mode) {
+                    hwlog_info("%s: FSA9685_MHL_DETECTED , call  k3_hdmi_enable_hpd\n", __func__);
+                        k3_hdmi_enable_hpd(true);
+                }
+#endif
+
             }
             if (reg_dev_type1 & FSA9685_CDP_DETECTED) {
                 hwlog_info("%s: FSA9685_CDP_DETECTED\n", __func__);
@@ -336,7 +345,7 @@ static void fsa9685_intb_work(struct work_struct *work)
                 otg_attach = 1;
                 hisi_usb_id_change(ID_FALL_EVENT);
                 if(otg_status_dev != NULL) {
-                    sprintf(event_string, "OTG_STATUS=1");
+                    snprintf(event_string, sizeof(event_string), "OTG_STATUS=1");
                     kobject_uevent_env(&otg_status_dev->kobj, KOBJ_CHANGE,envp);
                 } else {
                     hwlog_err("%s: otg status dev is NULL!!!\n", __func__);
@@ -355,7 +364,7 @@ static void fsa9685_intb_work(struct work_struct *work)
             }
             if (reg_dev_type3 & FSA9685_CUSTOMER_ACCESSORY7) {
                 fsa9685_manual_sw(FSA9685_USB1_ID_TO_IDBYPASS);
-                ret = usb_port_switch_request(INDEX_USB_REWORK_SN);
+                ret = hw_usb_port_switch_request(INDEX_USB_REWORK_SN);
                 hwlog_info("%s: FSA9685_CUSTOMER_ACCESSORY7 USB_REWORK_SN ret %d\n", __func__, ret);
             }
             if (reg_dev_type3 & FSA9685_CUSTOMER_ACCESSORY5) {
@@ -409,7 +418,7 @@ static void fsa9685_intb_work(struct work_struct *work)
                 hisi_usb_id_change(ID_RISE_EVENT);
                 otg_attach = 0;
                 if(otg_status_dev != NULL) {
-                    sprintf(event_string, "OTG_STATUS=0");
+                    snprintf(event_string, sizeof(event_string), "OTG_STATUS=0");
                     kobject_uevent_env(&otg_status_dev->kobj, KOBJ_CHANGE,envp);
                 } else {
                     hwlog_err("%s: otg status dev is NULL!!!\n", __func__);
@@ -1362,7 +1371,12 @@ static int fsa9685_probe(
     }
 
     /* if chip support fcp ,register fcp adapter ops */
-    if( 0 == is_support_fcp() && 0 ==fcp_adapter_ops_register(&fcp_fsa9688_ops))
+    if( 0 == is_support_fcp()
+#ifdef CONFIG_HI6521_CHARGER
+    )
+#else
+    && 0 ==fcp_adapter_ops_register(&fcp_fsa9688_ops))
+#endif
     {
         hwlog_info(" fcp adapter ops register success!\n");
     }

@@ -47,6 +47,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/driver.h>
 #include <linux/ion.h>
+#include <linux/hisi/hisi-iommu.h>//added for solving vpu_noc by gwx271408 2015/8/5
 #include <linux/mman.h>
 #include <asm/cacheflush.h>
 #ifndef CONFIG_ARM64
@@ -81,6 +82,9 @@
 #define VPU_DEV_NAME "cnm_vpu"
 #define VPU_IRQ_NAME "VPU_CODEC_IRQ"
 
+#define VPU_BIT_REG_SIZE    (0x1000*MAX_NUM_VPU_CORE)
+#define VPU_RESERVED_MEMORY_SIZE (54 * 1024 * 1024)
+#define VPU_INSTANT_POOL_SIZE 0x20070
 
 #ifndef VM_RESERVED	/*for kernel up to 3.7.0 version*/
 # define  VM_RESERVED   (VM_DONTEXPAND | VM_DONTDUMP)
@@ -193,6 +197,11 @@ extern void vpu_off_notice_ade(void);
 
 
 
+//added for solving vpu_noc by gwx271408 2015/8/5 start
+typedef void (*iommu_vpu_cb)(void);
+extern void iommu_set_vpu_onoff(int onoff,iommu_vpu_cb vpu_cb);
+void vpu_set_irq_timeout_cb(void);
+//added for solving vpu_noc by gwx271408 2015/8/5 end
 
 /* end customer definition */
 static vpudrv_buffer_t s_instance_pool = {0};
@@ -210,6 +219,8 @@ static void __iomem *s_vpu_reg_virt_addr;
 static void __iomem *s_vpu_qos_virt_addr;
 
 static int s_interrupt_flag;
+static int s_vpu_setirq_timeout = 0;//added for solving vpu_noc by gwx271408 2015/8/5
+
 static wait_queue_head_t s_interrupt_wait_q;
 
 static DEFINE_SEMAPHORE(s_vpu_sem);
@@ -236,6 +247,7 @@ static struct wake_lock s_vpu_wakelock;
 #define BIT_CODE_RUN                (BIT_BASE + 0x000)
 #define BIT_CODE_DOWN               (BIT_BASE + 0x004)
 #define BIT_INT_CLEAR               (BIT_BASE + 0x00C)
+#define BIT_INT_ENABLE              (BIT_BASE + 0x170)
 #define BIT_INT_STS                 (BIT_BASE + 0x010)
 #define BIT_CODE_RESET				(BIT_BASE + 0x014)
 #define BIT_CUR_PC                  (BIT_BASE + 0x018)
@@ -255,6 +267,13 @@ static int vpu_alloc_dma_buffer(vpudrv_buffer_t *vb)
 {
 	if (!vb)
 		return -1;
+
+    if (vb->size > s_vmem.mem_size)
+    {
+        vpu_loge("No enough memory to alloc, required size = %u, actual support max size = %u \n",
+            vb->size, s_vmem.mem_size);
+        return -1;
+    }
 
 	vb->phys_addr = (unsigned long)vmem_alloc(&s_vmem, vb->size, 0);
 	if (vb->phys_addr  == (unsigned int)-1) {
@@ -337,6 +356,11 @@ static int vpu_free_buffers(struct file *filp)
 
 static irqreturn_t vpu_irq_handler(int irq, void *dev_id)
 {
+    if (s_vpu_drv_context.open_count == 0)
+    {
+        return IRQ_HANDLED;
+    }
+
 	vpu_drv_context_t *dev = (vpu_drv_context_t *)dev_id;
 
 	/* this can be removed. it also work in VPU_WaitInterrupt of API function */
@@ -354,7 +378,12 @@ static irqreturn_t vpu_irq_handler(int irq, void *dev_id)
 			WriteVpuRegister(BIT_INT_CLEAR, 0x1);
 		}
 	}
-
+        //added for solving vpu_noc by gwx271408 2015/8/5 start
+        if (s_vpu_setirq_timeout == 1)
+        {
+            return IRQ_NONE;
+        }
+        //added for solving vpu_noc by gwx271408 2015/8/5 end
 	if (dev->async_queue)
 		kill_fasync(&dev->async_queue, SIGIO, POLL_IN);	/* notify the interrupt to user space */
 
@@ -406,6 +435,10 @@ static int vpu_open(struct inode *inode, struct file *filp)
     filp->private_data = (void *)(&s_vpu_drv_context);
     //vpu_logi("VCODEC DEV OPENED! s_vpu_drv_context.open_count=%d\n", s_vpu_drv_context.open_count);
     vpu_on_notice_ade();
+    //added for solving vpu_noc by gwx271408 2015/8/5 start
+    iommu_set_vpu_onoff(1, vpu_set_irq_timeout_cb);
+    s_vpu_setirq_timeout = 0;
+    //added for solving vpu_noc by gwx271408 2015/8/5 end
     up(&s_vpu_sem);
 
     wake_unlock(&s_vpu_wakelock);
@@ -635,6 +668,15 @@ static long vpu_ioctl(struct file *filp, u_int cmd, u_long arg)
                 }
 				else
                 {
+                    if (s_instance_pool.size != VPU_INSTANT_POOL_SIZE)
+                    {
+                        vpu_loge("Alloc instance pool memsize too large, required size = %x, actual support size = %u.\n",
+                            s_instance_pool.size, VPU_INSTANT_POOL_SIZE);
+                        s_instance_pool.base = 0;
+                        ret = -EFAULT;
+                        goto ERROR_INSTANCE_MEMORY_ALLOC;
+                    }
+
                     if (s_ion_dev == NULL)
                     {
                         s_ion_dev = get_ion_device();
@@ -646,6 +688,7 @@ static long vpu_ioctl(struct file *filp, u_int cmd, u_long arg)
                         }
                        //vpu_loge("[DEBUG, not ERROR] s_ion_dev = %p.\n", s_ion_dev);
                     }
+
 
                     s_ion_instance_pool_client = ion_client_create(s_ion_dev, "vpu_instance_pool");
                     if (IS_ERR(s_ion_instance_pool_client) || s_ion_instance_pool_client == NULL)
@@ -672,11 +715,11 @@ static long vpu_ioctl(struct file *filp, u_int cmd, u_long arg)
                         ret = -EFAULT;
                         goto ERROR_INSTANCE_MEMORY_ALLOC;
                     }
-        			
+
                     s_instance_pool.phys_addr = iommu_format.iova_start;
                     s_instance_pool.size = (unsigned int)iommu_format.iova_size;
                     s_instance_pool.base = (unsigned long)ion_map_kernel(s_ion_instance_pool_client, s_ion_instance_pool_handle);
-                    
+
                     //vpu_loge("[DEBUG, not ERROR] s_instance_pool.phys_addr = 0x%x.\n", s_instance_pool.phys_addr);
                     if (IS_ERR((void *)s_instance_pool.base) || s_instance_pool.base == 0)
                     {
@@ -694,7 +737,7 @@ static long vpu_ioctl(struct file *filp, u_int cmd, u_long arg)
                        //vpu_loge("fail to copy_to_user\n");
                         ret = -EFAULT;
                     }
-            
+
 ERROR_INSTANCE_MEMORY_ALLOC:
                     if (0 != ret)
                     {
@@ -710,7 +753,7 @@ ERROR_INSTANCE_MEMORY_ALLOC:
 
                         if ((!IS_ERR(s_ion_instance_pool_handle)) && (s_ion_instance_pool_handle != NULL))
                         {
-                            //vpu_loge("s_ion_instance_pool_client = %p s_ion_instance_pool_handle = %p", 
+                            //vpu_loge("s_ion_instance_pool_client = %p s_ion_instance_pool_handle = %p",
                                     //s_ion_instance_pool_client, s_ion_instance_pool_handle);
 
                             ion_free(s_ion_instance_pool_client, s_ion_instance_pool_handle);
@@ -725,7 +768,7 @@ ERROR_INSTANCE_MEMORY_ALLOC:
                             s_ion_instance_pool_client = NULL;
                         }
                     }
-				}                      
+				}
     		}
 			up(&s_vpu_sem);
 
@@ -750,7 +793,7 @@ ERROR_INSTANCE_MEMORY_ALLOC:
 
 				if (ret_value != 0)
 					ret = -EFAULT;
-			} 
+			}
             else
             {
      			ret_value = copy_from_user(&s_common_memory, (vpudrv_buffer_t *)arg, sizeof(vpudrv_buffer_t));
@@ -962,35 +1005,6 @@ ERROR_INSTANCE_MEMORY_ALLOC:
             wake_unlock(&s_vpu_wakelock);
         }
         break;
-    case VDI_IOCTL_FLUSH_ION_CACHE:
-#if 0
-        {
-            //vpu_logd("VDI_IOCTL_FLUSH_ION_CACHE.\n");
-            ret = down_interruptible(&s_vpu_sem);
-            if (0 != ret)
-            {
-                //vpu_loge("cmd=%d down_interruptible failed\n", cmd);
-                return -EINTR;
-            }
-
-            if (NULL != s_ion_client && NULL != s_ion_handle)
-            {
-                //ion_flush_all_cache();
-                flush_cache_all();
-#ifndef CONFIG_ARM64
-                outer_flush_all();
-#endif
-            }
-            else
-            {
-                //vpu_loge("s_ion_client or s_ion_handle is NULL.\n");
-                ret = -EFAULT;
-            }
-            up(&s_vpu_sem);
-        }
-#endif
-        break;
-
     case VDI_IOCTL_RESERVED_MEMORY_ALLOC:
         {
             struct iommu_map_format iommu_format;
@@ -1037,6 +1051,13 @@ ERROR_INSTANCE_MEMORY_ALLOC:
                 ret = -EFAULT;
                 goto ERROR_RESERVED_MEMORY_ALLOC;
             }
+            if (s_video_memory.size != VPU_RESERVED_MEMORY_SIZE)
+            {
+                vpu_loge("allocate memory size too large,required size = %u, actual support size = %u.\n",
+                    s_video_memory.size, VPU_RESERVED_MEMORY_SIZE);
+                ret = -EFAULT;
+                goto ERROR_RESERVED_MEMORY_ALLOC;
+            }
 
             if (s_ion_dev == NULL)
             {
@@ -1049,7 +1070,7 @@ ERROR_INSTANCE_MEMORY_ALLOC:
                 }
                 //vpu_loge("[DEBUG, not ERROR] s_ion_dev = %p.\n", s_ion_dev);
             }
-       
+
 
             s_ion_reserved_mem_client = ion_client_create(s_ion_dev, "vpu");
             if (IS_ERR(s_ion_reserved_mem_client) || s_ion_reserved_mem_client == NULL)
@@ -1076,7 +1097,7 @@ ERROR_INSTANCE_MEMORY_ALLOC:
                 ret = -EFAULT;
                 goto ERROR_RESERVED_MEMORY_ALLOC;
             }
-			
+
             s_video_memory.phys_addr = iommu_format.iova_start;
             s_video_memory.size = (unsigned int)iommu_format.iova_size;
             //vpu_loge("[DEBUG, not ERROR] s_video_memory.phys_addr = 0x%x.\n", s_video_memory.phys_addr);
@@ -1474,6 +1495,8 @@ static int vpu_release(struct inode *inode, struct file *filp)
 
     vpu_clk_enable();
     /*====================END======================*/
+    WriteVpuRegister(BIT_INT_ENABLE, 0);
+    WriteVpuRegister(BIT_INT_CLEAR, 0x1);
 
     if (ReadVpuRegister(BIT_CUR_PC))
     {
@@ -1481,7 +1504,7 @@ static int vpu_release(struct inode *inode, struct file *filp)
         {
             if (time_after(jiffies, timeout))
             {
-                //vpu_loge("############### wait vpu firmware ilde timeout !!! ##############\n");
+                //vpu_loge("############### wait vpu firmware idle timeout !!! ##############\n");
                 break;
             }
         }
@@ -1512,7 +1535,7 @@ static int vpu_release(struct inode *inode, struct file *filp)
 
         if ((!IS_ERR(s_ion_instance_pool_handle)) && (s_ion_instance_pool_handle != NULL))
         {
-            //vpu_logi("ion_free: s_ion_instance_pool_client = %p, s_ion_instance_pool_handle = %p\n", 
+            //vpu_logi("ion_free: s_ion_instance_pool_client = %p, s_ion_instance_pool_handle = %p\n",
                 //s_ion_instance_pool_client, s_ion_instance_pool_handle);
 
             ion_free(s_ion_instance_pool_client, s_ion_instance_pool_handle);
@@ -1559,6 +1582,10 @@ static int vpu_release(struct inode *inode, struct file *filp)
     }
 
     vpu_off_notice_ade();
+    //added for solving vpu_noc by gwx271408 2015/8/5 start
+    iommu_set_vpu_onoff(0, NULL);
+    s_vpu_setirq_timeout = 0;
+    //added for solving vpu_noc by gwx271408 2015/8/5 end
     up(&s_vpu_sem);
 
     wake_unlock(&s_vpu_wakelock);
@@ -1567,23 +1594,22 @@ static int vpu_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-
-static int vpu_fasync(int fd, struct file *filp, int mode)
-{
-	struct vpu_drv_context_t *dev = (struct vpu_drv_context_t *)filp->private_data;
-	return fasync_helper(fd, filp, mode, &dev->async_queue);
-}
-
-
 static int vpu_map_to_register(struct file *fp, struct vm_area_struct *vm)
 {
-	unsigned long pfn;
+    unsigned long pfn;
 
-	vm->vm_flags |= VM_IO | VM_RESERVED;
-	vm->vm_page_prot = pgprot_noncached(vm->vm_page_prot);
-	pfn = s_vpu_reg_phy_addr >> PAGE_SHIFT;
+    vm->vm_flags |= VM_IO | VM_RESERVED;
+    vm->vm_page_prot = pgprot_noncached(vm->vm_page_prot);
+    pfn = s_vpu_reg_phy_addr >> PAGE_SHIFT;
 
-	return remap_pfn_range(vm, vm->vm_start, pfn, vm->vm_end-vm->vm_start, vm->vm_page_prot) ? -EAGAIN : 0;
+    if ((vm->vm_end - vm->vm_start) != VPU_BIT_REG_SIZE)
+    {
+        vpu_logi(" maped reg size out of range, required size = %u, actual support size = %u\n",
+            (vm->vm_end - vm->vm_start), VPU_BIT_REG_SIZE);
+        return -EAGAIN;
+     }
+
+    return remap_pfn_range(vm, vm->vm_start, pfn, vm->vm_end-vm->vm_start, vm->vm_page_prot) ? -EAGAIN : 0;
 }
 
 static int hisi_vpu_mmap(struct ion_client *client, struct ion_handle *handle, struct vm_area_struct * vma)
@@ -1627,11 +1653,18 @@ static int vpu_map_to_physical_memory(struct file *fp, struct vm_area_struct *vm
             //vm->vm_start,
             //vm->vm_end);
 
+    unsigned int mapedSize = vm->vm_end - vm->vm_start;
     if (1 == s_vpu_systemMMU_support)
     {
-
-        if(vm->vm_pgoff == (s_instance_pool.phys_addr>>PAGE_SHIFT))        
+        if (vm->vm_pgoff == (s_instance_pool.phys_addr>>PAGE_SHIFT))
         {
+            if (mapedSize != s_instance_pool.size)
+            {
+                vpu_loge("s_instance_pool memory maped size out of range, required size = %u actual support size =%u .\n",
+                    mapedSize, s_instance_pool.size);
+                return -EAGAIN;
+            }
+
             if (NULL == s_ion_instance_pool_client)
             {
                 return -EAGAIN;
@@ -1646,10 +1679,17 @@ static int vpu_map_to_physical_memory(struct file *fp, struct vm_area_struct *vm
                     ret = -EAGAIN;
                 }
             }
-        
+
         }
-        else 
+        else if (vm->vm_pgoff == (s_video_memory.phys_addr>>PAGE_SHIFT))
         {
+            if (mapedSize != s_video_memory.size)
+            {
+                vpu_loge("s_vmem maped size out of range, required size = %u actual support size =%u .\n",
+                    mapedSize, s_video_memory.size);
+                return -EAGAIN;
+            }
+
             if (NULL == s_ion_reserved_mem_handle)
             {
                 return -EAGAIN;
@@ -1663,40 +1703,20 @@ static int vpu_map_to_physical_memory(struct file *fp, struct vm_area_struct *vm
                     //vpu_loge("hisi_vpu_mmap err.\n");
                     ret = -EAGAIN;
                 }
-            } 
-        } 
-
+            }
+        }
+        else
+        {
+            vpu_loge("input hisi_vpu_mmap addr error.\n");
+            ret = -EAGAIN;
+        }
     }
     else
     {
-        vm->vm_flags |= VM_IO | VM_RESERVED;
-        vm->vm_page_prot = pgprot_writecombine(vm->vm_page_prot);
-
-        ret = remap_pfn_range(vm, vm->vm_start, vm->vm_pgoff, vm->vm_end-vm->vm_start, vm->vm_page_prot);
-        if (ret != 0)
-        {
-            ret = -EAGAIN;
-            //vpu_loge("remap_pfn_range err.\n");
-        }
-    }
-
-    return ret;
-}
-
-static int vpu_map_to_instance_pool_memory(struct file *fp, struct vm_area_struct *vm)
-{
-    int ret = 0;
-
-    //vpu_logd("vm_pgoff=%lu, vm_start=0x%lx, vm_end=0x%lx\n",vm->vm_pgoff,vm->vm_start,vm->vm_end);
-
-    ret = remap_pfn_range(vm, vm->vm_start, vm->vm_pgoff, vm->vm_end-vm->vm_start, vm->vm_page_prot);
-    if (ret != 0)
-    {
+        vpu_loge("Only support sysmmu.\n");
         ret = -EAGAIN;
-        //vpu_loge("remap_pfn_range err.\n");
     }
-
-    return  ret;
+    return ret;
 }
 
 
@@ -1707,12 +1727,6 @@ static int vpu_map_to_instance_pool_memory(struct file *fp, struct vm_area_struc
 static int vpu_mmap(struct file *fp, struct vm_area_struct *vm)
 {
 	if (vm->vm_pgoff) {
-        if (s_vpu_systemMMU_support == 0)
-        {
-            if (vm->vm_pgoff == (s_instance_pool.phys_addr>>PAGE_SHIFT))
-                return vpu_map_to_instance_pool_memory(fp, vm);
-        }
-
 		return vpu_map_to_physical_memory(fp, vm);
 	} else {
 		return vpu_map_to_register(fp, vm);
@@ -1730,7 +1744,7 @@ struct file_operations vpu_fops = {
 	.compat_ioctl = vpu_compat_ioctl,
 #endif //CONFIG_COMPAT
 	.release = vpu_release,
-	.fasync = vpu_fasync,
+	//.fasync = vpu_fasync,
 	.mmap = vpu_mmap,
 };
 
@@ -2190,18 +2204,19 @@ static void vpu_varible_init(void)
     s_vpu_qos_virt_addr     = NULL;
 
     s_ion_dev               = NULL;
-    
+
     s_ion_instance_pool_client  = NULL;
     s_ion_instance_pool_handle  = NULL;
 
     s_ion_reserved_mem_client   = NULL;
-    s_ion_reserved_mem_handle   = NULL;    
+    s_ion_reserved_mem_handle   = NULL;
 
     memset(s_vpu_reg_store, 0x00, sizeof(s_vpu_reg_store));
     s_run_index             = 0;
     s_run_codstd            = 0;
     s_vpu_frame_clock_state = 0;
     s_vpu_suspend_state     = 0;
+    s_vpu_setirq_timeout    = 0;//added for solving vpu_noc by gwx271408 2015/8/5
 }
 
 static int __init vpu_init(void)
@@ -2253,16 +2268,6 @@ static int vpu_regulator_enable(void)
         //vpu_loge("vpu pll clk enable failed!\n");
         goto err;
     }
-
-#if 0
-    /*media noc clk rate. config this when only run kernel*/
-    /* MEDIA_SC NOC CLK DIV [0xCBC]: NOC rate 288M, BIT[7][6-0]*/
-     phy_reg_writel(SOC_MEDIA_SCTRL_BASE_ADDR,
-                    SOC_MEDIA_SCTRL_SC_MEDIA_CLKCFG0_ADDR(CALC_REG_OFFSET),
-                    SOC_MEDIA_SCTRL_SC_MEDIA_CLKCFG0_media_clkcfg0_noc_value0_START,
-                    SOC_MEDIA_SCTRL_SC_MEDIA_CLKCFG0_media_clkcfg0_isp_sclk2_vld3_END,
-                    0x85);
-#endif
 
     /* MEDIA_SC VPU DIV [0xCC4]: vpu cclk rate 333M*/
     if (0 != clk_set_rate(s_vpu_clk.clk_codec_vpu, s_vpu_clk.clk_freq)) {
@@ -2403,25 +2408,6 @@ static int vpu_clk_get(void)
 	}
 	dev=&pdev->dev;
 
-#if 0
-    /*not need enable gpupll&medpll clock, it's invalid. 20140505*/
-	/* get G3D PLL handle */
-	s_vpu_clk.clk_gpupll_src  = clk_get(dev, "CLK_GPUPLL_SRC");
-    if (IS_ERR(s_vpu_clk.clk_gpupll_src))
-    {
-    	//vpu_loge("vpu_clk_get:get CLK_GPUPLL_SRC clock failed.\n");
-		return ret;
-    }
-
-	/* get MEDIA PLL handle */
-	s_vpu_clk.clk_medpll_src  = clk_get(dev, "CLK_MEDPLL_SRC");
-    if (IS_ERR(s_vpu_clk.clk_medpll_src))
-    {
-    	//vpu_loge("vpu_clk_get:get CLK_MEDPLL_SRC clock failed.\n");
-		return ret;
-    }
-#endif
-
     /* 1. must enable clk_medpll_src_gated before all media_sctrl handle
        2. must disalbe clk_medpll_src_gated after all media_sctrl handle */
 	/* get medpll src gated handle */
@@ -2514,23 +2500,6 @@ static void vpu_clk_put(void)
         clk_put(s_vpu_clk.clk_medpll_src_gated);
         s_vpu_clk.clk_medpll_src_gated = NULL;
     }
-
-#if 0
-    /*not need enable gpupll&medpll clock, it's invalid. 20140505*/
-    /* put MEDIA PLL handle */
-    if (NULL != s_vpu_clk.clk_medpll_src)
-    {
-        clk_put(s_vpu_clk.clk_medpll_src);
-        s_vpu_clk.clk_medpll_src = NULL;
-    }
-
-    /* put G3D PLL handle */
-    if (NULL != s_vpu_clk.clk_gpupll_src)
-    {
-        clk_put(s_vpu_clk.clk_gpupll_src);
-        s_vpu_clk.clk_gpupll_src = NULL;
-    }
-#endif
 
     //vpu_logi("vpu_clk_put is successfull.\n");
 
@@ -2630,27 +2599,6 @@ static int vpu_pll_clk_enable(void)
 
     //vpu_logi("enter. vpu pll clock enable.\n");
 
-    /*not need enable gpupll&medpll clock, it's invalid. 20140505*/
-#if 0
-    /* PMCTRL GPUPLLCTRL EN [0x008]: enable G3D PLL */
-    if (0 != clk_prepare_enable(s_vpu_clk.clk_gpupll_src))
-    {
-        //vpu_loge("clk_gpupll_src enable failed!.");
-        vpu_pll_clk_disable();
-        return ret;
-    }
-    s_vpu_clk.clk_gpupll_src_bit= 1;
-
-    /* PMCTRL MEDPLLCTRL EN [0x038]: enable MEDIA PLL */
-    if (0 != clk_prepare_enable(s_vpu_clk.clk_medpll_src))
-    {
-        //vpu_loge("clk_medpll_src enable failed!.");
-        vpu_pll_clk_disable();
-        return ret;
-    }
-    s_vpu_clk.clk_medpll_src_bit= 1;
-#endif
-
     /* medpll src gated enable */
     if (0 != clk_prepare_enable(s_vpu_clk.clk_medpll_src_gated))
     {
@@ -2675,24 +2623,6 @@ static void vpu_pll_clk_disable(void)
 	    clk_disable_unprepare(s_vpu_clk.clk_medpll_src_gated);
 	    s_vpu_clk.clk_medpll_src_gated_bit = 0;
 	}
-
-    /*not need disable gpupll&medpll clock, it's invalid. 20140505*/
-#if 0
-	/* MEDIA PLL disable */
-	if ( (NULL != s_vpu_clk.clk_medpll_src) && (1 == s_vpu_clk.clk_medpll_src_bit) )
-	{
-	    clk_disable_unprepare(s_vpu_clk.clk_medpll_src);
-	    s_vpu_clk.clk_medpll_src_bit = 0;
-	}
-
-    /* G3D PLL disable */
-	if ( (NULL != s_vpu_clk.clk_gpupll_src) && (1 == s_vpu_clk.clk_gpupll_src_bit) )
-	{
-	    clk_disable_unprepare(s_vpu_clk.clk_gpupll_src);
-	    s_vpu_clk.clk_gpupll_src_bit = 0;
-	}
-#endif
-
     //vpu_logi("vpu_pll_clk_disable is successful.\n");
 
     return;
@@ -2819,9 +2749,14 @@ int vpu_hw_reset(void)
 	//vpu_logd("request vpu reset from application. \n");
 	return 0;
 }
-
-
-
+//added for solving vpu_noc by gwx271408 2015/8/5 start
+void vpu_set_irq_timeout_cb(void)
+{
+        vpu_loge("set vpu irq timeout. \n");
+        s_vpu_setirq_timeout = 1;
+        return ;
+}
+//added for solving vpu_noc by gwx271408 2015/8/5 end
 MODULE_AUTHOR("A customer using C&M VPU, Inc.");
 MODULE_DESCRIPTION("VPU linux driver");
 MODULE_LICENSE("GPL");

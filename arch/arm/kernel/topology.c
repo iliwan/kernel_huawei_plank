@@ -43,7 +43,7 @@
  */
 static DEFINE_PER_CPU(unsigned long, cpu_scale);
 
-static unsigned long arch_scale_freq_power(struct sched_domain *sd, int cpu)
+unsigned long arch_scale_freq_power(struct sched_domain *sd, int cpu)
 {
 	return per_cpu(cpu_scale, cpu);
 }
@@ -70,8 +70,8 @@ struct cpu_efficiency {
  * use the default SCHED_POWER_SCALE value for cpu_scale.
  */
 static struct cpu_efficiency table_efficiency[] = {
-	{"arm,cortex-a53", 3891},
-	{"arm,arm-v8",  2048}, 
+	{"arm,cortex-a15", 3891},
+	{"arm,cortex-a7",  2048},
 	{NULL, },
 };
 
@@ -171,7 +171,7 @@ static void __init parse_dt_topology(void)
  * boot. The update of all CPUs is in O(n^2) for heteregeneous system but the
  * function returns directly for SMP system.
  */
-static void update_cpu_power(unsigned int cpu, unsigned long hwid)
+void update_cpu_power(unsigned int cpu, unsigned long hwid)
 {
 	unsigned int idx = 0;
 
@@ -301,7 +301,7 @@ void store_cpu_topology(unsigned int cpuid)
 #ifdef CONFIG_SCHED_HMP
 
 static const char * const little_cores[] = {
-	"arm,cortex-a53",
+	"arm,cortex-a7",
 	NULL,
 };
 

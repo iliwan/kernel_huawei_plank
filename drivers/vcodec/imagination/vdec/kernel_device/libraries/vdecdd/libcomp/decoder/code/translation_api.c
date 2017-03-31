@@ -902,6 +902,7 @@ static IMG_RESULT translation_RealFragStartSegmentsCreate(
             return IMG_ERROR_MALLOC_FAILED;
         }
         apsFragDecPictSeg[i]->psBitStrSeg = apsFragBitStrSeg[i];    // connect the two lists
+        apsFragDecPictSeg[i]->bInternalSeg = IMG_TRUE;
         LST_addHead(psDecPictSegList, apsFragDecPictSeg[i]);        // Add the wrapper element into the wrapper list
     }
 

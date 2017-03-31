@@ -31,6 +31,13 @@
 
 #include "power.h"
 
+#ifdef CONFIG_HUAWEI_POWEROFF_RTC
+extern char *saved_command_line;
+static bool is_first_suspend = false;
+static bool kernel_is_upgrade_version = false;
+static bool kernel_is_checked_ver = false;
+#endif
+
 struct pm_sleep_state pm_states[PM_SUSPEND_MAX] = {
 	[PM_SUSPEND_FREEZE] = { .label = "freeze", .state = PM_SUSPEND_FREEZE },
 	[PM_SUSPEND_STANDBY] = { .label = "standby", },
@@ -177,6 +184,11 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 {
 	char suspend_abort[MAX_SUSPEND_ABORT_LEN];
 	int error, last_dev;
+	
+    #ifdef CONFIG_HUAWEI_POWEROFF_RTC
+	struct timespec ts;
+	char *normal_ver_str_ptr = NULL;
+    #endif
 
 	if (need_suspend_ops(state) && suspend_ops->prepare) {
 		error = suspend_ops->prepare();
@@ -202,6 +214,37 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 
 	if (suspend_test(TEST_PLATFORM))
 		goto Platform_wake;
+
+	/* FIXME: This is a temporary hack to prevent doze mode immediately
+	 * after boot (for 45 secs), untill the app registrations is successful
+	 * Like alarm registrations et al */
+    #ifdef CONFIG_HUAWEI_POWEROFF_RTC
+	if (!kernel_is_checked_ver) {
+		// check if current ver is upgrading ver.
+		normal_ver_str_ptr = strstr(saved_command_line, "androidboot.swtype=normal");
+		pr_info("saved_command_line=%s;\n",saved_command_line);
+		if(NULL != normal_ver_str_ptr)
+		{	// current ver is upgrading ver.
+			pr_info("normal_ver_ptr=%s;\n",normal_ver_str_ptr);		
+			kernel_is_upgrade_version = true;
+		}
+		kernel_is_checked_ver = true;
+	}
+
+	if(kernel_is_upgrade_version){
+		// it is upgrading ver!
+		if (!is_first_suspend) {
+	        get_monotonic_boottime(&ts);
+			if (ts.tv_sec < 120) {
+			    pr_info("PM: bootime < 120 secs, block suspend\n");
+				goto Platform_wake;
+			} else {
+				pr_debug("PM: all registrations completed, enable PM suspend feature \n");
+				is_first_suspend = true;
+			}
+		}
+	}
+	#endif
 
 	/*
 	 * PM_SUSPEND_FREEZE equals

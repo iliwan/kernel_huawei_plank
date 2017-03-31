@@ -14,7 +14,7 @@
 #include "hisi_fb.h"
 #include <linux/timer.h>
 #include <linux/delay.h>
-
+#include <linux/semaphore.h>
 /* default pwm clk */
 #define DEFAULT_PWM_CLK_RATE	(120 * 1000000L)
 
@@ -68,6 +68,8 @@ struct bl_info{
 	int32_t prev_cabc_pwm;
 	int32_t current_cabc_pwm;
 	int32_t cabc_pwm_in;
+	int32_t last_bl_level;
+	struct semaphore bl_semaphore;
 };
 
 static struct bl_info g_bl_info;
@@ -81,13 +83,15 @@ static void init_bl_info(void)
 	g_bl_info.prev_cabc_pwm =254;
 	g_bl_info.current_cabc_pwm =254;
 	g_bl_info.cabc_pwm_in =254;
+	g_bl_info.last_bl_level =0;
+	sema_init(&g_bl_info.bl_semaphore,1);
 	return ;
 }
 
 static void update_backlight(uint32_t backlight)
 {
 	uint32_t bl_level = (backlight * PWM_OUT_PRECISION) / g_bl_info.bl_max;
-	HISI_FB_INFO("update_backlight: backlight = %d!\n", backlight);
+
 	BUG_ON(hisifd_pwm_base == NULL);
 	outp32(hisifd_pwm_base + PWM_LOCK_OFFSET, 0x1acce551);
 	outp32(hisifd_pwm_base + PWM_CTL_OFFSET, 0x0);
@@ -120,14 +124,18 @@ static int cabc_pwm_thread(void *p)
 			}
 			int32_t delta_cabc_pwm = g_bl_info.cabc_pwm - g_bl_info.prev_cabc_pwm;
 			int32_t pwm_duty=delta_cabc_pwm*g_bl_info.index_cabc_dimming/32 + delta_cabc_pwm *g_bl_info.index_cabc_dimming % 32 /16;
+			down(&g_bl_info.bl_semaphore);
 			g_bl_info.current_cabc_pwm = g_bl_info.prev_cabc_pwm +   pwm_duty;
-			HISI_FB_INFO("g_bl_info.current_cabc_pwm = %d,g_bl_info.index_cabc_dimming= %d,pwm_duty= %d,g_bl_info.index_cabc_dimming= %d!\n",g_bl_info.current_cabc_pwm ,g_bl_info.index_cabc_dimming,pwm_duty,g_bl_info.index_cabc_dimming);
 			int32_t backlight = g_bl_info.current_cabc_pwm * g_bl_info.ap_brightness / CABC_PWM_DUTY_MAX_LEVEL;
 			if (backlight > 0 && backlight < PWM_BL_LEVEL_MIN) {
 			    backlight = PWM_BL_LEVEL_MIN;
 			}
-			update_backlight(backlight);
+			if(g_bl_info.ap_brightness != 0 && backlight != g_bl_info.last_bl_level){
+				update_backlight(backlight);
+				g_bl_info.last_bl_level = backlight;
+			}
 			g_bl_info.index_cabc_dimming++;
+			up(&g_bl_info.bl_semaphore);
 			msleep(16);
 		}
 	}
@@ -136,8 +144,13 @@ static int cabc_pwm_thread(void *p)
 
 int hisi_cabc_set_backlight(uint32_t cabc_pwm_in)
 {
-	if(g_bl_info.ap_brightness == 0 || cabc_pwm_task == NULL)
+	if(cabc_pwm_task == NULL)
 		return 0;
+	if(g_bl_info.ap_brightness == 0)
+	{
+	     g_bl_info.current_cabc_pwm = cabc_pwm_in;
+	     return 0;
+	}
 	g_bl_info.cabc_pwm_in = cabc_pwm_in;
 	wake_up_process(cabc_pwm_task);
 	return 0;
@@ -174,17 +187,13 @@ int hisi_pwm_set_backlight(struct hisi_fb_data_type *hisifd)
 	}
 
 	#ifdef CONFIG_BACKLIGHT_10000
+	      down(&g_bl_info.bl_semaphore);
+	      g_bl_info.ap_brightness = bl_level;
 	      if(bl_level > 0){
 		    bl_level= bl_level * g_bl_info.current_cabc_pwm / CABC_PWM_DUTY_MAX_LEVEL;
 		    bl_level =  bl_level < PWM_BL_LEVEL_MIN ? PWM_BL_LEVEL_MIN : bl_level ;
 	      }
-	      g_bl_info.ap_brightness = bl_level;
-	      HISI_FB_INFO("g_bl_info.ap_brightness= %d\n",bl_level);
-	      if(bl_level > 0 && g_bl_info.index_cabc_dimming > 0 &&  g_bl_info.index_cabc_dimming < 33 )
-	      {
-		    HISI_FB_INFO("cabc is dimming and g_bl_info.index_cabc_dimming = %d\n",g_bl_info.index_cabc_dimming);
-		    return;
-	      }
+	      g_bl_info.last_bl_level = bl_level;
 	#endif
 
 	bl_level = (bl_level * PWM_OUT_PRECISION) / bl_max;
@@ -197,7 +206,9 @@ int hisi_pwm_set_backlight(struct hisi_fb_data_type *hisifd)
 	outp32(pwm_base + PWM_CTL_OFFSET, 0x1);
 	outp32(pwm_base + PWM_C0_MR_OFFSET, (PWM_OUT_PRECISION - 1));
 	outp32(pwm_base + PWM_C0_MR0_OFFSET, bl_level);
-
+	#ifdef CONFIG_BACKLIGHT_10000
+	up(&g_bl_info.bl_semaphore);
+	#endif
 	return 0;
 }
 

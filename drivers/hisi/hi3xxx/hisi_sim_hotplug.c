@@ -113,6 +113,14 @@ typedef struct {
 	u8 sim_mux[3];
 } sim_log;
 
+struct
+{
+    u8  sim0_det_normal_direction;
+    u8  sim0_pluged;
+    u8  sim1_det_normal_direction;
+    u8  sim1_pluged;
+} sim_plug_state;
+
 typedef struct {
 	int sim_state;
 	char* sim_state_str;
@@ -127,7 +135,7 @@ static const sim_state_tbl s_sim_state_tbl[] = {
 #define STR_SIM_CARD_IN             "1"
 #define STR_CLEAR_SIM_CARD_STATE    "0"
 
-struct kobject *sim_kobj;
+struct kobject *sim_kobj = NULL;
 static int sim0_state = SIM_HOTPLUG_STATE_UNKNOWN;
 static int sim1_state = SIM_HOTPLUG_STATE_UNKNOWN;
 
@@ -168,15 +176,52 @@ sim_log *g_log_org;
 u8 g_sim_log_idx = 0;
 void __iomem *hisi_pmurtc_base;
 
+/* static funciton declare */
+static char* simplug_to_string(u32 plug);
+static char* direction_to_string(u32 direction);
+
+
+/* funciton implement */
+static char* simplug_to_string(u32 plug)
+{
+    switch (plug)
+    {
+    case SIM_CARD_OUT:
+        return "SIM_CARD_OUT";
+
+    case SIM_CARD_IN:
+        return "SIM_CARD_IN";
+
+    default:
+        return "SIM_PLUG_ERROR";
+    }
+}
+
+static char* direction_to_string(u32 direction)
+{
+    switch (direction)
+    {
+    case NORMAL_CLOSE:
+        return "NORMAL_CLOSE";
+
+    case NORMAL_OPEN:
+        return "NORMAL_OPEN";
+
+    case NORMAL_BUTT:
+    default:
+        return "NORMAL_BUTT";
+    }
+}
+
 void sim_pmu_hpd_read(void)
 {
-    unsigned long pmu_irq3       = 0;
-    unsigned long pmu_irq_mask3  = 0;
-    unsigned long pmu_sim_ctrl1  = 0;
-    unsigned long pmu_sim_ctrl2  = 0;
-    unsigned long pmu_ldo11_ctrl = 0;
-    unsigned long pmu_ldo12_ctrl = 0;
-    unsigned long pmu_status1    = 0;
+    u32 pmu_irq3       = 0;
+    u32 pmu_irq_mask3  = 0;
+    u32 pmu_sim_ctrl1  = 0;
+    u32 pmu_sim_ctrl2  = 0;
+    u32 pmu_ldo11_ctrl = 0;
+    u32 pmu_ldo12_ctrl = 0;
+    u32 pmu_status1    = 0;
 
     pmu_irq3 = READ_PMU_SIM(HI6421V300_PMU_IRQ3);
     pmu_irq_mask3 = READ_PMU_SIM(HI6421V300_PMU_IRQ_MASK3);
@@ -249,6 +294,20 @@ err:
 	return ret;
 }
 
+static ssize_t sim_plug_state_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+    pr_info("%s: sim0 det_normal_direction: %s, pluged: %s; "
+            "sim1 det_normal_direction: %s, pluged: %s\n",
+            __func__,
+            direction_to_string(sim_plug_state.sim0_det_normal_direction),
+            simplug_to_string(sim_plug_state.sim0_pluged),
+            direction_to_string(sim_plug_state.sim1_det_normal_direction),
+            simplug_to_string(sim_plug_state.sim1_pluged));
+
+    memcpy(buf, &sim_plug_state, sizeof(sim_plug_state));
+    return (ssize_t)sizeof(sim_plug_state);
+}
+
 static ssize_t sim0_hotplug_state_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE - 1, "%d\n", sim0_state);
@@ -299,9 +358,13 @@ static struct kobj_attribute sim0_attribute =
 static struct kobj_attribute sim1_attribute =
 	__ATTR(sim1_hotplug_state, 0664, sim1_hotplug_state_show, sim1_hotplug_state_store);
 
+static struct kobj_attribute sim_plug_state_attribute =
+    __ATTR(sim_hotplug_state, 0664, sim_plug_state_show, NULL);
+
 static struct attribute *attrs[] = {
 	&sim0_attribute.attr,
 	&sim1_attribute.attr,
+    &sim_plug_state_attribute.attr,
 	NULL
 };
 
@@ -344,22 +407,22 @@ static void update_sim_state_info(int sim_id, int sim_state)
     {
         if (sim_state == SIM_CARD_IN)
         {
-            sim0_hotplug_state_store(sim_kobj, attrs[SIM0_ID], STR_SIM_CARD_IN, strlen(STR_SIM_CARD_IN));
+            sim0_hotplug_state_store(sim_kobj, (struct kobj_attribute *)attrs[SIM0_ID], STR_SIM_CARD_IN, strlen(STR_SIM_CARD_IN));
         }
         else
         {
-            sim0_hotplug_state_store(sim_kobj, attrs[SIM0_ID], STR_CLEAR_SIM_CARD_STATE, strlen(STR_CLEAR_SIM_CARD_STATE));
+            sim0_hotplug_state_store(sim_kobj, (struct kobj_attribute *)attrs[SIM0_ID], STR_CLEAR_SIM_CARD_STATE, strlen(STR_CLEAR_SIM_CARD_STATE));
         }
     }
     else if (SIM1_ID == sim_id)
     {
         if (sim_state == SIM_CARD_IN)
         {
-            sim1_hotplug_state_store(sim_kobj, attrs[SIM1_ID], STR_SIM_CARD_IN, strlen(STR_SIM_CARD_IN));
+            sim1_hotplug_state_store(sim_kobj, (struct kobj_attribute *)attrs[SIM1_ID], STR_SIM_CARD_IN, strlen(STR_SIM_CARD_IN));
         }
         else
         {
-            sim1_hotplug_state_store(sim_kobj, attrs[SIM1_ID], STR_CLEAR_SIM_CARD_STATE, strlen(STR_CLEAR_SIM_CARD_STATE));
+            sim1_hotplug_state_store(sim_kobj, (struct kobj_attribute *)attrs[SIM1_ID], STR_CLEAR_SIM_CARD_STATE, strlen(STR_CLEAR_SIM_CARD_STATE));
         }
     }
     else
@@ -386,10 +449,12 @@ static void set_sim_status(struct hisi_sim_hotplug_info *info, u32 sim_no, u32 s
 		log_temp.sim_mux[0] = readl(info->iomg_base + GPIO103_IOMG_ADDR);
 		log_temp.sim_mux[1] = readl(info->iomg_base + GPIO104_IOMG_ADDR);
 		log_temp.sim_mux[2] = readl(info->iomg_base + GPIO105_IOMG_ADDR);
+        sim_plug_state.sim0_pluged = (u8)sim_status;
 	} else if (SIM1_ID == info->sim_id) {
 		log_temp.sim_mux[0] = readl(info->iomg_base + GPIO106_IOMG_ADDR);
 		log_temp.sim_mux[1] = readl(info->iomg_base + GPIO107_IOMG_ADDR);
 		log_temp.sim_mux[2] = readl(info->iomg_base + GPIO108_IOMG_ADDR);
+        sim_plug_state.sim1_pluged = (u8)sim_status;
 	} else {
 		pr_err("%s: sim id [%d] is err!\n", __func__, info->sim_id);
 	}
@@ -443,6 +508,13 @@ static void hisi_sim_det_msg_to_ccore(struct hisi_sim_hotplug_info *info, u8 sim
 #ifdef CONFIG_HISI_BALONG_MODEM
 	u32 channel_id = 0;
 	int det_gpio_state = 0;
+	int len = 0;
+
+	if (runmode_is_factory())
+	{
+		pr_err("%s: runmode is factory, don't support hotplug function, just return.\n", __func__);
+		return;
+	}
 
 	if (NULL == info)
 	{
@@ -484,8 +556,13 @@ static void hisi_sim_det_msg_to_ccore(struct hisi_sim_hotplug_info *info, u8 sim
 		return;
 	}
 
-	pr_info("%s: sim_id=%d, sim_state=%s \n", __func__, info->sim_id, s_sim_state_tbl[sim_state].sim_state_str);
-	bsp_icc_send(ICC_CPU_MODEM, channel_id, &sim_state, sizeof(sim_state));
+	pr_info("%s: sim_id=%d, sim_state=%s \n", __func__, info->sim_id, s_sim_state_tbl[sim_state].sim_state_str);	
+	len = bsp_icc_send(ICC_CPU_MODEM, channel_id, &sim_state, sizeof(sim_state));
+	if( len != sizeof(sim_state))
+	{
+		pr_err("%s: bsp_icc_send failed! len = %d, expected len = %lu\n", __func__, len, sizeof(sim_state));
+		return;
+	}
 	update_sim_state_info(info->sim_id, sim_state);
 	pr_info("%s: end \n", __func__);
 #else
@@ -572,6 +649,7 @@ static irqreturn_t sim_det_irq_handler(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
+	pr_info("[%s] %d, sim_hotplug_det_wk1 begin.\n", __func__, __LINE__);
 	queue_work(sim_hotplug_info->sim_hotplug_det_wq, &sim_hotplug_info->sim_hotplug_det_wk1);
 
 	return IRQ_HANDLED;
@@ -727,6 +805,15 @@ static int sim_hotplug_dt_init(struct hisi_sim_hotplug_info *info, struct device
 		return ret;
 	}
 	info->sim_id = sim_id;
+
+    if (SIM0 == sim_id)
+    {
+        sim_plug_state.sim0_det_normal_direction = (u8)(info->det_direction);
+    }
+    else if (SIM1 == sim_id)
+    {
+        sim_plug_state.sim1_det_normal_direction = (u8)(info->det_direction);
+    }
 
 	/*set det gpio to irq*/
 	info->det_gpio = of_get_gpio_flags(np, 0, &flags);
@@ -899,7 +986,7 @@ static int hisi_sim_hotplug_probe(struct platform_device *pdev)
 		memset(g_log_org, 0xFF, MAX_SIM_HOTPLUG_LOG * sizeof(sim_log));
 		g_rdr_flag = 1;
 
-		pr_info("%s, g_log_org=0x%.8x, rdr_int=0x%x\n", __func__, g_log_org, rdr_int);
+		pr_info("%s, g_log_org=%p, rdr_int=0x%x\n", __func__, g_log_org, rdr_int);
 	}
 #endif
 

@@ -69,8 +69,8 @@ static struct pinctrl_cmd_desc blpwm_pinctrl_finit_cmds[] = {
 #define PWM_INTR_CLEAR	(0x1)
 #define PWM_INTR_CLEAR_OFFSET	(0x020)
 #define PWM_MIN_VALUE	100
-#define PWM_DIFF_THRESHOLD_POSITIVE	11
-#define PWM_DIFF_THRESHOLD_NEGTIVE	-11
+#define PWM_DIFF_THRESHOLD_POSITIVE	3
+#define PWM_DIFF_THRESHOLD_NEGTIVE	-3
 #define PWM_DIFF_DEFAULT_VALUE	60
 #define PWM_SCALER	10
 static uint32_t g_pwm_in_div_probe_flag;

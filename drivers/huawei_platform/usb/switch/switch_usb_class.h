@@ -3,6 +3,7 @@
 #define FSA9685_USB1        1
 #define FSA9685_USB2        2
 #define FSA9685_MHL     4
+#define FSA9685_USB1_ID_TO_IDBYPASS             1
 
 struct switch_usb_info {
     struct atomic_notifier_head charger_type_notifier_head;

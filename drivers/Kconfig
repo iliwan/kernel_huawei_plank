@@ -176,6 +176,8 @@ source "drivers/ipack/Kconfig"
 
 source "drivers/reset/Kconfig"
 
+source "drivers/android/Kconfig"
+
 source "drivers/gpu/arm/Kconfig"
 
 source "drivers/coresight/Kconfig"
@@ -191,12 +193,14 @@ source "drivers/gator/Kconfig"
 
 source "drivers/tzdriver/Kconfig"
 
-
+source "drivers/sensors/Kconfig"
 source "drivers/srecorder/Kconfig"
 
 source "drivers/huawei_platform/Kconfig"
 
 source "drivers/huawei_platform_legacy/Kconfig"
+
+source "drivers/hwusb/Kconfig"
 
 source "drivers/hisi_pilot/Kconfig"
 endmenu

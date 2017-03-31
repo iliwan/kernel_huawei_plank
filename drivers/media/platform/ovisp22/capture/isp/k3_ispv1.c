@@ -73,12 +73,14 @@
 
 #include "video_config.h"
 
+#include "sensor_common.h"
+
 #define DEBUG_DEBUG 0
 #define LOG_TAG "K3_ISPV1"
 #include "cam_log.h"
 
 #if defined (CONFIG_HUAWEI_DSM)
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #endif
 #ifdef READ_BACK_RAW
 /* the 0x3c771000 is K3 addr, can't use at balong platform */
@@ -96,6 +98,8 @@
 #define FIRMWARE_MEM_SIZE   (128*1024)
 static u8 *isp_firmware_addr;
 static u32 isp_firmware_size;
+
+extern k3_isp_data isp_data;
 
 /* calc bracket mode for value CMD_CAPTURE command set
  * [1]: 0 for 2 exposures, 1 for 3 exposures in bracket mode
@@ -514,6 +518,9 @@ static void ispv1_set_process_mode(capture_type process_mode);
 /* end */
 #endif
 static isp_process_mode_t ispv1_get_process_mode(void);
+static void ispv1_set_b_shutter_mode(camera_b_shutter_mode b_shutter_mode);
+static int ispv1_set_b_shutter_long_ae(b_shutter_ae_iso_s* b_shutter_ae_iso);
+static int ispv1_set_b_shutter_hdr_ae(b_shutter_hdr_aeciso_s* b_shutter_hdr_ae_iso);
 static void ispv1_hw_deinit(void);
 static camera_frame_buf *ispv1_move_queue_element(struct list_head *source, u8 source_flag,
 	struct list_head *target, u8 target_flag);
@@ -530,7 +537,9 @@ static bool ispv1_is_need_flash(camera_sensor *sensor);
  #endif
 
 static void append_meta_data_to_raw_imgdata(camera_frame_buf* frame);
+#ifdef READBAK_RAW
 static void ispv1_get_meta_data_info(meta_data_info_of_raw_imgdata_t* info);
+#endif
 
  static int ispv1_switch_sensor_cmd(camera_sensor *sensor, stream_state state);
 /*
@@ -656,11 +665,11 @@ static int wait_cmd_timeout(int cmd, int time_out)
 	}
 
 	if (down_timeout(sem, jiffies)) {
-		if((cmd==CMD_CAPTURE) || (cmd==CMD_SET_FORMAT)){
+		if((cmd==CMD_CAPTURE) || (cmd==CMD_SET_FORMAT) ||(cmd==CMD_I2C_GRP_WR)){
 			ispv1_check_i2c_ispbuf_write_ack_status();
 		}
 
-		if(cmd == CMD_CAPTURE){
+		if((cmd == CMD_CAPTURE)|| (cmd==CMD_SET_FORMAT)||(cmd==CMD_I2C_GRP_WR)){
                  dump_isp_size_reg();
                  dump_isp_cmd_reg();
                  dump_isp_mac_size_reg();
@@ -769,6 +778,7 @@ static u16 ispv1_convert_input_fmt(u32 fmt)
  */
 static void append_meta_data_to_raw_imgdata(camera_frame_buf* frame)
 {
+#ifdef READBAK_RAW
     char *base;
     char *pos;
     // get info;
@@ -785,6 +795,7 @@ static void append_meta_data_to_raw_imgdata(camera_frame_buf* frame)
     pos[META_DATA_INFOSIZE-1] = 'F';
     pos[META_DATA_INFOSIZE-2] = 'R';
     pos[META_DATA_INFOSIZE-3] = 'V';
+#endif
 }
 
 /*
@@ -797,6 +808,7 @@ static void append_meta_data_to_raw_imgdata(camera_frame_buf* frame)
  * Other       : NA;
  **************************************************************************
  */
+ #ifdef READBAK_RAW
 static void ispv1_get_meta_data_info(meta_data_info_of_raw_imgdata_t* info)
 {
     u32 gain;
@@ -851,6 +863,7 @@ static void ispv1_get_meta_data_info(meta_data_info_of_raw_imgdata_t* info)
     print_info("exposure_line=0x%x", info->exposure_line);
     print_info("sensor_vts=0x%x", info->sensor_vts);
 }
+#endif
 
 /*
  **************************************************************************
@@ -1047,6 +1060,226 @@ static isp_process_mode_t ispv1_get_process_mode(void)
 	return isp_hw_data.process_mode;
 }
 /* end */
+
+/*
+ **************************************************************************
+ * FunctionName: ispv1_set_b_shutter_mode;
+ * Description : set b shutter mode that supported by isp and camera rear sensor;
+ * Input       : NA;
+ * Output      : NA;
+ * ReturnValue : NA;
+ * Other       : NA;
+ **************************************************************************
+ */
+static void ispv1_set_b_shutter_mode(camera_b_shutter_mode b_shutter_mode)
+{
+    print_debug("%s enter %s b_shutter_mode=%d", BSHUTTER_LOG_TAG, __FUNCTION__,b_shutter_mode);
+    if(CAMERA_B_SHUTTER_MODE_OFF == b_shutter_mode){
+		/*restore b_shutter relative struct to initial*/
+		isp_data.b_shutter_state = CAMERA_B_SHUTTER_MODE_OFF;
+		isp_data.ecgc_support_type = ECGC_TYPE_MAX;
+		memset(&isp_data.b_shutter_aecagc,0, sizeof(isp_data.b_shutter_aecagc));
+		memset(&isp_data.b_shutter_hdr_aecagc,0, sizeof(isp_data.b_shutter_hdr_aecagc));
+		memset(&isp_data.b_shutter_tryae_aecagc,0, sizeof(isp_data.b_shutter_tryae_aecagc));
+
+		ispv1_set_aecagc_mode(AUTO_AECAGC);//restore the aecagc control mode to auto mode
+
+        print_info("%s %s b_shutter_mode=0x%x, set aecagc control mode to manual auto", BSHUTTER_LOG_TAG, __func__,b_shutter_mode);
+    }else if(CAMERA_B_SHUTTER_MODE_ON == b_shutter_mode){
+        isp_data.b_shutter_state = CAMERA_B_SHUTTER_MODE_ON;
+
+		ispv1_set_aecagc_mode(MANUAL_AECAGC);//set the aecagc control mode to manual mode to the b shutter algo for preview try ae
+
+        print_info("%s %s b_shutter_mode=0x%x, set aecagc control mode to manual", BSHUTTER_LOG_TAG, __func__,b_shutter_mode);
+    }else{
+        print_error("%s %s invalid type:%d.", BSHUTTER_LOG_TAG, __func__,b_shutter_mode);
+    }
+}
+
+/*
+ **************************************************************************
+ * FunctionName: ispv1_set_b_shutter_long_ae;
+ * Description : set b shutter mode aecagc that supported by isp and camera rear sensor;
+ * Input       : NA;
+ * Output      : NA;
+ * ReturnValue : NA;
+ * Other       : NA;
+ **************************************************************************
+ */
+static int ispv1_set_b_shutter_long_ae(b_shutter_ae_iso_s* b_shutter_ae_iso)
+{
+	int gain = 0;
+	int currBandingMode = CAMERA_ANTI_BANDING_50Hz;
+	u32 banding_step = 0;
+	u32 expo_line = 0;
+	u32 bandMode =100;
+	u32 vts = 0;
+	u16 basic_vts=0;
+	camera_sensor *sensor = this_ispdata->sensor;
+	print_info("%s enter %s b_shutter_ae=%d  b_shutter_iso=%d", BSHUTTER_LOG_TAG, __FUNCTION__,b_shutter_ae_iso->long_expo_expo,b_shutter_ae_iso->long_expo_iso);
+
+	gain = ispv1_iso2gain(b_shutter_ae_iso->long_expo_iso,false);
+	if(b_shutter_ae_iso->long_expo_expo<=0 || gain<=0){
+		print_error("%s %s error input", BSHUTTER_LOG_TAG, __FUNCTION__);
+		return -1;
+	}
+
+	if(b_shutter_ae_iso->long_expo_expo<=SEGMENT_SUPPORT_LONG_EXPO && b_shutter_ae_iso->long_expo_expo>=MIN_SUPPORT_LONG_EXPO){//Tline~700ms,use shot expo  capture setting,max 13fps, 770ms is the max expo for 13fps;OV13850 Tline 99.3us, IMX328 Tline 45.8us
+		isp_data.ecgc_support_type = ECGC_TYPE_NORMAL_BSHUTTER_SHORT;
+	}else if((b_shutter_ae_iso->long_expo_expo>SEGMENT_SUPPORT_LONG_EXPO) && (b_shutter_ae_iso->long_expo_expo<=MAX_SUPPORT_LONG_EXPO)){//Tline~3s use the long expo setting,max 3fps
+		isp_data.ecgc_support_type = ECGC_TYPE_BSHUTTER_LONG;
+	}else{
+		isp_data.ecgc_support_type = ECGC_TYPE_MAX;
+		print_error("%s %s error input long_expo_expo out of range", BSHUTTER_LOG_TAG, __FUNCTION__);
+		return -1;
+	}
+
+	currBandingMode = ispv1_get_anti_banding();
+	if(CAMERA_ANTI_BANDING_60Hz == currBandingMode){
+		banding_step = sensor->frmsize_list[isp_data.ecgc_support_type+1].banding_step_60hz;//TBD  Need to optimize
+		bandMode=120;
+	}else{//none 60HZ case use 50HZ setting
+		banding_step = sensor->frmsize_list[isp_data.ecgc_support_type+1].banding_step_50hz;//TBD  Need to optimize
+		bandMode=100;
+	}
+	basic_vts=sensor->frmsize_list[isp_data.ecgc_support_type+1].vts;
+
+	if(b_shutter_ae_iso->long_expo_expo>=SEGMENT_EXPO_TIME_TO_LINE){
+		expo_line = (b_shutter_ae_iso->long_expo_expo*banding_step)/1000000*bandMode;
+		print_info("%s %s expo_time=0x%x exceed 2second", BSHUTTER_LOG_TAG,__func__, b_shutter_ae_iso->long_expo_expo);
+	}else{
+		expo_line = b_shutter_ae_iso->long_expo_expo/(1000000/bandMode/banding_step);
+	}
+
+	print_info("%s %s expo_line=0x%x basic_vts=0x%x, banding_step = 0x%x ecgc_support_type=0x%x", BSHUTTER_LOG_TAG,__FUNCTION__,
+		expo_line,basic_vts,banding_step,isp_data.ecgc_support_type);
+
+	if(expo_line<basic_vts){
+		vts=basic_vts;
+	}else{
+		vts = expo_line + sensor->support_expoline_offset;//FIX the frame gap issue
+
+		if((vts>sensor->support_max_vts) && (sensor->support_max_vts!=0)){
+			vts = sensor->support_max_vts;
+		}
+	}
+
+	if(expo_line > vts - sensor->support_expoline_offset){
+		expo_line = vts - sensor->support_expoline_offset;
+		print_warn("%s %s expo_line=0x%x is changned to below vts = 0x%x ecgc_support_type=0x%x support_expoline_offset=0x%x",
+			BSHUTTER_LOG_TAG, __FUNCTION__,expo_line,vts,isp_data.ecgc_support_type,sensor->support_expoline_offset);
+	}
+
+	isp_data.b_shutter_aecagc.gain = gain;
+	isp_data.b_shutter_aecagc.expo = expo_line<<4;//For ovisp2.2 the expo interface is 16x = 1 real expo
+	isp_data.b_shutter_aecagc.vts  = vts;
+	print_info("%s %s expo_line=0x%x gain=0x%x, vts = 0x%x ecgc_support_type=0x%x", BSHUTTER_LOG_TAG, __FUNCTION__,isp_data.b_shutter_aecagc.expo,isp_data.b_shutter_aecagc.gain,isp_data.b_shutter_aecagc.vts,isp_data.ecgc_support_type);
+
+	return 0;
+}
+
+/*
+ **************************************************************************
+ * FunctionName: ispv1_set_b_shutter_hdr_ae;
+ * Description : set b shutter hdr mode aecagcs that supported by isp and camera rear sensor;
+ * Input       : NA;
+ * Output      : NA;
+ * ReturnValue : NA;
+ * Other       : NA;
+ **************************************************************************
+ */
+static int ispv1_set_b_shutter_hdr_ae(b_shutter_hdr_aeciso_s* b_shutter_hdr_ae_iso)
+{
+	int i = 0;
+	int gain = 0;
+	int max_expo = 0;
+	int currBandingMode = CAMERA_ANTI_BANDING_50Hz;
+	u32 banding_step = 0;
+	u32 expo_line = 0;
+	u32 bandMode = 100;
+	u32 vts = 0;
+	u16 basic_vts = 0;
+	camera_sensor *sensor = this_ispdata->sensor;
+	print_info("%s enter %s hdrCounter=%d", BSHUTTER_LOG_TAG, __FUNCTION__,b_shutter_hdr_ae_iso->hdrCounter);
+
+	if(b_shutter_hdr_ae_iso->hdrCounter <1 || b_shutter_hdr_ae_iso->hdrCounter>40){
+		print_error("%s %s error input hdrCounter=%d", BSHUTTER_LOG_TAG, __FUNCTION__,b_shutter_hdr_ae_iso->hdrCounter);
+		return -1;
+	}
+
+	//Record hdr counter, and set the currExcuteOrder to 0
+	isp_data.b_shutter_hdr_aecagc.hdrCounter = b_shutter_hdr_ae_iso->hdrCounter;
+	isp_data.b_shutter_hdr_aecagc.currExcuteOrder = 0;
+
+	//Find the max expo, and deal the gain to isp set gain
+	for(i=0; i<isp_data.b_shutter_hdr_aecagc.hdrCounter; i++){
+		gain = ispv1_iso2gain(b_shutter_hdr_ae_iso->b_shutter_ae_iso[i].long_expo_iso,false);
+		isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[i].gain = gain;
+
+		isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[i].expo = b_shutter_hdr_ae_iso->b_shutter_ae_iso[i].long_expo_expo;
+
+		if(max_expo<isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[i].expo){
+			max_expo=isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[i].expo;
+		}
+	}
+
+	//Calculate the right sesor setting type
+	if(max_expo<=SEGMENT_SUPPORT_LONG_EXPO && max_expo>=MIN_SUPPORT_LONG_EXPO){//Tline~700ms,use shot expo  capture setting,max 13fps, 770ms is the max expo for 13fps;OV13850 Tline 99.3us, IMX328 Tline 45.8us
+		isp_data.ecgc_support_type = ECGC_TYPE_NORMAL_BSHUTTER_SHORT;
+	}else if((max_expo>SEGMENT_SUPPORT_LONG_EXPO) && (max_expo<=MAX_SUPPORT_LONG_EXPO)){//Tline~3s use the long expo setting,max 3fps
+		isp_data.ecgc_support_type = ECGC_TYPE_BSHUTTER_LONG;
+	}else{
+		isp_data.ecgc_support_type = ECGC_TYPE_MAX;
+		print_error("%s %s error input long_expo_expo out of range", BSHUTTER_LOG_TAG, __FUNCTION__);
+		return -1;
+	}
+
+	currBandingMode = ispv1_get_anti_banding();
+	if(CAMERA_ANTI_BANDING_60Hz == currBandingMode){
+		banding_step = sensor->frmsize_list[isp_data.ecgc_support_type+1].banding_step_60hz;//TBD  Need to optimize
+		bandMode=120;
+	}else{//none 60HZ case use 50HZ setting
+		banding_step = sensor->frmsize_list[isp_data.ecgc_support_type+1].banding_step_50hz;//TBD  Need to optimize
+		bandMode=100;
+	}
+	basic_vts=sensor->frmsize_list[isp_data.ecgc_support_type+1].vts;
+	print_info("%s %s basic_vts=0x%x, banding_step = 0x%x ecgc_support_type=0x%x, hdrCounter=0n%d currExcuteOrder=0n%d", BSHUTTER_LOG_TAG,
+		__FUNCTION__,basic_vts,banding_step,isp_data.ecgc_support_type,isp_data.b_shutter_hdr_aecagc.hdrCounter,isp_data.b_shutter_hdr_aecagc.currExcuteOrder);
+
+	//translate the expo to expo_line and vts
+	for(i=0; i<isp_data.b_shutter_hdr_aecagc.hdrCounter; i++){
+		if(isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[i].expo>=SEGMENT_EXPO_TIME_TO_LINE){
+			expo_line = (isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[i].expo*banding_step)/1000000*bandMode;
+			print_info("%s %s expo_time=0x%x exceed 2second", BSHUTTER_LOG_TAG,__func__,isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[i].expo);
+		}else{
+			expo_line = isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[i].expo/(1000000/bandMode/banding_step);
+		}
+
+		if(expo_line<basic_vts){
+			vts=basic_vts;
+		}else{
+			vts = expo_line + sensor->support_expoline_offset;//FIX the frame gap issue
+
+			if((vts>sensor->support_max_vts) && (sensor->support_max_vts!=0)){
+				vts = sensor->support_max_vts;
+			}
+		}
+
+		if(expo_line > vts - sensor->support_expoline_offset){
+			expo_line = vts - sensor->support_expoline_offset;
+			print_warn("%s %s expo_line=0x%x is changned to below vts = 0x%x ecgc_support_type=0x%x support_expoline_offset=0x%x",
+				BSHUTTER_LOG_TAG, __FUNCTION__,	expo_line,vts,isp_data.ecgc_support_type,sensor->support_expoline_offset);
+		}
+
+		isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[i].expo = expo_line<<4;//For ovisp2.2 the expo interface is 16x = 1 real expo
+		isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[i].vts  = vts;
+
+		print_info("%s %s hdrCounter=0x%x,i=0n%d expo_line=0x%x gain=0x%x vts=0x%x", BSHUTTER_LOG_TAG, __FUNCTION__,
+			b_shutter_hdr_ae_iso->hdrCounter,i,isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[i].expo,isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[i].gain,isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[i].vts);
+	}
+
+	return 0;
+}
 
 /*
  **************************************************************************
@@ -1625,6 +1858,12 @@ static int ispv1_set_zoom(zoom_t *zoom, zoom_quality_t quality)
 
 void ispv1_get_yuv_crop_rect(crop_rect_s *rect)
 {
+
+    if(NULL == this_ispdata){
+        print_error("%s(%d) this_ispdata", __func__, __LINE__);
+        return;
+    }
+
 	GETREG16(REG_ISP_YUV_CROP_WIDTH, rect->crop_width);
 	GETREG16(REG_ISP_YUV_CROP_HEIGHT, rect->crop_height);
 
@@ -1635,6 +1874,12 @@ void ispv1_get_yuv_crop_rect(crop_rect_s *rect)
 }
 void ispv1_set_yuv_crop_pos(int point)
 {
+
+    if(NULL == this_ispdata){
+        print_error("%s(%d) this_ispdata", __func__, __LINE__);
+        return;
+    }
+
 	this_ispdata->next_crop_pos = point;
 }
 
@@ -1851,6 +2096,7 @@ static int ispv1_offline_cmd(pic_attr_t *pic_attr, u32 source_addr, u32 target_a
 	} else {
 		SETREG8(COMMAND_REG1, (GETREG8(COMMAND_REG1) | 0x01));
 	}
+	SETREG8(COMMAND_REG2, 0);
 
 	in_fmt = ispv1_convert_input_fmt(pic_attr->in_fmt);
 	out_fmt = ispv1_convert_output_fmt(CMD_OFFLINE_PROCESS, pic_attr->out_fmt);
@@ -2142,6 +2388,7 @@ static int ispv1_capture_cmd(pic_attr_t *pic_attr, u32 phyaddr, u32 count, int *
 	int preview_level = ispv1_get_frame_rate_level();
 	volatile u8 target_y_low;
 	bool summary;
+	u32  capture_cmd_wait_timeout = 0;
 
 	u32 max_expo;
 	u32 preview_gain, preview_expo;
@@ -2161,6 +2408,16 @@ static int ispv1_capture_cmd(pic_attr_t *pic_attr, u32 phyaddr, u32 count, int *
 	u8 sence_night_expo;
 	u8 sence_action_expo;
 	struct isp_I2C_t *isp_i2c_buffer = NULL;
+	int currBandingMode = CAMERA_ANTI_BANDING_50Hz;
+	u32 banding_step = 0;
+	int expo_time = 0;
+	int expo_line = 0;
+	u32 bandMode =100;
+
+	u32 manual_expo = 0;
+	u32 manual_vts = 0;
+	u32 pclock = sensor->frmsize_list[sensor->capture_frmsize_index].pclk;
+	u32 hts_org =  sensor->frmsize_list[sensor->capture_frmsize_index].hts;
 
 	effect_params *effect = get_effect_ptr();
 
@@ -2453,12 +2710,41 @@ static int ispv1_capture_cmd(pic_attr_t *pic_attr, u32 phyaddr, u32 count, int *
 
     //FIXME:to be check
     //ispv1_switch_config(sensor, STATE_CAPTURE, flash_on, dns_expo);
+	size = sensor->frmsize_list[frame_index].sensor_setting.seq_size;
+	ispv1_write_i2c_buf(sensor->frmsize_list[frame_index].sensor_setting.setting, size, 0, sensor->i2c_config.val_bits);
+	if(CAMERA_B_SHUTTER_MODE_ON == isp_data.b_shutter_state){//if use b_shutter mode, then need use the algo aecegc and vts setting
+		if(isp_data.b_shutter_hdr_aecagc.hdrCounter>0){//hdr mode, this is the first vts set
+			vts = isp_data.b_shutter_hdr_aecagc.b_shutter_aec_agc[0].vts;
+		}else{//normal mode,all frames use the fixed one vts(expo setting)
+			vts = isp_data.b_shutter_aecagc.vts;
+		}
+
+		print_info("%s %s: vts=0x%x",BSHUTTER_LOG_TAG, __func__,vts);
+	}
+
+	if ((isp_data.pro_mode) && (isp_data.pro_cap_expo)){
+
+		manual_expo = manual_vts =  (int64_t) isp_data.pro_cap_expo *  pclock /hts_org / PROCAM_TIME_BASE;
+
+		if (manual_vts > sensor->support_max_vts)
+			manual_vts = sensor->support_max_vts;
+
+		if (manual_vts < basic_vts)
+			manual_vts = basic_vts;
+
+		if (manual_expo >  (manual_vts -max_expo_gap))
+			manual_expo = manual_vts -max_expo_gap;
+		if (manual_expo < 10)
+			manual_expo = 10;
+
+		print_info("%s,enter %s: manual_vts:%d manual_expo%d", PRO_MODE, __func__, manual_vts, manual_expo);
+
+	}
+
 
 	/* vts maybe re-configured, so move here. */
 	CMD_SET_SENSOR_VTS(vts);
        ispv1_switch_dns(sensor, STATE_CAPTURE, flash_on, dns_expo);
-	size = sensor->frmsize_list[frame_index].sensor_setting.seq_size;
-	ispv1_write_i2c_buf(sensor->frmsize_list[frame_index].sensor_setting.setting, size, 0, sensor->i2c_config.val_bits);
 	if ((CAMERA_USE_K3ISP == sensor->isp_location)	&& (NULL != sensor->get_vts_reg_addr)) {
 		const struct _sensor_reg_t vts_regs[] = {
 			{vts_addr, (vts >> 8) & 0xff},
@@ -2473,8 +2759,8 @@ static int ispv1_capture_cmd(pic_attr_t *pic_attr, u32 phyaddr, u32 count, int *
 	if(NULL != sensor->stream_on_setting)
 	{
 			ispv1_write_i2c_buf(sensor->stream_on_setting, sensor->stream_on_setting_size, size, I2C_8BIT);
-			size += sensor->stream_on_setting_size;		
-	}	
+			size += sensor->stream_on_setting_size;
+	}
 	SETREG8(COMMAND_REG3, size); /* number of registers needed be written */
 
 	if(sensor->effect != NULL){
@@ -2482,21 +2768,31 @@ static int ispv1_capture_cmd(pic_attr_t *pic_attr, u32 phyaddr, u32 count, int *
 		min_cap_fps = sensor->effect->ae_param.fps[3];
 	}
 
-	if( (sensor->frmsize_list[frame_index].summary == true)
-	|| (false == sensor->support_summary)){
-		max_gain = sensor->max_gain * min_cap_fps / min_fps;
-		CMD_SET_ISP_SET_GAIN_RANGE(max_gain, sensor->min_gain);
+	if ((isp_data.pro_mode) && (isp_data.pro_cap_expo)){
+
+		CMD_SET_ISP_SET_GAIN_RANGE(sensor->max_gain, sensor->min_gain);
+		CMD_SET_ISP_SET_EXPOSURE_RANGE(manual_expo, manual_expo);
+		CMD_SET_ISP_SET_EXPOSURE_RATIO(ratio0);
+
+
+	}else{
+
+		if( (sensor->frmsize_list[frame_index].summary == true)
+		|| (false == sensor->support_summary)){
+			max_gain = sensor->max_gain * min_cap_fps / min_fps;
+			CMD_SET_ISP_SET_GAIN_RANGE(max_gain, sensor->min_gain);
+		}
+		else {
+			/* revise max gain to keep preview and capture brightness are same. */
+			max_gain = sensor->max_gain * 2 * min_cap_fps / min_fps;
+			CMD_SET_ISP_SET_GAIN_RANGE(max_gain, sensor->min_gain);
+		}
+
+
+		CMD_SET_ISP_SET_EXPOSURE_RANGE(max_expo, 0x003);
+		CMD_SET_ISP_SET_EXPOSURE_RATIO(ratio0);
+
 	}
-	else {
-		/* revise max gain to keep preview and capture brightness are same. */
-		max_gain = sensor->max_gain * 2 * min_cap_fps / min_fps;
-		CMD_SET_ISP_SET_GAIN_RANGE(max_gain, sensor->min_gain);
-	}
-
-
-	CMD_SET_ISP_SET_EXPOSURE_RANGE(max_expo, 0x003);
-	CMD_SET_ISP_SET_EXPOSURE_RATIO(ratio0);
-
 
 	SETREG8(ISP_BANDING_STEP_50HZ, (banding_step_50hz >> 4));
 	SETREG8(ISP_BANDING_STEP_50HZ + 1, ((banding_step_50hz & 0x0f) << 4));
@@ -2593,14 +2889,22 @@ static int ispv1_capture_cmd(pic_attr_t *pic_attr, u32 phyaddr, u32 count, int *
 		SETREG8(COMMAND_REG4, 0xf0 & CLK_DIVIDER);
 	SETREG8(COMMAND_REG5, reg5);
 
-	if(CAPTURE_SKIP_2 == sensor->capture_skip_frames){
-	          reg6 = reg6 & 0x0F;
-	          reg6 = reg6 | 0x20;  //skip 2 frame
+	if(isp_data.pro_mode && isp_data.pro_cap_expo){
+			reg6 = reg6 & 0x0F;
+			reg6 = reg6 | 0x20;  //skip 2 frame
 	}
 	else{
-                 reg6 = reg6 & 0x0F;
-	          reg6 = reg6 | 0x10;  //skip 1 frame
+		if (CAPTURE_SKIP_2 == sensor->capture_skip_frames ) {
+		          reg6 = reg6 & 0x0F;
+		          reg6 = reg6 | 0x20;  //skip 2 frame
+		}
+		else{
+	                 reg6 = reg6 & 0x0F;
+		          reg6 = reg6 | 0x10;  //skip 1 frame
+		}
 	}
+
+
 	print_info("sensor->capture_skip_frames 0x%x reg6 0x%x",sensor->capture_skip_frames, reg6);
 	SETREG8(COMMAND_REG6, reg6);
 
@@ -2671,7 +2975,18 @@ static int ispv1_capture_cmd(pic_attr_t *pic_attr, u32 phyaddr, u32 count, int *
 	SETREG8(COMMAND_REG0, CMD_CAPTURE);
 	/* dump_cmd_reg(); */
 
-	return wait_cmd_timeout(CMD_CAPTURE, isp_hw_data.complt_timeout);
+	if(CAMERA_B_SHUTTER_MODE_ON == isp_data.b_shutter_state){//this is just used for B_SHUTTER_Algo capture, need to exceed 3s,now 5s
+	    capture_cmd_wait_timeout = 5*isp_hw_data.complt_timeout;
+		print_info("%s %s capture_cmd_wait_timeout=%d ms", BSHUTTER_LOG_TAG,__func__,capture_cmd_wait_timeout);
+	}else if ((PRO_MODE_ON == isp_data.pro_mode) && (isp_data.pro_cap_expo >( PROCAM_TIME_BASE/4))){
+		capture_cmd_wait_timeout = 10*isp_hw_data.complt_timeout;
+		print_info("%s %s capture_cmd_wait_timeout=%d ms", PRO_MODE,__func__,capture_cmd_wait_timeout);
+	}
+	else{
+		capture_cmd_wait_timeout = isp_hw_data.complt_timeout;
+	}
+
+	return wait_cmd_timeout(CMD_CAPTURE, capture_cmd_wait_timeout);
 }
 
 /*
@@ -3329,7 +3644,12 @@ static int ispv1_start_proc_img_with_preview_cmd(
 static void calc_scale_param(pic_attr_t *pic_attr, u32* dcw_e, u16* value, u32* up_nscale, u32* down_nscale)
 {
 	u32 dcw = 0;
-	BUG_ON(pic_attr == NULL || dcw_e == NULL || value == NULL || up_nscale == NULL || down_nscale == NULL);
+	/* BUG_ON(pic_attr == NULL || dcw_e == NULL || value == NULL || up_nscale == NULL || down_nscale == NULL); */
+
+    if (pic_attr == NULL || dcw_e == NULL || value == NULL || up_nscale == NULL || down_nscale == NULL){
+        return;
+    }
+
 	print_debug("enter %s", __func__);
 
 	if (YUV_SCALE_DIVIDEND > pic_attr->yuv_up_scale_nscale) {
@@ -3366,7 +3686,12 @@ static void calc_scale_param(pic_attr_t *pic_attr, u32* dcw_e, u16* value, u32* 
 static void calc_scale_param2(pic_attr_t *pic_attr, u32* dcw_e, u16* value, u32* up_nscale, u32* down_nscale)
 {
 	u32 dcw = 0;
-	BUG_ON(pic_attr == NULL || dcw_e == NULL || value == NULL || up_nscale == NULL || down_nscale == NULL);
+	/* BUG_ON(pic_attr == NULL || dcw_e == NULL || value == NULL || up_nscale == NULL || down_nscale == NULL); */
+
+    if(pic_attr == NULL || dcw_e == NULL || value == NULL || up_nscale == NULL || down_nscale == NULL){
+        return;
+    }
+
 	print_debug("enter %s", __func__);
 
 	if (YUV_SCALE_DIVIDEND > pic_attr->yuv_up_scale_nscale) {
@@ -3441,6 +3766,12 @@ static int ispv1_preview_cmd(pic_attr_t *pic_attr,
 	u32 delay_clk;
 	u8 ap_writeAE_mode;
 
+	effect_params *effect = get_effect_ptr();
+	u32 max_expo_gap = effect->ae_param.max_expo_gap;
+	u32 manual_expo = 0;
+	u32 pclock = sensor->frmsize_list[sensor->preview_frmsize_index].pclk;
+	u32 hts_org =  sensor->frmsize_list[sensor->preview_frmsize_index].hts;
+
     //FIXME:to be check;
 	//ispv1_switch_config(sensor, STATE_PREVIEW, false, 0);
     ispv1_switch_dns(sensor, STATE_PREVIEW, false, 0);
@@ -3492,6 +3823,26 @@ static int ispv1_preview_cmd(pic_attr_t *pic_attr,
 		sensor->fps = full_fps - level * step;
 		vts = sensor->frmsize_list[frame_index].vts * full_fps / sensor->fps;
 	}
+
+	if ((isp_data.pro_mode) && (isp_data.pro_pre_expo)){
+
+		manual_expo = vts =  (int64_t) isp_data.pro_pre_expo * pclock /hts_org / PROCAM_TIME_BASE;
+
+		if (vts > sensor->support_max_vts)
+			vts = sensor->support_max_vts;
+
+		if (vts < basic_vts)
+			vts = basic_vts;
+
+		if (manual_expo >  (vts -max_expo_gap))
+			manual_expo = vts -max_expo_gap;
+		if (manual_expo < 10)
+			manual_expo = 10;
+
+		print_info("%s,enter %s: preview pro mode  vts:%d manual_expo%d", PRO_MODE, __func__,  vts, manual_expo);
+
+	}
+
 	CMD_SET_SENSOR_VTS(vts);
 
 	#if 0
@@ -3521,7 +3872,7 @@ static int ispv1_preview_cmd(pic_attr_t *pic_attr,
 		if(NULL != sensor->stream_on_setting)
 		{
 				ispv1_write_i2c_buf(sensor->stream_on_setting, sensor->stream_on_setting_size, size, I2C_8BIT);
-				size += sensor->stream_on_setting_size;		
+				size += sensor->stream_on_setting_size;
 		}
 	} else {
 		size = 0;
@@ -3629,10 +3980,17 @@ static int ispv1_preview_cmd(pic_attr_t *pic_attr,
 	SETREG8(REG_ISP_BANDING_STEP_60HZ + 1, ((banding_step_60hz & 0x0f) << 4));
 
 	ispv1_set_wb_value(&isp_hw_data.preview_awb);
-	if (CAMERA_SCENE_ACTION == scene)
-		CMD_SET_ISP_SET_EXPOSURE_RANGE(full_fps * sensor->frmsize_list[frame_index].vts / 100, 0x003);
-	else
-		CMD_SET_ISP_SET_EXPOSURE_RANGE((vts - 14) , 0x003);
+
+	if ((isp_data.pro_mode) && (isp_data.pro_pre_expo)){
+		CMD_SET_ISP_SET_EXPOSURE_RANGE(manual_expo , manual_expo);
+	}
+	else{
+		if (CAMERA_SCENE_ACTION == scene)
+			CMD_SET_ISP_SET_EXPOSURE_RANGE(full_fps * sensor->frmsize_list[frame_index].vts / 100, 0x003);
+		else
+			CMD_SET_ISP_SET_EXPOSURE_RANGE((vts - 14) , 0x003);
+
+	}
 
 	if( (sensor->frmsize_list[frame_index].summary == true)
 	||(false == sensor->support_summary)){
@@ -4273,6 +4631,8 @@ static int ispv1_start_capture(pic_attr_t *pic_attr, camera_sensor *sensor, int 
 
 	isp_hw_data.frame_count = 0;
 
+	isp_hw_data.frame_cap_count  =0;
+
 	/* if (ispv1_get_process_mode() == ISP_CAPTURE_OFFLINE) */
 	count = get_queue_size(&isp_hw_data.data_queue_ref->ready_q[STATE_CAPTURE]);
 
@@ -4299,7 +4659,14 @@ static int ispv1_start_capture(pic_attr_t *pic_attr, camera_sensor *sensor, int 
 	isp_hw_data.cur_state = STATE_CAPTURE;
 
        SETREG8(REG_BASE_ADDR_READY, 0);
-    SETREG8(REG_ISP_INT_EN, MASK_CMDSET_INT_ENABLE | MASK_MAC_INT_ENABLE);/* Enable CMD_SET MAC_INT int */
+	if(isp_data.b_shutter_state==CAMERA_B_SHUTTER_MODE_ON && isp_data.b_shutter_hdr_aecagc.hdrCounter>1){
+		SETREG8(REG_ISP_INT_EN, MASK_CMDSET_INT_ENABLE | MASK_MAC_INT_ENABLE| MASK_EOF_INT_ENABLE);
+	}else if (isp_data.pro_mode && isp_data.pro_cap_expo){
+		SETREG8(REG_ISP_INT_EN, MASK_CMDSET_INT_ENABLE | MASK_MAC_INT_ENABLE| MASK_SOF_INT_ENABLE);
+	}
+	else{
+	    SETREG8(REG_ISP_INT_EN, MASK_CMDSET_INT_ENABLE | MASK_MAC_INT_ENABLE);/* Enable CMD_SET MAC_INT int */
+	}
 
 	#ifndef READ_BACK_RAW
 	ret = ispv1_capture_cmd(pic_attr, frame->phyaddr, count, ev, sensor, flash_on, scene);
@@ -5885,7 +6252,7 @@ int ispv1_poweron(void)
 	print_info("%s success, clk divider is %#x", __func__, CLK_DIVIDER);
 
 #ifdef ISP_DEBUG_ZSL
-   /*R/S op forbidden file op */ 
+   /*R/S op forbidden file op */
    /* isp_debug_init();*/
 #endif
 
@@ -6205,6 +6572,10 @@ static int ispv1_frame_done_handler(camera_state state,u8 buf_sel)
 	struct list_head *done_q = NULL;
 	camera_frame_buf *frame = NULL;
 	unsigned long lock_flags;
+	u32 skip_frames = this_ispdata->sensor->skip_frames;
+
+	if (this_ispdata->pro_mode && ((this_ispdata->pro_pre_expo > 0) && (this_ispdata->pro_pre_expo < PROCAM_TIME_BASE/30)))
+		skip_frames = 6;//solve enter pro mode flash blue screen problem
 
 #ifdef ISP_DEBUG_ZSL
 	isp_debug_dump_irq_reg();
@@ -6238,7 +6609,7 @@ static int ispv1_frame_done_handler(camera_state state,u8 buf_sel)
 		frame = list_entry(work_q->next, camera_frame_buf, queue);
 		del_from_queue(frame, CAMERA_FLAG_WORKQ);
 		add_to_queue(frame, done_q, CAMERA_FLAG_DONEQ);
-		if (isp_hw_data.frame_count < this_ispdata->sensor->skip_frames)
+		if (isp_hw_data.frame_count < skip_frames)
 			memset(&frame->timestamp, 0, sizeof(struct timeval));
 		else if (true == flash_done_flag)
 		{
@@ -6749,6 +7120,22 @@ static void isr_do_tasklet(unsigned long data)
 		spin_unlock_irqrestore(&isp_hw_data.irq_status_lock, lock_flags);
 		if (STATE_PREVIEW == cur_state)
 			ispv1_preview_done_do_tune();
+
+		//print_debug("%s %s b_shutter_state==0n%d normal current gain=0x%x expo=0x%x vts=0x%x", BSHUTTER_LOG_TAG, __func__, isp_data.b_shutter_state,isp_data.sensor->get_gain(),isp_data.sensor->get_exposure(),isp_data.sensor->get_vts());//this is just for debug check
+
+		/*if(isp_data.b_shutter_state==CAMERA_B_SHUTTER_MODE_ON){
+			print_info("%s %s CAMERA_B_SHUTTER_MODE_ON current gain=0x%x expo=0x%x vts=0x%x", BSHUTTER_LOG_TAG, __func__, isp_data.sensor->get_gain(),isp_data.sensor->get_exposure(),isp_data.sensor->get_vts());//this is just for debug check
+		}*/
+
+		if (STATE_PREVIEW==cur_state && CAMERA_B_SHUTTER_MODE_ON==isp_data.b_shutter_state){
+			ispv1_preview_done_do_tryae_tune();
+			print_debug("%s %s STATE_PREVIEW current gain=0x%x expo=0x%x vts=0x%x", BSHUTTER_LOG_TAG, __func__, isp_data.sensor->get_gain(),isp_data.sensor->get_exposure(),isp_data.sensor->get_vts());//this is just for debug check
+		}
+
+		if(true == burst_capture && isp_data.b_shutter_hdr_aecagc.hdrCounter>0 &&isp_data.b_shutter_state==CAMERA_B_SHUTTER_MODE_ON){
+			ispv1_capture_done_do_tune();
+			print_debug("%s %s STATE_CAPTURE current gain=0x%x expo=0x%x vts=0x%x", BSHUTTER_LOG_TAG, __func__, isp_data.sensor->get_gain(),isp_data.sensor->get_exposure(),isp_data.sensor->get_vts());//this is just for debug check
+		}
 	}
 
 	if (isp_hw_data.irq_val.irq_status & MASK_SOF_INT_ENABLE) {
@@ -6758,6 +7145,9 @@ static void isr_do_tasklet(unsigned long data)
  #ifdef SUPPORT_ZSL_FLASH
      zsl_sof_start_flash();
  #endif
+
+		if ((cur_state == STATE_CAPTURE ) && (isp_data.pro_mode) && isp_data.pro_cap_expo)
+			ispv1_capture_pro_mode_tune();
 	}
 
 	/* done */
@@ -6960,12 +7350,14 @@ static int ispv1_hw_init(struct platform_device *pdev, data_queue_t* data_queue)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
 		print_error("failed to get irq: isp_irq");
+        iounmap(isp_hw_data.base);
 		return -ENXIO;
 	}
 
 	ret = request_irq(res->start, ispv1_isr, 0, "isp_irq", 0);
 	if (ret != 0) {
 		print_error("fail to request irq [%d]", res->start);
+        iounmap(isp_hw_data.base);
 		return ret;
 	}
 	isp_hw_data.irq = res->start;
@@ -7108,6 +7500,8 @@ fail:
 		ispv1_ctl.isp_tune_ops = NULL;
 	}
 
+    iounmap(isp_hw_data.base);
+
 	return ret;
 }
 
@@ -7228,6 +7622,11 @@ static int ispv1_hw_set_default (void)
 	ispv1_ctl.isp_hw_init_regs		= ispv1_hw_init_regs;
 	ispv1_ctl.isp_get_process_mode		= ispv1_get_process_mode;
 	ispv1_ctl.isp_set_process_mode		= ispv1_set_process_mode;
+	ispv1_ctl.isp_set_b_shutter_mode	= ispv1_set_b_shutter_mode;
+	ispv1_ctl.isp_set_b_shutter_long_ae  = ispv1_set_b_shutter_long_ae;
+	ispv1_ctl.isp_get_aec_state     	= ispv1_get_aec_state;
+	ispv1_ctl.isp_set_b_shutter_hdr_ae  = ispv1_set_b_shutter_hdr_ae;
+	ispv1_ctl.isp_set_b_shutter_ecgc    = ispv1_set_b_shutter_ecgc;
 	#ifdef READ_BACK_RAW
 	ispv1_ctl.update_read_ready		= ispv1_update_read_ready;
 	#endif
@@ -7322,6 +7721,9 @@ static int ispv1_hw_set_default (void)
 	ispv1_ctl.isp_tune_ops->isp_get_expo_line			= ispv1_get_expo_line;
 	ispv1_ctl.isp_tune_ops->isp_get_sensor_vts			= ispv1_get_sensor_vts;
 
+	ispv1_ctl.isp_tune_ops->isp_get_current_y			= ispv1_get_current_y;
+	ispv1_ctl.isp_tune_ops->set_pro_manual_iso			= ispv1_set_pro_manual_iso;
+
 	ispv1_ctl.isp_get_yuv_crop_rect = ispv1_get_yuv_crop_rect;
 	ispv1_ctl.isp_set_yuv_crop_pos = ispv1_set_yuv_crop_pos;
 	ispv1_ctl.isp_tune_ops->isp_get_current_ccm_rgain		= ispv1_get_current_ccm_rgain;
@@ -7366,6 +7768,7 @@ static int ispv1_switch_sensor_cmd(camera_sensor *sensor, stream_state state)
 	const sensor_reg_t *stream_setting = NULL;
 	u32 stream_setting_size = 0;
 	u8 reg5 = 0;
+	u32 streamoff_cmd_wait_timeout=0;
 	SETREG8(REG_ISP_INT_EN, MASK_CMDSET_INT_ENABLE | MASK_MAC_INT_ENABLE);/* Enable CMD_SET MAC_INT int */
 
 #if 1
@@ -7403,7 +7806,18 @@ static int ispv1_switch_sensor_cmd(camera_sensor *sensor, stream_state state)
 	SETREG8(COMMAND_REG0, CMD_I2C_GRP_WR);
 
 	isp_hw_data.sensor_stream_state = state;
-	return wait_cmd_timeout(CMD_I2C_GRP_WR, isp_hw_data.complt_timeout);
+
+	if(CAMERA_B_SHUTTER_MODE_ON == isp_data.b_shutter_state){//this is just used for B_SHUTTER_Algo capture, need to exceed 3s,now 7s
+	    streamoff_cmd_wait_timeout = 7*isp_hw_data.complt_timeout;
+		print_info("%s %s streamoff_cmd_wait_timeout=%d ms", BSHUTTER_LOG_TAG,__func__,streamoff_cmd_wait_timeout);
+	}else if (PRO_MODE_ON == isp_data.pro_mode){
+		streamoff_cmd_wait_timeout = 10*isp_hw_data.complt_timeout;
+		print_info(" %s %s streamoff_cmd_wait_timeout=%d ms", PRO_MODE,__func__,streamoff_cmd_wait_timeout);
+	}
+	else{
+		streamoff_cmd_wait_timeout = isp_hw_data.complt_timeout;
+	}
+	return wait_cmd_timeout(CMD_I2C_GRP_WR, streamoff_cmd_wait_timeout);
 
 }
 /*

@@ -28,7 +28,7 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/smp.h>
-#include <hisi_udp_board_id.h>
+#include <mach/hisi_udp_board_id.h>
 #include <linux/string.h>
 
 #define UDP_BOARDID_MAX_COUNT		10

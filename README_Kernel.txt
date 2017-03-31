@@ -8,10 +8,10 @@
 	- edit Makefile
 		edit "CROSS_COMPILE" to right toolchain path(You downloaded).
 		Ex)   export PATH=$PATH:$(android platform directory you download)/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin
-		Ex)   export CROSS_COMPILE=aarch64-linux-android-
+		Ex)   export CROSS_COMPILE=$(android platform directory you download)/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-android-
 
 		$ mkdir ../out
-		$ make ARCH=arm64 O=../out hw_PLK_defconfig
+		$ make ARCH=arm64 O=../out merge_hi3635_defconfig
 		$ make ARCH=arm64 O=../out -j8
 
 2. Output files

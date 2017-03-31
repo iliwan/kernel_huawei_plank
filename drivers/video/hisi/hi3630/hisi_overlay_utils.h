@@ -23,6 +23,7 @@ extern uint32_t g_dss_module_base[DSS_CHN_MAX][MODULE_CHN_MAX];
 extern uint32_t g_dss_module_ovl_base[DSS_OVL_MAX][MODULE_OVL_MAX];
 extern uint32_t g_dss_module_eng_base[DSS_ENG_MAX][MODULE_ENG_MAX];
 
+extern int32_t g_enable_te_debug;
 
 void dumpDssOverlay(dss_overlay_t *ov_data);
 
@@ -77,6 +78,7 @@ int hisi_dss_handle_cur_ovl_req_wb(struct hisi_fb_data_type *hisifd,
 int hisi_dss_rptb_handler(struct hisi_fb_data_type *hisifd, bool is_wb, int rptb_info_idx);
 
 int hisi_dss_check_layer_par(struct hisi_fb_data_type *hisifd, dss_layer_t *layer);
+int hisi_dss_check_userdata(struct hisi_fb_data_type *hisifd, dss_overlay_t *pov_req);
 dss_rect_t hisi_dss_rdma_out_rect(struct hisi_fb_data_type *hisifd, dss_layer_t *layer);
 
 int hisi_dss_rdma_bridge_config(struct hisi_fb_data_type *hisifd,

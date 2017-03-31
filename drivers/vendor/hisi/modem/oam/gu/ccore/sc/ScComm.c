@@ -113,7 +113,7 @@ SC_ERROR_CODE_ENUM_UINT32 SC_COMM_WriteFile(
     /* 写入安全文件码流，返回长度与实际长度不一致，返回错误值并关闭文件 */
     lWriteSize = DRV_FILE_WRITE((VOS_CHAR*)pucContent, sizeof(VOS_CHAR), ulContentLen, pFile);
 
-    if (lWriteSize != ulContentLen)
+    if (lWriteSize != (VOS_INT32)ulContentLen)
     {
         DRV_FILE_CLOSE(pFile);
 

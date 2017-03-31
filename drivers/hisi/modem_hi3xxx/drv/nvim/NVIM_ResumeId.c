@@ -1,3 +1,26 @@
+/*****************************************************************************/
+/*                                                                           */
+/*                Copyright 1999 - 2003, Huawei Tech. Co., Ltd.              */
+/*                           ALL RIGHTS RESERVED                             */
+/*                                                                           */
+/* FileName: NVIM_ResumeId.c                                                 */
+/*                                                                           */
+/* Author: Jiang kaibo                                                       */
+/*                                                                           */
+/* Version: 1.0                                                              */
+/*                                                                           */
+/* Date: 2008-06                                                             */
+/*                                                                           */
+/* Description: Def NV Resume ID list                                        */
+/*                                                                           */
+/* Others:                                                                   */
+/*                                                                           */
+/* History:                                                                  */
+/* 1. Date: 2008-06                                                          */
+/*    Author: Jiang kaibo                                                    */
+/*    Modification: Create this file                                         */
+/*                                                                           */
+/*****************************************************************************/
 #ifdef __cplusplus
 #if __cplusplus
 extern "C" {
@@ -45,10 +68,9 @@ unsigned short  g_ausNvResumeManufactureIdList[] =
     en_NV_Item_VSIM_HVSDH_INFO,
     en_NV_Item_XO_INIT_LOW_TEMP,
 
-    en_NV_Item_CMCC_Cfg_Dplmn_Nplmn,
-    en_NV_Item_UNICOM_Cfg_Dplmn_Nplmn,
-    en_NV_Item_CT_Cfg_Dplmn_Nplmn,
-
+/* Deleted by c00318887 for DPlmn扩容和优先接入HPLMN, 2015-5-18, begin */
+/* Deleted by c00318887 for DPlmn扩容和优先接入HPLMN, 2015-5-18, end */
+    
     /* Gsm 850 */
     en_NV_Item_GSM850_RX_DCOFFSET,
     en_NV_Item_GSM850_RX_AGC_GAIN,

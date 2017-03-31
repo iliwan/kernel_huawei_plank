@@ -73,7 +73,7 @@ VOS_UINT32 OM_QueryDir(APP_OM_MSG_EX_STRU *pstAppToOmMsg, VOS_UINT16 usReturnPri
     {
         PS_LOG(WUEPS_PID_OM, 0, PS_PRINT_ERROR, "OM_QueryDir:VOS_MemAlloc fail!");
         OM_FILE_SEND_RESULT(pstAppToOmMsg->ucFuncType, OM_FILE_MEM_ALLOC_ERR, usReturnPrimId);
-        return VOS_ERR;
+        return VOS_ERR;
     }
     pstOmQueryDir = (OM_APP_QUERY_DIR_STRU*)(pstOmToAppMsg->aucPara);
     /*判断请求文件夹的类型*/
@@ -131,7 +131,7 @@ VOS_UINT32 OM_QueryDir(APP_OM_MSG_EX_STRU *pstAppToOmMsg, VOS_UINT16 usReturnPri
     pstOmToAppMsg->usLength = (VOS_UINT16)(ulTotalSize - VOS_OM_HEADER_LEN);
     OM_SendContent(pstAppToOmMsg->ucFuncType, pstOmToAppMsg, usReturnPrimId);
     VOS_MemFree(WUEPS_PID_OM, pstOmToAppMsg);
-    return VOS_OK;
+    return VOS_OK;
 }
 /*****************************************************************************
 函 数 名  : OM_GetDirInfo
@@ -199,7 +199,7 @@ VOS_UINT32 OM_GetItemInfo(DRV_DIR_STRU *pstDir, APP_OM_MSG_EX_STRU *pstAppToOmMs
     if (VOS_NULL_PTR == pucItemPath)
     {
         PS_LOG(WUEPS_PID_OM, 0, PS_PRINT_ERROR, "OM_GetItemInfo:VOS_MemAlloc fail!");
-        return OM_FILE_MEM_ALLOC_ERR;
+        return OM_FILE_MEM_ALLOC_ERR;
     }
     /*将目录路径拷贝进文件路径中*/
     VOS_MemCpy(pucItemPath, pstAppToOmMsg->aucPara, usDirLen);
@@ -233,7 +233,7 @@ VOS_UINT32 OM_GetItemInfo(DRV_DIR_STRU *pstDir, APP_OM_MSG_EX_STRU *pstAppToOmMs
             {
                 /*目录*/
                 if (0 != (DRV_S_IFDIR&stStat.st_mode))
-                {
+                {
                     stOmItemInfo.ulItemType = OM_ITEM_FOLDER;
                 }
                 /*文件*/
@@ -259,7 +259,7 @@ VOS_UINT32 OM_GetItemInfo(DRV_DIR_STRU *pstDir, APP_OM_MSG_EX_STRU *pstAppToOmMs
     pstOmScanDir->ulResult = VOS_OK;
     pstOmScanDir->ulNumber = ulTotalNum;
     VOS_MemFree(WUEPS_PID_OM, pucItemPath);
-    return VOS_OK;
+    return VOS_OK;
 }
 /*****************************************************************************
 函 数 名  : OM_ScanDir
@@ -290,8 +290,8 @@ VOS_UINT32 OM_ScanDir(APP_OM_MSG_EX_STRU *pstAppToOmMsg, VOS_UINT16 usReturnPrim
     if (VOS_NULL_PTR == pstTmpDir)
     {
         PS_LOG(WUEPS_PID_OM, 0, PS_PRINT_ERROR, "OM_ScanDir:opendir fail!");
-        OM_FILE_SEND_RESULT(pstAppToOmMsg->ucFuncType, OM_DRV_FILE_OPENDIR_ERR, usReturnPrimId);
-        return VOS_ERR;
+        OM_FILE_SEND_RESULT(pstAppToOmMsg->ucFuncType, OM_DRV_FILE_OPENDIR_ERR, usReturnPrimId);
+        return VOS_ERR;
     }
     /*得到目录内，文件和文件夹的总个数、总的名字长度*/
     OM_GetDirInfo(pstTmpDir, &ulTotalNameLen, &ulTotalNum);
@@ -299,8 +299,8 @@ VOS_UINT32 OM_ScanDir(APP_OM_MSG_EX_STRU *pstAppToOmMsg, VOS_UINT16 usReturnPrim
     if (DRV_ERROR == DRV_FILE_CLOSEDIR(pstTmpDir))
     {
         PS_LOG(WUEPS_PID_OM, 0, PS_PRINT_ERROR, "OM_ScanDir:closedir fail!");
-        OM_FILE_SEND_RESULT(pstAppToOmMsg->ucFuncType, OM_DRV_FILE_CLOSEDIR_ERR, usReturnPrimId);
-        return VOS_ERR;
+        OM_FILE_SEND_RESULT(pstAppToOmMsg->ucFuncType, OM_DRV_FILE_CLOSEDIR_ERR, usReturnPrimId);
+        return VOS_ERR;
     }
     /*计算返回给工具侧消息包的长度*/
     ulTotalSize = OM_APP_MSG_EX_LEN + OM_APP_SCAN_DIR_HEAD_LEN
@@ -311,7 +311,7 @@ VOS_UINT32 OM_ScanDir(APP_OM_MSG_EX_STRU *pstAppToOmMsg, VOS_UINT16 usReturnPrim
     {
         PS_LOG(WUEPS_PID_OM, 0, PS_PRINT_ERROR, "OM_ScanDir:VOS_MemAlloc fail!");
         OM_FILE_SEND_RESULT(pstAppToOmMsg->ucFuncType, OM_FILE_MEM_ALLOC_ERR, usReturnPrimId);
-        return VOS_ERR;
+        return VOS_ERR;
     }
 
     /*再次打开目录*/
@@ -325,13 +325,13 @@ VOS_UINT32 OM_ScanDir(APP_OM_MSG_EX_STRU *pstAppToOmMsg, VOS_UINT16 usReturnPrim
         VOS_MemFree(WUEPS_PID_OM, pstOmToAppMsg);
         DRV_FILE_CLOSEDIR(pstTmpDir);
         OM_FILE_SEND_RESULT(pstAppToOmMsg->ucFuncType, ulRest, usReturnPrimId);
-        return VOS_ERR;
+        return VOS_ERR;
     }
     DRV_FILE_CLOSEDIR(pstTmpDir);
     pstOmToAppMsg->usLength = (VOS_UINT16)(ulTotalSize - VOS_OM_HEADER_LEN);
     OM_SendContent(pstAppToOmMsg->ucFuncType, pstOmToAppMsg, usReturnPrimId);
     VOS_MemFree(WUEPS_PID_OM, pstOmToAppMsg);
-    return VOS_OK;
+    return VOS_OK;
 }
 /*****************************************************************************
 函 数 名  : OM_CloseFile
@@ -349,7 +349,7 @@ VOS_VOID OM_CloseFile(VOS_VOID)
 {
     if (DRV_FILE_NULL != g_stOmFileInfo.lFile)
     {
-        DRV_FILE_CLOSE(g_stOmFileInfo.lFile);
+        DRV_FILE_CLOSE(g_stOmFileInfo.lFile);
         g_stOmFileInfo.lFile = DRV_FILE_NULL;
     }
 }
@@ -451,7 +451,7 @@ VOS_UINT32 OM_OpenFile(APP_OM_MSG_EX_STRU *pstAppToOmMsg, VOS_UINT16 usReturnPri
     {
         OM_CloseFile();
         PS_LOG(WUEPS_PID_OM, 0, PS_PRINT_WARNING, "OM_OpenFile:open file fail.");
-        OM_FILE_SEND_RESULT(pstAppToOmMsg->ucFuncType, OM_DRV_FILE_OPEN_ERR, usReturnPrimId);
+        OM_FILE_SEND_RESULT(pstAppToOmMsg->ucFuncType, OM_DRV_FILE_OPEN_ERR, usReturnPrimId);
         return VOS_ERR;
     }
     /*启动定时器*/
@@ -459,12 +459,12 @@ VOS_UINT32 OM_OpenFile(APP_OM_MSG_EX_STRU *pstAppToOmMsg, VOS_UINT16 usReturnPri
     if (VOS_ERR == OM_START_FILETIMER(&g_stOmFileInfo.hTimer))
     {
         OM_CloseFile();
-        PS_LOG(WUEPS_PID_OM, 0, PS_PRINT_WARNING, "OM_OpenFile:Start Timer failed.");
+        PS_LOG(WUEPS_PID_OM, 0, PS_PRINT_WARNING, "OM_OpenFile:Start Timer failed.");
         OM_FILE_SEND_RESULT(pstAppToOmMsg->ucFuncType, OM_FILE_START_FILE_TIMER_ERR, usReturnPrimId);
         return VOS_ERR;
     }
 
-    OM_SendResult(pstAppToOmMsg->ucFuncType, VOS_OK, usReturnPrimId);
+    OM_SendResult(pstAppToOmMsg->ucFuncType, VOS_OK, usReturnPrimId);
     return VOS_OK;
 }
 /*****************************************************************************
@@ -506,7 +506,7 @@ VOS_UINT32 OM_ReadFile(APP_OM_MSG_EX_STRU *pstAppToOmMsg, VOS_UINT16 usReturnPri
         OM_CloseFile();
         PS_LOG(WUEPS_PID_OM, 0, PS_PRINT_ERROR, "OM_ReadFile:VOS_MemAlloc fail!");
         OM_FILE_SEND_RESULT(pstAppToOmMsg->ucFuncType, OM_FILE_MEM_ALLOC_ERR, usReturnPrimId);
-        return VOS_ERR;
+        return VOS_ERR;
     }
     pstOmReadFile = (OM_APP_READ_FILE_STRU*)(pstOmToAppMsg->aucPara);
     ulReadSize = (VOS_UINT32)DRV_FILE_READ((VOS_CHAR*)pstOmReadFile->acFileContent, sizeof(VOS_CHAR), OM_READ_MAX_LEN, g_stOmFileInfo.lFile);
@@ -517,7 +517,7 @@ VOS_UINT32 OM_ReadFile(APP_OM_MSG_EX_STRU *pstAppToOmMsg, VOS_UINT16 usReturnPri
         OM_CloseFile();
         PS_LOG(WUEPS_PID_OM, 0, PS_PRINT_ERROR, "OM_ReadFile:read fail!");
         OM_FILE_SEND_RESULT(pstAppToOmMsg->ucFuncType, OM_DRV_FILE_READ_ERR, usReturnPrimId);
-        return VOS_ERR;
+        return VOS_ERR;
     }
 
     pstOmReadFile->ulResult = VOS_OK;
@@ -545,7 +545,7 @@ VOS_UINT32 OM_ReadFile(APP_OM_MSG_EX_STRU *pstAppToOmMsg, VOS_UINT16 usReturnPri
                                - OM_READ_MAX_LEN) + ulReadSize);
     OM_SendContent(pstAppToOmMsg->ucFuncType, pstOmToAppMsg, usReturnPrimId);
     VOS_MemFree(WUEPS_PID_OM, pstOmToAppMsg);
-    return VOS_OK;
+    return VOS_OK;
 }
 /*****************************************************************************
 函 数 名  : OM_WriteFile

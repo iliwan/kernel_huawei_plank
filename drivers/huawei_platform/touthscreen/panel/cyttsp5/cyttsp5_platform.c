@@ -157,6 +157,76 @@ static struct cyttsp5_touch_config cyttsp5_ttconfig = {
     .fw_ver = ttconfig_fw_ver,
     .fw_vsize = ARRAY_SIZE(ttconfig_fw_ver),
 };
+
+/* carmel ofilm ttconfiger */
+#include "./ttconfig/carmel_ttconfig_ofilm.h"
+static struct touch_settings cyttsp5_sett_param_regs_carmel_ofilm = {
+    .data = (uint8_t *)&cyttsp5_param_regs_carmel_ofilm[0],
+    .size = ARRAY_SIZE(cyttsp5_param_regs_carmel_ofilm),
+    .tag = 0,
+};
+
+static struct touch_settings cyttsp5_sett_param_size_carmel_ofilm = {
+    .data = (uint8_t *)&cyttsp5_param_size_carmel_ofilm[0],
+    .size = ARRAY_SIZE(cyttsp5_param_size_carmel_ofilm),
+    .tag = 0,
+};
+
+static struct cyttsp5_touch_config cyttsp5_ttconfig_carmel_ofilm = {
+    .param_regs = &cyttsp5_sett_param_regs_carmel_ofilm,
+    .param_size = &cyttsp5_sett_param_size_carmel_ofilm,
+    .fw_ver = ttconfig_fw_ver_carmel_ofilm,
+    .fw_vsize = ARRAY_SIZE(ttconfig_fw_ver_carmel_ofilm),
+    .panel_id = FW_OFILM,
+    .product_name = PHONE_NAME_CARMEL,
+};
+
+/* carmel eely ttconfiger */
+#include "./ttconfig/carmel_ttconfig_eely.h"
+static struct touch_settings cyttsp5_sett_param_regs_carmel_eely = {
+    .data = (uint8_t *)&cyttsp5_param_regs_carmel_eely[0],
+    .size = ARRAY_SIZE(cyttsp5_param_regs_carmel_eely),
+    .tag = 0,
+};
+
+static struct touch_settings cyttsp5_sett_param_size_carmel_eely = {
+    .data = (uint8_t *)&cyttsp5_param_size_carmel_eely[0],
+    .size = ARRAY_SIZE(cyttsp5_param_size_carmel_eely),
+    .tag = 0,
+};
+
+static struct cyttsp5_touch_config cyttsp5_ttconfig_carmel_eely = {
+    .param_regs = &cyttsp5_sett_param_regs_carmel_eely,
+    .param_size = &cyttsp5_sett_param_size_carmel_eely,
+    .fw_ver = ttconfig_fw_ver_carmel_eely,
+    .fw_vsize = ARRAY_SIZE(ttconfig_fw_ver_carmel_eely),
+    .panel_id = FW_EELY,
+    .product_name = PHONE_NAME_CARMEL,
+};
+
+/* carmel truly ttconfiger */
+#include "./ttconfig/carmel_ttconfig_truly.h"
+static struct touch_settings cyttsp5_sett_param_regs_carmel_truly = {
+    .data = (uint8_t *)&cyttsp5_param_regs_carmel_truly[0],
+    .size = ARRAY_SIZE(cyttsp5_param_regs_carmel_truly),
+    .tag = 0,
+};
+
+static struct touch_settings cyttsp5_sett_param_size_carmel_truly = {
+    .data = (uint8_t *)&cyttsp5_param_size_carmel_truly[0],
+    .size = ARRAY_SIZE(cyttsp5_param_size_carmel_truly),
+    .tag = 0,
+};
+
+static struct cyttsp5_touch_config cyttsp5_ttconfig_carmel_truly = {
+    .param_regs = &cyttsp5_sett_param_regs_carmel_truly,
+    .param_size = &cyttsp5_sett_param_size_carmel_truly,
+    .fw_ver = ttconfig_fw_ver_carmel_truly,
+    .fw_vsize = ARRAY_SIZE(ttconfig_fw_ver_carmel_truly),
+    .panel_id = FW_TRULY,
+    .product_name = PHONE_NAME_CARMEL,
+};
+
 #else
 /* TT Config for Panel ID not enabled (legacy)*/
 static struct cyttsp5_touch_config cyttsp5_ttconfig = {
@@ -180,6 +250,9 @@ static struct cyttsp5_touch_config *cyttsp5_ttconfigs[] = {
     &cyttsp5_ttconfig_alice_ofilm,
     &cyttsp5_ttconfig_alice_truly,
     &cyttsp5_ttconfig_alice_junda,
+    &cyttsp5_ttconfig_carmel_ofilm,
+    &cyttsp5_ttconfig_carmel_eely,
+    &cyttsp5_ttconfig_carmel_truly,
 #endif
     NULL, /* Last item should always be NULL */
 };

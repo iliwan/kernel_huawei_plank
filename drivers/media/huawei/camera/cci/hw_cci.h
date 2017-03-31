@@ -63,6 +63,7 @@
 
 #define ISP_I2C_POLL_INTERVAL 10 /* 10us */
 #define ISP_I2C_POLL_MAX_COUNT 4000 /* 4000x10us=40ms */
+#define MAX_SENSOR_REG_VALUE 0xffff
 
 void hw_isp_config_i2c(i2c_t *i2c_info);
 

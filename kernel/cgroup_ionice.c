@@ -69,10 +69,6 @@ static void ionice_apply_prio(struct ionice_cgroup *ionice, int prio)
     struct cgroup_iter it;
     struct task_struct *task;
 
-    /*we don't want to set root group ionice*/
-    if (!ionice->css.cgroup->parent)
-        return;
-
     /* also synchronizes against task migration, see ionice_attach() */
     lockdep_assert_held(&ionice->lock);
 
@@ -169,10 +165,6 @@ static void ionice_attach(struct cgroup *cgroup, struct cgroup_taskset *tset)
     struct ionice_cgroup *ionice = cgroup_to_ionice(cgroup);
     struct task_struct *task;
 
-    /*we don't want to set root group ionice*/
-    if (!ionice->css.cgroup->parent)
-        return;
-
     spin_lock_irq(&ionice->lock);
     cgroup_taskset_for_each(task, cgroup, tset) {
         set_task_ioprio(task, ionice->prio);
@@ -185,36 +177,20 @@ static int ionice_allow_attach(struct cgroup *cgroup, struct cgroup_taskset *tse
     return subsys_cgroup_allow_attach(cgroup, tset);
 }
 
-static void ionice_fork(struct task_struct *task)
-{
-    struct ionice_cgroup *ionice = task_to_ionice(task);
-
-    /*we don't want to set root group ionice*/
-    if (!ionice->css.cgroup->parent)
-        return;
-
-    rcu_read_lock();
-    set_task_ioprio(task, ionice->prio);
-    rcu_read_unlock();
-}
-
 static struct cftype files[] = {
     {
         .name = "class",
         .mode = S_IRUGO,
-        .flags = CFTYPE_NOT_ON_ROOT,
         .read_seq_string = ionice_read_class,
     },
     {
         .name = "level",
         .mode = S_IRUGO,
-        .flags = CFTYPE_NOT_ON_ROOT,
         .read_s64 = ionice_read_level,
     },
     {
         .name = "prio",
         .mode = S_IWUSR|S_IWGRP|S_IRUSR|S_IRGRP,
-        .flags = CFTYPE_NOT_ON_ROOT,
         .read_s64 = ionice_read_prio,
         .write_s64 = ionice_write_prio,
     },
@@ -228,6 +204,5 @@ struct cgroup_subsys ionice_subsys = {
     .css_free    = ionice_free,
     .attach        = ionice_attach,
     .allow_attach = ionice_allow_attach,
-    .fork        = ionice_fork,
     .base_cftypes    = files,
 };

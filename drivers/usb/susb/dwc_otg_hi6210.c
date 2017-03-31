@@ -28,12 +28,20 @@
 #include <linux/hisi/hi6xxx-iomap.h>
 #include <linux/hisi/hi6xxx-platform.h>
 #include <linux/pwrctrl_power_state_manager.h>
+#include <huawei_platform/log/log_jank.h>
 
 
 
 struct hiusb_info *g_hiusb_info;
 static unsigned int release_wakelock;
 
+#ifdef CONFIG_HUAWEI_USB_OTGSWITCH
+#define RUN_MODE_LEN 32
+static char run_mode[RUN_MODE_LEN];
+static int oem_otg_enable = 0;
+int g_otg_enable = 0;
+extern unsigned int get_pd_charge_flag(void);
+#endif
 #ifdef CONFIG_SWITCH_USB_CLS
 static struct platform_device usb_switch_device = {
     .name   = "switch-usb",
@@ -91,6 +99,10 @@ struct hisi_rst hiusb_nrst[] = {
      (1 << SOC_PERI_SCTRL_SC_PERIPH_RSTDIS0_periph_rstdis0_usbotg_32k_START) , 10, 0},/* OTG AND PHY in alwayson sctrl */
     {0,0,0},
 };
+/*add customer set eye diagram value*/
+static char *override_eyediagram;
+module_param(override_eyediagram, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(override_eyediagram,"Override HSUSB PHY eye diagram value Settings");
 /* --------------------- sysfs file --------------------------------------*/
 /**
  * Show the switch gpio status.
@@ -167,11 +179,24 @@ int get_resource(struct hiusb_info *hiusb_info)
             usb_dbg("%s:huawei,otg_without_mhl is not config\n",__FUNCTION__);
         usb_dbg("%s:huawei,otg_without_mhl %d\n",__FUNCTION__,hiusb_info->otg_without_mhl);
 
+        #ifdef CONFIG_HUAWEI_USB_OTGSWITCH
+        usb_err("[USB_DEBUG]g_otg_enable is %d\n",g_otg_enable);
+        #endif
         hiusb_info->otg_int_gpio = of_get_gpio_by_prop(np, "huawei,otg_int_gpio", 0, 0, &flags);
         if (!gpio_is_valid(hiusb_info->otg_int_gpio)){
-	     hiusb_info->otg_int_gpio = 0;
-            usb_dbg("%s:huawei,otg_int_gpio is not config\n",__FUNCTION__);
+            hiusb_info->otg_int_gpio = 0;
+        #ifdef CONFIG_HUAWEI_USB_OTGSWITCH
+            g_otg_enable = 0;
+        #endif
+            usb_err("%s:huawei,otg_int_gpio is not config\n",__FUNCTION__);
         }
+        #ifdef CONFIG_HUAWEI_USB_OTGSWITCH
+        else if(!g_otg_enable)
+        {
+            hiusb_info->otg_int_gpio = 0;
+            usb_err("[USB_DEBUG]%s:g_otg_enable is 0 ,set otg_int_gpio to 0! \n",__FUNCTION__);
+        }
+        #endif
         usb_dbg("%s:huawei,otg_int_gpio %d\n",__FUNCTION__,hiusb_info->otg_int_gpio);
 
         if (of_property_read_u32(np, "huawei,phy_reset_pin",&hiusb_info->phy_reset_pin))
@@ -1126,10 +1151,19 @@ void hiusb_otg_and_phy_setup(int mode)
     udelay(60);
 
     if(0 == mode){
-        if(0 == g_hiusb_info->eye_pattern)
+        pr_info("%s:override_eyediagram=0x%x. \n",__func__,override_eyediagram);
+        if(override_eyediagram > 0)
+        {
+            writel(override_eyediagram, SOC_PERI_SCTRL_SC_PERIPH_CTRL8_ADDR(g_hiusb_info->pericrg_base));
+        }
+        else if(0 == g_hiusb_info->eye_pattern)
+        {
             writel(eye_pattern_val, SOC_PERI_SCTRL_SC_PERIPH_CTRL8_ADDR(g_hiusb_info->pericrg_base));
+        }
         else
+        {
             writel(g_hiusb_info->eye_pattern, SOC_PERI_SCTRL_SC_PERIPH_CTRL8_ADDR(g_hiusb_info->pericrg_base));
+        }
     }
     else{
         if(0 == g_hiusb_info->otg_eye_pattern)
@@ -1287,6 +1321,7 @@ STATIC void hiusb_otg_intr_work(struct work_struct *work)
 
     switch (intr_flag) {
         case CHARGER_CONNECT_EVENT:
+		    LOG_JANK_D(JLID_USBCHARGING_START,"JL_USBCHARGING_START");
             if ((0 != pmu_version()) && (vbus_status() == 0)) {
                 dev_err(&lm_dev->dev, "%s charge INSERT no vbus error.\n", __func__);
                 spin_lock(&hiusb_info->intr_flag_lock);
@@ -1336,6 +1371,7 @@ STATIC void hiusb_otg_intr_work(struct work_struct *work)
                 disable_irq_nosync(gpio_to_irq(hiusb_info->otg_int_gpio));
             break;
         case CHARGER_DISCONNECT_EVENT:
+		    LOG_JANK_D(JLID_USBCHARGING_END,"JL_USBCHARGING_END");
             if ((0 != pmu_version()) && (vbus_status() != 0)) {
                 dev_err(&lm_dev->dev, "%s charge DRAW have vbus error.\n", __func__);
                 spin_lock(&hiusb_info->intr_flag_lock);
@@ -1377,6 +1413,13 @@ STATIC void hiusb_otg_intr_work(struct work_struct *work)
 #endif
             break;
         case ID_FALL_EVENT:
+            #ifdef CONFIG_HUAWEI_USB_OTGSWITCH
+            if(vbus_status() != 0)
+            {
+                dev_err(&lm_dev->dev, "%s the vbus pin has pullup!\n",__func__);
+                break;
+            }
+            #endif
             if (hiusb_info->hiusb_status != HIUSB_OFF) {
                 dev_err(&lm_dev->dev, "%s ID_FALL in wrong status error:(%d)%s.\n",
                     __func__, hiusb_info->hiusb_status, hiusb_info->hiusb_status <= HIUSB_MAX_STATUS ? usb_status[hiusb_info->hiusb_status]:"error");
@@ -1456,7 +1499,14 @@ int hisi_usb_id_change(enum otg_dev_event_type flag)
     {
         return -EINVAL;
     }
-    pr_debug("%s +.\n", __func__);
+#ifdef CONFIG_HUAWEI_USB_OTGSWITCH
+    if(vbus_status())
+    {
+        pr_err("[USB_DEBUG]%s: ID INTR but vbus is on!\n", __func__);
+        return -EINVAL;
+    }
+#endif
+    pr_info("[USB_DEBUG]%s +.\n", __func__);
     hiusb_info = g_hiusb_info;
     spin_lock(&hiusb_info->intr_flag_lock);
     hiusb_info->intr_flag = flag;
@@ -1763,19 +1813,31 @@ STATIC int hiusb_init_phase2(struct lm_device *dev)
 
 
     if (hiusb_is_host_mode(lm_dev)) {
-        dev_info(&dev->dev, "host wakelock!\n");
-        wake_lock(&hiusb_info->host_wakelock);
-        if (hiusb_info->quirks & HIUSB_QUIRKS_CHARGER) {
-            hiusb_info->charger_type = USB_EVENT_OTG_ID;
-            notify_charger_type();
+        if(hiusb_info->otg_int_gpio)
+        {
+            dev_info(&dev->dev, "host wakelock!\n");
+            wake_lock(&hiusb_info->host_wakelock);
+            if (hiusb_info->quirks & HIUSB_QUIRKS_CHARGER) {
+                hiusb_info->charger_type = USB_EVENT_OTG_ID;
+                notify_charger_type();
+            }
+            if(0 == hiusb_info->otg_eye_pattern)
+                writel(otg_eye_pattern_val, SOC_PERI_SCTRL_SC_PERIPH_CTRL8_ADDR(hiusb_info->pericrg_base));
+            else
+                writel(hiusb_info->otg_eye_pattern, SOC_PERI_SCTRL_SC_PERIPH_CTRL8_ADDR(hiusb_info->pericrg_base));
+            hiusb_info->hiusb_status = HIUSB_HOST;
         }
-
-        if(0 == hiusb_info->otg_eye_pattern)
-            writel(otg_eye_pattern_val, SOC_PERI_SCTRL_SC_PERIPH_CTRL8_ADDR(hiusb_info->pericrg_base));
         else
-            writel(hiusb_info->otg_eye_pattern, SOC_PERI_SCTRL_SC_PERIPH_CTRL8_ADDR(hiusb_info->pericrg_base));
-        
-        hiusb_info->hiusb_status = HIUSB_HOST;
+        {
+            dev_info(&dev->dev, "can't support OTG, usb disconnect!\n");
+            hiusb_otg_and_phy_cleanup();
+            wake_unlock(&hiusb_info->dev_wakelock);
+            if (hiusb_info->quirks & HIUSB_QUIRKS_CHARGER) {
+                hiusb_info->charger_type = CHARGER_REMOVED;
+                notify_charger_type();
+            }
+            hiusb_info->hiusb_status = HIUSB_OFF;
+        }
     } else if ((pmu_version() != 0) && (vbus_status() == 0)) {
         dev_info(&dev->dev, "usb disconnect!\n");
         hiusb_otg_and_phy_cleanup();
@@ -1886,9 +1948,33 @@ STATIC int dwc_otg_hi6xxx_probe(struct platform_device *pdev)
     struct lm_device *lm_dev;
     struct hiusb_info *hiusb_info;
     struct resource *res;
+    #ifdef CONFIG_HUAWEI_USB_OTGSWITCH
+    int powerdown_charge_type = 0;
+    #endif
 
     usb_dbg("[dwc_otg_hi6xxx_probe enter\n");
-
+    #ifdef CONFIG_HUAWEI_USB_OTGSWITCH
+    if(!strcmp(run_mode,"factory"))
+    {
+         usb_err("%s factory version enable otg. \n", __func__);
+         g_otg_enable = 1;
+    }
+    else
+    {
+         powerdown_charge_type = get_pd_charge_flag();
+         usb_err("%s normal boot---pd_charge_type=%d,%d \n", __func__,powerdown_charge_type,oem_otg_enable);
+         if(oem_otg_enable && (1 != powerdown_charge_type))
+         {
+             usb_err("%s otg enable\n", __func__);
+             g_otg_enable = 1;
+         }
+         else
+         {
+             usb_err("%s otg disable\n", __func__);
+             g_otg_enable = 0;
+         }
+    }
+    #endif
     /*
      * register the dwc otg device
      */
@@ -2031,6 +2117,41 @@ int hisi_usb_otg_event(enum otg_dev_event_type event_type)
 {
     return 0;
 }
+#ifdef CONFIG_HUAWEI_USB_OTGSWITCH
+static int __init early_parse_run_mode_cmdline(char * p)
+{
+    if(!p)
+    {
+        usb_err("[USB_DEBUG] get run mode fail!");
+        return 0;
+    }
+    strncpy(run_mode, p, RUN_MODE_LEN);
+    usb_err("[USB_DEBUG]otg status p:%s, run_mode :%s\n", p, run_mode);
+    return 0;
+}
+early_param("androidboot.swtype", early_parse_run_mode_cmdline);
+
+static int __init early_parse_otg_status_cmdline(char * p)
+{
+    if(p)
+    {
+        if(!strcmp(p,"enable"))
+        {
+            oem_otg_enable = 1;
+        }
+        else
+        {
+            oem_otg_enable = 0;
+        }
+        usb_err("[USB_DEBUG]otg status p:%s, oem_otg_enable :%u\n",
+                 p, oem_otg_enable);
+    }
+
+    return 0;
+
+}
+early_param("otg.status", early_parse_otg_status_cmdline);
+#endif
 
 MODULE_AUTHOR("wangbinghui<wangbinghui@huawei.com>");
 MODULE_DESCRIPTION("HI6xxx usb otg driver");

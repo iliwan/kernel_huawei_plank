@@ -41,6 +41,7 @@ struct k3_vibrator_data {
 #endif
 };
 
+volatile int vibrator_shake = 0;
 struct k3_vibrator_data *k3_vibrator_pdata;
 static void k3_vibrator_onoff_handler(struct work_struct *data);
 static struct workqueue_struct *done_queue;

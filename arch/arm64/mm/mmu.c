@@ -135,17 +135,30 @@ static void __init *early_alloc(unsigned long sz)
 	return ptr;
 }
 
-static void __init alloc_init_pte(pmd_t *pmd, unsigned long addr,
+static void split_pmd(pmd_t *pmd, pte_t *pte)
+{
+	unsigned long pfn = pmd_pfn(*pmd);
+	int i = 0;
+
+	do {
+		set_pte(pte, pfn_pte(pfn, PAGE_KERNEL_EXEC));
+		pfn++;
+	} while (pte++, i++, i < PTRS_PER_PTE);
+}
+
+static void  alloc_init_pte(pmd_t *pmd, unsigned long addr,
 				  unsigned long end, unsigned long pfn,
-				  pgprot_t prot)
+				  pgprot_t prot, void *(*alloc)(unsigned long size))
 {
 	pte_t *pte;
 
-	if (pmd_none(*pmd)) {
-		pte = early_alloc(PTRS_PER_PTE * sizeof(pte_t));
+	if (pmd_none(*pmd) || pmd_bad(*pmd)) {
+		pte = alloc(PTRS_PER_PTE * sizeof(pte_t));
+		if (pmd_sect(*pmd))
+			split_pmd(pmd, pte);
 		__pmd_populate(pmd, __pa(pte), PMD_TYPE_TABLE);
+		flush_tlb_all();
 	}
-	BUG_ON(pmd_bad(*pmd));
 
 	pte = pte_offset_kernel(pmd, addr);
 	do {
@@ -154,29 +167,28 @@ static void __init alloc_init_pte(pmd_t *pmd, unsigned long addr,
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 }
 
-static void __init alloc_init_pmd(pud_t *pud, unsigned long addr,
+static void  alloc_init_pmd(pud_t *pud, unsigned long addr,
 				  unsigned long end, phys_addr_t phys,
-				  int map_io)
+				  pgprot_t prot, void *(*alloc)(unsigned long size))
 {
 	pmd_t *pmd;
 	unsigned long next;
 	pmdval_t prot_sect;
 	pgprot_t prot_pte;
 
-	if (map_io) {
-		prot_sect = PMD_TYPE_SECT | PMD_SECT_AF |
-			    PMD_ATTRINDX(MT_DEVICE_nGnRE);
-		prot_pte = __pgprot(PROT_DEVICE_nGnRE);
+	if (prot ==  __pgprot(PROT_DEVICE_nGnRE)) {
+		prot_sect = PROT_SECT_DEVICE_nGnRE;
+		prot_pte = prot;
 	} else {
 		prot_sect = PROT_SECT_NORMAL_EXEC;
-		prot_pte = PAGE_KERNEL_EXEC;
+		prot_pte = prot;
 	}
 
 	/*
 	 * Check for initial section mappings in the pgd/pud and remove them.
 	 */
 	if (pud_none(*pud) || pud_bad(*pud)) {
-		pmd = early_alloc(PTRS_PER_PMD * sizeof(pmd_t));
+		pmd = alloc(PTRS_PER_PMD * sizeof(pmd_t));
 		pud_populate(&init_mm, pud, pmd);
 	}
 
@@ -195,22 +207,22 @@ static void __init alloc_init_pmd(pud_t *pud, unsigned long addr,
 				flush_tlb_all();
 		} else {
 			alloc_init_pte(pmd, addr, next, __phys_to_pfn(phys),
-				       prot_pte);
+				       prot_pte, alloc);
 		}
 		phys += next - addr;
 	} while (pmd++, addr = next, addr != end);
 }
 
-static void __init alloc_init_pud(pgd_t *pgd, unsigned long addr,
-				  unsigned long end, unsigned long phys,
-				  int map_io)
+static void  alloc_init_pud(pgd_t *pgd, unsigned long addr,
+				  unsigned long end, phys_addr_t phys,
+				  pgprot_t prot, void *(*alloc)(unsigned long size))
 {
 	pud_t *pud = pud_offset(pgd, addr);
 	unsigned long next;
 
 	do {
 		next = pud_addr_end(addr, end);
-		alloc_init_pmd(pud, addr, next, phys, map_io);
+		alloc_init_pmd(pud, addr, next, phys, prot, alloc);
 		phys += next - addr;
 	} while (pud++, addr = next, addr != end);
 }
@@ -219,9 +231,9 @@ static void __init alloc_init_pud(pgd_t *pgd, unsigned long addr,
  * Create the page directory entries and any necessary page tables for the
  * mapping specified by 'md'.
  */
-static void __init __create_mapping(pgd_t *pgd, phys_addr_t phys,
+static void __create_mapping(pgd_t *pgd, phys_addr_t phys,
 				    unsigned long virt, phys_addr_t size,
-				    int map_io)
+				    pgprot_t prot, void *(*alloc)(unsigned long size))
 {
 	unsigned long addr, length, end, next;
 
@@ -231,20 +243,30 @@ static void __init __create_mapping(pgd_t *pgd, phys_addr_t phys,
 	end = addr + length;
 	do {
 		next = pgd_addr_end(addr, end);
-		alloc_init_pud(pgd, addr, next, phys, map_io);
+		alloc_init_pud(pgd, addr, next, phys, prot, alloc);
 		phys += next - addr;
 	} while (pgd++, addr = next, addr != end);
 }
 
-static void __init create_mapping(phys_addr_t phys, unsigned long virt,
-				  phys_addr_t size)
+static void *late_alloc(unsigned long size)
+{
+	void *ptr;
+
+	BUG_ON(size > PAGE_SIZE);
+	ptr = (void *)__get_free_page(PGALLOC_GFP);
+	BUG_ON(!ptr);
+	return ptr;
+}
+
+static void create_mapping(phys_addr_t phys, unsigned long virt,
+		 		 		 		 phys_addr_t size, pgprot_t prot)
 {
 	if (virt < VMALLOC_START) {
 		pr_warn("BUG: not creating mapping for %pa at 0x%016lx - outside kernel range\n",
 			&phys, virt);
 		return;
 	}
-	__create_mapping(pgd_offset_k(virt & PAGE_MASK), phys, virt, size, 0);
+	__create_mapping(pgd_offset_k(virt & PAGE_MASK), phys, virt, size, prot, early_alloc);
 }
 
 void __init create_id_mapping(phys_addr_t addr, phys_addr_t size, int map_io)
@@ -254,8 +276,66 @@ void __init create_id_mapping(phys_addr_t addr, phys_addr_t size, int map_io)
 		return;
 	}
 	__create_mapping(&idmap_pg_dir[pgd_index(addr)],
-			 addr, addr, size, map_io);
+			 addr, addr, size, 
+			 map_io ? __pgprot(PROT_DEVICE_nGnRE): PAGE_KERNEL_EXEC,
+			 early_alloc);
 }
+
+
+static void create_mapping_late(phys_addr_t phys, unsigned long virt,
+				  phys_addr_t size, pgprot_t prot)
+{
+	if (virt < VMALLOC_START) {
+		pr_warn("BUG: not creating mapping for %pa at 0x%016lx - outside kernel range\n",
+			&phys, virt);
+		return;
+	}
+
+	return __create_mapping(pgd_offset_k(virt & PAGE_MASK),
+				phys, virt, size, prot, late_alloc);
+}
+
+#ifdef CONFIG_DEBUG_RODATA
+static void __init __map_memblock(phys_addr_t start, phys_addr_t end)
+{
+	/*
+	 * Set up the executable regions using the existing section mappings
+	 * for now. This will get more fine grained later once all memory
+	 * is mapped
+	 */
+	phys_addr_t kernel_x_start = round_down(__pa(_stext), SECTION_SIZE);
+	phys_addr_t kernel_x_end = round_up(__pa(__init_end), SECTION_SIZE);
+	
+	if (end < kernel_x_start) {
+		create_mapping(start, __phys_to_virt(start),
+		 		 end - start, PAGE_KERNEL);
+	} else if (start >= kernel_x_end) {
+		create_mapping(start, __phys_to_virt(start),
+		 		 end - start, PAGE_KERNEL);
+	} else {
+		if (start < kernel_x_start)
+			create_mapping(start, __phys_to_virt(start),
+					 		 kernel_x_start - start,
+			 		 		 PAGE_KERNEL);
+			create_mapping(kernel_x_start,
+			 		 		 __phys_to_virt(kernel_x_start),
+			 		 		 kernel_x_end - kernel_x_start,
+			 		 		 PAGE_KERNEL_EXEC);
+	
+			if (kernel_x_end < end)
+				create_mapping(kernel_x_end,
+			 		 		 __phys_to_virt(kernel_x_end),
+			 		 		 end - kernel_x_end,
+			 		 		 PAGE_KERNEL);
+	}
+}
+#else
+static void __init __map_memblock(phys_addr_t start, phys_addr_t end)
+{
+	create_mapping(start, __phys_to_virt(start), end - start,
+		 		 		 PAGE_KERNEL_EXEC);
+}
+#endif
 
 static void __init map_mem(void)
 {
@@ -298,11 +378,121 @@ static void __init map_mem(void)
 		}
 #endif
 
-		create_mapping(start, __phys_to_virt(start), end - start);
+		__map_memblock(start, end);
 	}
 
 	/* Limit no longer required. */
 	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
+}
+
+#ifdef CONFIG_FORCE_PAGES
+static noinline void split_pmd(pmd_t *pmd, unsigned long addr,
+				unsigned long end, unsigned long pfn)
+{
+	pte_t *pte, *start_pte;
+
+	start_pte = early_alloc(PTRS_PER_PTE * sizeof(pte_t));
+	pte = start_pte;
+
+	do {
+		set_pte(pte, pfn_pte(pfn, PAGE_KERNEL_EXEC));
+		pfn++;
+	} while (pte++, addr += PAGE_SIZE, addr != end);
+
+	set_pmd(pmd, __pmd((__pa(start_pte)) | PMD_TYPE_TABLE));
+}
+
+static noinline void __init remap_pages(void)
+{
+	struct memblock_region *reg;
+
+	for_each_memblock(memory, reg) {
+		phys_addr_t phys_pgd = reg->base;
+		phys_addr_t phys_end = reg->base + reg->size;
+		unsigned long addr_pgd = (unsigned long)__va(phys_pgd);
+		unsigned long end = (unsigned long)__va(phys_end);
+		pmd_t *pmd = NULL;
+		pud_t *pud = NULL;
+		pgd_t *pgd = NULL;
+		unsigned long next_pud, next_pmd, next_pgd;
+		unsigned long addr_pmd, addr_pud;
+		phys_addr_t phys_pud, phys_pmd;
+
+		if (phys_pgd >= phys_end)
+			break;
+
+		pgd = pgd_offset(&init_mm, addr_pgd);
+		do {
+			next_pgd = pgd_addr_end(addr_pgd, end);
+			pud = pud_offset(pgd, addr_pgd);
+			addr_pud = addr_pgd;
+			phys_pud = phys_pgd;
+			do {
+				next_pud = pud_addr_end(addr_pud, next_pgd);
+				pmd = pmd_offset(pud, addr_pud);
+				addr_pmd = addr_pud;
+				phys_pmd = phys_pud;
+				do {
+					next_pmd = pmd_addr_end(addr_pmd,
+								next_pud);
+					if (pmd_none(*pmd) || pmd_bad(*pmd))
+						split_pmd(pmd, addr_pmd,
+					next_pmd, __phys_to_pfn(phys_pmd));
+					pmd++;
+					phys_pmd += next_pmd - addr_pmd;
+				} while (addr_pmd = next_pmd,
+						addr_pmd < next_pud);
+				phys_pud += next_pud - addr_pud;
+			} while (pud++, addr_pud = next_pud,
+						addr_pud < next_pgd);
+			phys_pgd += next_pgd - addr_pgd;
+		} while (pgd++, addr_pgd = next_pgd, addr_pgd < end);
+	}
+}
+
+#else
+static void __init remap_pages(void)
+{
+
+}
+#endif
+void __init fixup_executable(void)
+{
+#ifdef  CONFIG_DEBUG_RODATA  
+
+	/* now that we are actually fully mapped, make the start/end more fine grained */
+	if (!IS_ALIGNED((unsigned long)_stext, SECTION_SIZE)) {
+		unsigned long aligned_start = round_down(__pa(_text), SECTION_SIZE);
+	
+		create_mapping(aligned_start, __phys_to_virt(aligned_start),
+			 		 		 __pa(_text) - aligned_start,
+			 		 		 PAGE_KERNEL);
+	}
+	
+	if (!IS_ALIGNED((unsigned long)__init_end, SECTION_SIZE)) {
+		unsigned long aligned_end = round_up(__pa(__init_end), SECTION_SIZE);
+		create_mapping(__pa(__init_end), (unsigned long)__init_end,
+	    		 		 aligned_end - __pa(__init_end),
+	    		 		 PAGE_KERNEL);
+	} 
+
+#endif
+}
+
+#ifdef CONFIG_DEBUG_RODATA
+void mark_rodata_ro(void)
+{
+	create_mapping_late(__pa(_stext), (unsigned long)_stext,
+				__pa(_etext) - __pa(_stext),
+				PAGE_KERNEL_EXEC  | PTE_RDONLY); 
+}
+#endif
+
+void fixup_init(void)
+{
+	create_mapping_late(__pa(__init_begin), (unsigned long)__init_begin,
+			(unsigned long)__init_end - (unsigned long)__init_begin,
+			PAGE_KERNEL);
 }
 
 /*
@@ -314,6 +504,8 @@ void __init paging_init(void)
 	void *zero_page;
 
 	map_mem();
+	fixup_executable();
+	remap_pages();
 
 	/*
 	 * Finally flush the caches and tlb to ensure that we're in a

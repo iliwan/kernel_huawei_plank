@@ -230,14 +230,14 @@ static const struct _sensor_reg_t sonyimx135_stream_off_regs[] = {
 
 
 static framesize_s sonyimx135_rgb_framesizes[] = {
-	//{0, 0, 1920, 1088, 4572, 2624, 30, 25, 0x313, 0x290, 0x100, VIEW_HDR_MOVIE, RESOLUTION_16_9, false, false,{sonyimx135_rgb_framesize_1920x1088_HDR, ARRAY_SIZE(sonyimx135_rgb_framesize_1920x1088_HDR)} },
-	//{0, 0, 2048, 1536, 4572, 3236, 21, 21, 0x313, 0x290, 0x100, VIEW_HDR_MOVIE, RESOLUTION_4_3, false, false,{sonyimx135_rgb_framesize_2048x1536_HDR, ARRAY_SIZE(sonyimx135_rgb_framesize_2048x1536_HDR)} },
-       //{0, 0, 1920, 1088, 4572, 2324, 30, 30, 0X2BB, 0X247, 0x280, VIEW_FULL, RESOLUTION_16_9, true, false,{sonyimx135_rgb_framesize_1920x1088, ARRAY_SIZE(sonyimx135_rgb_framesize_1920x1088)}, CLK_750M},
-	{0, 0, 2080, 1560, 4572, 2330, 30, 30, 0x2BB, 0x247, 0x280, VIEW_FULL, RESOLUTION_4_3, true, false,{sonyimx135_rgb_framesize_2080x1560, ARRAY_SIZE(sonyimx135_rgb_framesize_2080x1560)}, CLK_750M },
-	{0, 0, 3264, 2448, 4572, 3142, 30, 30, 0x3B0, 0x313, 0x360, VIEW_FULL, RESOLUTION_4_3, false, true,{sonyimx135_rgb_framesize_3264x2448, ARRAY_SIZE(sonyimx135_rgb_framesize_3264x2448)}, CLK_1100M },
-	{0, 0, 3280, 1960, 4572, 2566, 30, 30, 0x301, 0x281, 0x2C0, VIEW_FULL, RESOLUTION_16_9, false, true,{sonyimx135_rgb_framesize_3280x1960, ARRAY_SIZE(sonyimx135_rgb_framesize_3280x1960)},CLK_900M },
-	{0, 0, 4160, 3120, 4572, 3264, 23, 23, 0x2F0, 0x273, 0x2B0, VIEW_FULL, RESOLUTION_4_3, false, true,{sonyimx135_rgb_framesize_4160x3120_zsl, ARRAY_SIZE(sonyimx135_rgb_framesize_4160x3120_zsl)},CLK_900M },	
-	{0, 0, 4160, 3120, 4582, 4664, 10, 10, 0x1A3, 0x15D, 0x17F, VIEW_FULL, RESOLUTION_4_3, false, false,{sonyimx135_rgb_framesize_4160x3120_nozsl_full, ARRAY_SIZE(sonyimx135_rgb_framesize_4160x3120_nozsl_full)}, CLK_450M},	
+	//{0, 0, 1920, 1088, 4572, 2624, 30, 25, 0x313, 0x290, 0x100, VIEW_HDR_MOVIE, RESOLUTION_16_9, false, false,ECGC_TYPE_MAX,{sonyimx135_rgb_framesize_1920x1088_HDR, ARRAY_SIZE(sonyimx135_rgb_framesize_1920x1088_HDR)} },
+	//{0, 0, 2048, 1536, 4572, 3236, 21, 21, 0x313, 0x290, 0x100, VIEW_HDR_MOVIE, RESOLUTION_4_3, false, false,ECGC_TYPE_MAX,{sonyimx135_rgb_framesize_2048x1536_HDR, ARRAY_SIZE(sonyimx135_rgb_framesize_2048x1536_HDR)} },
+       //{0, 0, 1920, 1088, 4572, 2324, 30, 30, 0X2BB, 0X247, 0x280, VIEW_FULL, RESOLUTION_16_9, true, false,ECGC_TYPE_MAX,{sonyimx135_rgb_framesize_1920x1088, ARRAY_SIZE(sonyimx135_rgb_framesize_1920x1088)}, CLK_750M},
+	{0, 0, 2080, 1560, 4572, 2330, 30, 30, 0x2BB, 0x247, 0x280, VIEW_FULL, RESOLUTION_4_3, true, false, ECGC_TYPE_MAX,{sonyimx135_rgb_framesize_2080x1560, ARRAY_SIZE(sonyimx135_rgb_framesize_2080x1560)}, CLK_750M },
+	{0, 0, 3264, 2448, 4572, 3142, 30, 30, 0x3B0, 0x313, 0x360, VIEW_FULL, RESOLUTION_4_3, false, true, ECGC_TYPE_MAX,{sonyimx135_rgb_framesize_3264x2448, ARRAY_SIZE(sonyimx135_rgb_framesize_3264x2448)}, CLK_1100M },
+	{0, 0, 3280, 1960, 4572, 2566, 30, 30, 0x301, 0x281, 0x2C0, VIEW_FULL, RESOLUTION_16_9, false, true, ECGC_TYPE_MAX,{sonyimx135_rgb_framesize_3280x1960, ARRAY_SIZE(sonyimx135_rgb_framesize_3280x1960)},CLK_900M },
+	{0, 0, 4160, 3120, 4572, 3264, 23, 23, 0x2F0, 0x273, 0x2B0, VIEW_FULL, RESOLUTION_4_3, false, true, ECGC_TYPE_MAX,{sonyimx135_rgb_framesize_4160x3120_zsl, ARRAY_SIZE(sonyimx135_rgb_framesize_4160x3120_zsl)},CLK_900M },	
+	{0, 0, 4160, 3120, 4582, 4664, 10, 10, 0x1A3, 0x15D, 0x17F, VIEW_FULL, RESOLUTION_4_3, false, false, ECGC_TYPE_MAX,{sonyimx135_rgb_framesize_4160x3120_nozsl_full, ARRAY_SIZE(sonyimx135_rgb_framesize_4160x3120_nozsl_full)}, CLK_450M},	
 };
 
 #if 0
@@ -488,12 +488,14 @@ static int sonyimx135_try_framesizes(struct v4l2_frmsizeenum *framesizes)
  **************************************************************************
 */
 static int sonyimx135_set_framesizes(camera_state state,
-				 struct v4l2_frmsize_discrete *fs, int flag, camera_setting_view_type view_type,bool zsl_preview)
+				 struct v4l2_frmsize_discrete *fs, int flag, camera_setting_view_type view_type,bool zsl_preview,camera_b_shutter_mode b_shutter_mode,ecgc_support_type_s ecgc_type)
 {
 	int i = 0;
 	bool match = false;
         int size = 0;
 	assert(fs);
+	(void)b_shutter_mode;//imx135 not not set b_shutter alog setting
+	(void)ecgc_type;
 
 	if(NULL == fs){
 		return -EINVAL;

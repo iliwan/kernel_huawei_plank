@@ -15,6 +15,7 @@
 #include <linux/hisi/hi3xxx_irq_affinity.h>
 
 #define MODULE_NAME "IRQAFF DEBUGFS"
+#define CNT_MAX		(128)
 
 static struct dentry *irqaff_debug_dir;
 static struct dentry *irqaff_debug_fn;
@@ -34,11 +35,16 @@ static ssize_t
 irqaff_debugfs_write(struct file *filp, const char __user *ubuf,
 					size_t cnt, loff_t *ppos)
 {
-	char debugfs_cmd[128];
+	char debugfs_cmd[CNT_MAX];
 	char *_cmd = NULL;
 	char *_tmp = NULL;
 	unsigned int irq;
 	unsigned int cpu;
+
+	if (cnt > CNT_MAX) {
+		pr_err("[%s]input size > CNT_MAX\n", __func__);
+		return -ENOMEM;
+	}
 
 	if (copy_from_user(debugfs_cmd, ubuf, cnt - 1)) {
 		cnt = -EINVAL;

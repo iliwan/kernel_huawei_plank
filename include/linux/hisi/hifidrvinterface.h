@@ -155,7 +155,31 @@ enum AUDIO_MSG_ENUM
     /* hifi回复ID_AP_HIFI_CCPU_RESET_REQ */
     ID_HIFI_AP_CCPU_RESET_CNF           = 0xDDE2,           /* _H2ASN_MsgChoice HIFI_AP_CCPU_RESET_CNF_STRU */
 
+    /* for 3mic: A核通知HIFI 3Mic/4Mic 通路已建立，允许启动DMA */
+    ID_AP_AUDIO_ROUTING_COMPLETE_REQ    = 0xDDE5,
+    ID_AUDIO_AP_ROUTING_COMPLETE_CNF    = 0xDDE6,
+    /* HIFI 通知A核DMA配置完成，可以打开Codec DP时钟 */
+    ID_AUDIO_AP_DMA_CONFIG_IND          = 0xDDE7,
+    /* A核通知HIFI ，Codec DP时钟已打开 */
+    ID_AP_AUDIO_DP_OPEN_IND             = 0xDDE8,
 };
+
+//for 3mic: struct for ioctl cmd to notify hifi 3Mic/4Mic routing complete
+typedef struct {
+    unsigned short    msgID;
+    unsigned short    reserve;
+}AUDIO_COMM_NOTIFY_REQ_STRU;
+
+typedef struct {
+    unsigned short    msgID;
+    unsigned short    result;       //0表示成功，1表示失败
+}AUDIO_COMM_NOTIFY_CNF_STRU;
+
+typedef struct
+{
+    unsigned short    uhwMsgId;
+    unsigned short    reserve;
+} AUDIO_COMM_DMA_CONFIG_DONE_IND_STRU;
 
 /*****************************************************************************
   9 全局变量声明

@@ -189,6 +189,7 @@ u32 nv_load_err_proc(void)
     ddr_info->acore_init_state = NV_KERNEL_INIT_DOING;
     nv_spin_unlock(nvflag, IPC_SEM_NV);
 
+
     if(nv_file_access((s8*)NV_DLOAD_PATH,0))
     {
         nv_mntn_record("%s ,%s has no file\n",__func__,NV_DLOAD_PATH);
@@ -237,7 +238,7 @@ u32 nv_load_err_proc(void)
     ret = nv_set_crc_offset();
     if(ret)
     {
-        
+       return ret; 
     }
     ret = nv_make_ddr_crc();
     if(ret)
@@ -1419,7 +1420,7 @@ u32 nv_get_bin_crc_file_len(struct nv_ctrl_file_info_stru* ctrl_info,struct nv_f
         return BSP_ERR_NV_ITEM_LEN_ERR;
     }
     /*计算需要生成的校验码个数*/
-    if(ctrl_info->crc_mark)
+    if(NV_CRC_CHECK_YES)
     {
         count = NV_CRC_CODE_COUNT(*file_len - ctrl_info->ctrl_size);
         *file_len = count*sizeof(u32) + *file_len + sizeof(u32);
@@ -1722,7 +1723,9 @@ u32 nv_dload_file_crc_check(FILE *fp)
     u32 * pCheckCode = NULL;
     u32 headLen = 0;
 
-    headLen = sizeof(struct nv_dload_packet_head_stru);
+    return NV_OK;
+
+    headLen = 0;
 
     /*这里要检查升级包中是否需要进行CRC校验???*/
     (void)nv_file_seek(fp, headLen, SEEK_SET);

@@ -742,7 +742,7 @@ VOS_VOID CDS_BST_HOOKIPData( const VOS_UINT32 ulType, VOS_UINT8 *pucData, VOS_UI
 
     }
     else if( ulType == CDS_BST_HOOK_TYPE_FW)
-    {   
+    {
         ulMsgId                         = ID_BST_CDS_FW_IP_PKG_INFO_IND;
         ulSenderPid                     = UEPS_PID_BASTET;
         ulReceiverPid                   = UEPS_PID_CDS;
@@ -772,7 +772,7 @@ VOS_VOID CDS_BST_HOOKIPData( const VOS_UINT32 ulType, VOS_UINT8 *pucData, VOS_UI
 
     PS_MEM_CPY( pstHookInfoMsg->aucData, pucData, uldatalen );
 
-    OM_TraceMsgHook(pstHookInfoMsg);
+    (VOS_VOID)OM_TraceMsgHook(pstHookInfoMsg);
 
     PS_FREE_MSG(UEPS_PID_CDS, pstHookInfoMsg);
 /*lint -e429*/

@@ -5,6 +5,10 @@
 EXTRA_CFLAGS += -Idrivers/media/platform/ovisp23/camera
 EXTRA_CFLAGS += -fno-pic
 
+ifneq ($(TARGET_BUILD_VARIANT),user)
+EXTRA_CFLAGS += -DDEBUG_HISI_CAMERA
+endif
+
 hisi_camera_all-objs := hisi_cam_module.o \
 			sensor/hisi_sensor.o \
 			isp/hisi_isp.o  \
@@ -15,7 +19,7 @@ hisi_camera_all-objs := hisi_cam_module.o \
 			csi/hisi_csi.o	\
 			flash/hisi_flash.o
 
-obj-$(CONFIG_VIDEO_HISI_CAMERA) += hisi_camera_all.o
+obj-$(CONFIG_VIDEO_HI3630_CAMERA) += hisi_camera_all.o
 
 obj-$(CONFIG_HISI_CAMERA_SENSOR)	+= sensor/
 obj-$(CONFIG_HISI_CAMERA_ISP)	+= isp/

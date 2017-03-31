@@ -3,7 +3,7 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_ARM_MODE := arm
-CROSS_COMPLIE := prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.7/bin/arm-linux-androideabi-
+CROSS_COMPLIE := prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.8/bin/arm-linux-androideabi-
 LOCAL_CC :=  $(CROSS_COMPLIE)gcc
 
 LOCAL_SRC_FILES := \

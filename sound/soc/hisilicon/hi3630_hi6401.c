@@ -72,18 +72,19 @@ static struct snd_soc_dai_link hi3630_hi6401_dai_link[] = {
 	},
 	{
 		/* dai link name*/
-		.name		= "hi3630_dma_voice",
+		.name		= "hi3630_fm",
 		/* stream name same as name */
-		.stream_name	= "hi3630_dma_voice",
+		.stream_name	= "hi3630_fm",
 		/* codec(hi6401) device name ,see in hi6401.c */
 		.codec_name	= "hi6401-codec",
 		/* cpu(k3v3:asp) dai name(device name), see in hi3630-pcm.c */
-		.cpu_dai_name	= "sio-voice",
+		.cpu_dai_name	= "sio-fm",
 		/* codec dai name, see in struct snd_soc_dai_driver in hi6401.c */
-		.codec_dai_name	= "hi6401-voice-dai",
+		.codec_dai_name	= "hi6401-fm-dai",
 		/* platform(k3v3:asp) device name, see in hi3630-pcm.c */
-		.platform_name	= "hi3630-pcm-asp-dma-voice",
+		.platform_name	= "hi3630-fm",
 	},
+#if 1
 	{
 		/* dai link name*/
 		.name		= "hi3630_hdmi_pb",
@@ -98,6 +99,7 @@ static struct snd_soc_dai_link hi3630_hi6401_dai_link[] = {
 		/* platform(k3v3:asp) device name, see in hi3630-pcm.c */
 		.platform_name	= "hi3630-pcm-hdmi",
 	},
+#endif
 };
 
 /* Audio machine driver */

@@ -24,19 +24,19 @@ extern "C" {
 #define  TDS_DHI_BASE_DRR				 0x11000000
 /* DDR base addr*//* UDP */
 /* #define  TDS_DDR_BASE_ADDR			 0x3af00000 */
-/*  D2 */
-/* #define  TDS_DDR_BASE_ADDR             0x37d00000 */
+/*  D2 */
+/* #define  TDS_DDR_BASE_ADDR             0x37d00000 */
 #if(FEATURE_ON == FEATURE_UE_MODE_TDS)
 /*#define  TDS_DDR_BASE_ADDR               GLOBAL_MEM_TDS_LH2_ADDR*/
 #endif
 #define  TDS_RFADJUSTPARA_DRR_OFFSET     0x30400
-/* 开始校准消息ID */
+/* 开始校准消息ID */
 #define  MBV_A2Z_RFADJUSTSTART           0x71
 /* 结束校准消息ID */
 #define  MBV_A2Z_RFADJUSTSTOP            0x72
 /* 设置APCOFFSET校准状态 */
 #define  MBV_A2Z_APCOFFSETFLAGSET        0x74
-/* 通知DSP从共享内存读取校准信息消息ID */
+/* 通知DSP从共享内存读取校准信息消息ID */
 #define  MBV_A2Z_RFADJUST                0x17
 
 #define ATR_MC_ASCII_TO_HEX(asciiChar)      atr05_51transAsciiCharIntoHex(asciiChar);

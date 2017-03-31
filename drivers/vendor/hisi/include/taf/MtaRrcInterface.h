@@ -122,6 +122,19 @@ enum MTA_RRC_MSG_TYPE_ENUM
     ID_TLRRC_MTA_QRY_DPDT_VALUE_CNF              = MTA_LRRC_MSG_TYPE_BASE + 8,   /* _H2ASN_MsgChoice TLRRC_MTA_QRY_DPDT_VALUE_CNF_STRU      */
 
 
+    /*T模FREQLOCK锁频REQ消息*/
+    ID_MTA_TDS_FREQLOCK_SET_REQ                 = MTA_LRRC_MSG_TYPE_BASE + 13,  /* _H2ASN_MsgChoice MTA_TDS_FREQLOCK_SET_REQ_STRU      */
+
+    /*T模FREQLOCK锁频CNF消息*/
+    ID_TDS_MTA_FREQLOCK_SET_CNF                 = MTA_LRRC_MSG_TYPE_BASE + 14,
+
+
+    /*L模FREQLOCK锁频REQ消息*/
+    ID_MTA_LRRC_FREQLOCK_SET_REQ                = MTA_LRRC_MSG_TYPE_BASE + 15,  /* _H2ASN_MsgChoice MTA_TDS_FREQLOCK_SET_REQ_STRU      */
+
+    /*L模FREQLOCK锁频CNF消息*/
+    ID_LRRC_MTA_FREQLOCK_SET_CNF                = MTA_LRRC_MSG_TYPE_BASE + 16,
+
     ID_MTA_RRC_MSG_TYPE_BUTT
 };
 typedef VOS_UINT32 MTA_RRC_MSG_TYPE_ENUM_UINT32;
@@ -191,6 +204,13 @@ enum MTA_RRC_GSM_BAND_ENUM
 typedef VOS_UINT16 MTA_RRC_GSM_BAND_ENUM_UINT16;
 
 
+enum MTA_RRC_FREQLOCK_TYPE_ENUM
+{
+    MTA_RRC_FREQLOCK_TYPE_ENUM_FREQ_ONLY     = 1,                               /* 锁频ONLY类型 */
+    MTA_RRC_FREQLOCK_TYPE_ENUM_FREQ_COMBINED = 2,                               /* 锁频+主扰码/扰码/物理小区ID */
+    MTA_RRC_FREQLOCK_TYPE_ENUM_BUTT
+};
+typedef VOS_UINT8 MTA_RRC_FREQLOCK_TYPE_ENUM_UINT8;
 
 /*****************************************************************************
   4 全局变量声明
@@ -697,6 +717,37 @@ typedef struct
     MSG_HEADER_STRU                     stMsgHeader;                            /*_H2ASN_Skip*/
     MTA_RRC_RESULT_ENUM_UINT32          enResult;                               /* MTA_RRC_RESULT_NO_ERROR:锁频成功； MTA_RRC_RESULT_ERROR:锁频失败*/
 } GRR_MTA_FREQLOCK_SET_CNF_STRU;
+
+
+typedef struct
+{
+    MSG_HEADER_STRU                     stMsgHeader;                            /*_H2ASN_Skip*/
+    PS_BOOL_ENUM_UINT8                  enLockFlg;                              /* PS_TRUE:锁定，PS_FALSE:去锁定 */
+    MTA_RRC_FREQLOCK_TYPE_ENUM_UINT8    ucFreqType;                             /* 1: 锁频,2:频点+扰码 */
+    VOS_UINT16                          usFreq;                                 /* 频点值 */
+    VOS_UINT32                          ulSc;                                   /* 扰码 */
+} MTA_TDS_FREQLOCK_SET_REQ_STRU;
+typedef struct
+{
+    MSG_HEADER_STRU                     stMsgHeader;                            /*_H2ASN_Skip*/
+    MTA_RRC_RESULT_ENUM_UINT32          enResult;                               /* MTA_RRC_RESULT_NO_ERROR:锁频成功；MTA_RRC_RESULT_RRC:锁频失败 */
+} TDS_MTA_FREQLOCK_SET_CNF_STRU;
+
+
+typedef struct
+{
+    MSG_HEADER_STRU                     stMsgHeader;                            /*_H2ASN_Skip*/
+    PS_BOOL_ENUM_UINT8                  enLockFlg;                              /* PS_TRUE:锁定，PS_FALSE:去锁定 */
+    MTA_RRC_FREQLOCK_TYPE_ENUM_UINT8    ucFreqType;                             /* 1: 锁频,2:频点+物理小区ID */
+    VOS_UINT16                          usFreq;                                 /* 频点值 */
+    VOS_UINT32                          ulPhyCellId;                            /* 物理小区ID */
+} MTA_LRRC_FREQLOCK_SET_REQ_STRU;
+typedef struct
+{
+    MSG_HEADER_STRU                     stMsgHeader;                            /*_H2ASN_Skip*/
+    MTA_RRC_RESULT_ENUM_UINT32          enResult;                               /* MTA_RRC_RESULT_NO_ERROR:锁频成功；MTA_RRC_RESULT_RRC:锁频失败 */
+} LRRC_MTA_FREQLOCK_SET_CNF_STRU;
+
 /*****************************************************************************
   8 UNION定义
 *****************************************************************************/

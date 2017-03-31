@@ -61,7 +61,7 @@
 #include <linux/dma-buf.h>
 #include <linux/genalloc.h>
 #if defined (CONFIG_HUAWEI_DSM)
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #endif
 //#include <linux/huawei/hisi_irq_affinity.h>
 
@@ -182,6 +182,10 @@ struct hisi_fb_data_type {
 	char __iomem *mipi_dsi1_base;
 	char __iomem *crgperi_base;
 
+#ifdef CONFIG_FB_3630
+	uint32_t dss_base_phy;
+#endif
+
 	uint32_t dpe_irq;
 	uint32_t dsi0_irq;
 	uint32_t dsi1_irq;
@@ -210,6 +214,7 @@ struct hisi_fb_data_type {
 	bool panel_power_on;
 	bool hisi_fb_shutdown;
 	bool lcd_self_testing;
+	bool powerdown_enable;
 	struct semaphore blank_sem;
 
 	void (*sysfs_attrs_append_fnc) (struct hisi_fb_data_type *hisifd, struct attribute *attr);
@@ -278,7 +283,7 @@ struct hisi_fb_data_type {
 #endif
 	struct hrtimer esd_hrtimer;
 	bool esd_hrtimer_enable;
-	bool dsi_bit_clk_updated;
+    bool dsi_bit_clk_updated;
 	struct workqueue_struct *frame_end_wq;
 	struct work_struct frame_end_work;
 
@@ -300,6 +305,7 @@ struct hisi_fb_data_type {
 
 	uint8_t ovl_type;
 	dss_overlay_t ov_req;
+	dss_overlay_t ov_req_prev;
 	dss_overlay_t ov_wb_req;
 	dss_global_reg_t dss_glb;
 	dss_module_reg_t dss_module;
@@ -330,6 +336,7 @@ struct hisi_fb_data_type {
 	int switch_res_flag;
 
 	wait_queue_head_t vactive0_start_wq;
+	uint32_t vactive0_start_flag_prev;
 	uint32_t vactive0_start_flag;
 	uint32_t ldi_data_gate_en;
 #if defined (CONFIG_HUAWEI_DSM)
@@ -337,6 +344,7 @@ struct hisi_fb_data_type {
 	struct work_struct dss_debug_work;
 #endif
 	bool fb_mem_free_flag;
+	uint8_t grayscale_enabled;
 };
 
 

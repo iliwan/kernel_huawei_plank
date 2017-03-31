@@ -39,19 +39,7 @@
 #include "teek_ns_client.h"
 #include "agent.h"
 
-//for secure agent
-struct __smc_event_data{
-    unsigned int agent_id;
-    struct mutex work_lock;
-    wait_queue_head_t wait_event_wq;
-    int ret_flag;
-    wait_queue_head_t send_response_wq;
-    int send_flag;
-    struct list_head head;
-    void* buffer;
-};
 //struct __smc_event_data* smc_event_data;
-
 
 struct __agent_control{
     spinlock_t lock;
@@ -60,7 +48,6 @@ struct __agent_control{
 static struct __agent_control agent_control;
 
 static unsigned int exception_mem_addr;
-
 struct __smc_event_data* find_event_control(unsigned long agent_id)
 {
 	struct __smc_event_data *event_data, *tmp_data=NULL;
@@ -77,6 +64,24 @@ struct __smc_event_data* find_event_control(unsigned long agent_id)
 
 	return tmp_data;
 }
+void TC_NS_send_event_reponse_all(void)
+{
+    struct __smc_event_data *event_data = NULL;
+    TC_NS_send_event_reponse(AGENT_FS_ID);
+    event_data = find_event_control(AGENT_FS_ID);
+    if(event_data)
+        event_data->agent_alive = 0;
+    TC_NS_send_event_reponse(AGENT_MISC_ID);
+    event_data = find_event_control(AGENT_MISC_ID);
+    if(event_data)
+        event_data->agent_alive = 0;
+    TC_NS_send_event_reponse(AGENT_RPMB_ID);
+    event_data = find_event_control(AGENT_RPMB_ID);
+    if(event_data)
+        event_data->agent_alive = 0;
+    return;
+}
+
 
 unsigned int TC_NS_incomplete_proceed(TC_NS_SMC_CMD *smc_cmd,
 				      unsigned int agent_id,
@@ -89,13 +94,13 @@ unsigned int TC_NS_incomplete_proceed(TC_NS_SMC_CMD *smc_cmd,
 
 	event_data = find_event_control(agent_id);
 
-	if(event_data == NULL){
+	if(event_data == NULL || event_data->agent_alive == 0){
 		//TODO if return, the pending task in S can't be resume!!
-		TCERR("agent not exist\n");
-		return TEEC_ERROR_GENERIC;
+		TCERR("agent %u not exist\n", agent_id);
+		//return TEEC_ERROR_GENERIC;
 	}
-
-	mutex_lock(&event_data->work_lock);
+    if (event_data != NULL)
+	    mutex_lock(&event_data->work_lock);
 
 	/* just return for the first call */
 	smc_cmd_phys = virt_to_phys((void*)smc_cmd);
@@ -105,21 +110,23 @@ unsigned int TC_NS_incomplete_proceed(TC_NS_SMC_CMD *smc_cmd,
 		TCERR("smc_call:TA tee_fs handle error:%d\n", ret);
 		goto tee_error;
 	}
-
-	event_data->ret_flag = 1;
-	/* Wake up the agent that will process the command */
+    if (event_data != NULL && event_data->agent_alive == 1) {
+        event_data->ret_flag = 1;
+        /* Wake up the agent that will process the command */
         wake_up(&event_data->wait_event_wq);
 
         wait_event(event_data->send_response_wq,
                 event_data->send_flag);
-
+    }
 	/* send the incomplete id */
 	smc_cmd_phys = virt_to_phys((void*)smc_cmd);
 	ret = TC_NS_SMC(smc_cmd_phys);
 
 tee_error:
-	event_data->send_flag = 0;
-	mutex_unlock(&event_data->work_lock);
+    if (event_data != NULL) {
+        event_data->send_flag = 0;
+        mutex_unlock(&event_data->work_lock);
+    }
 	return ret;
 }
 
@@ -156,7 +163,7 @@ int TC_NS_wait_event(unsigned long agent_id)
 		 * return it further to the ioctl handler */
 		ret = wait_event_interruptible(event_data->wait_event_wq,
 					       event_data->ret_flag);
-		event_data->ret_flag = 0;
+		//event_data->ret_flag = 0;
 	}
 
 	return ret;
@@ -171,8 +178,9 @@ int TC_NS_send_event_reponse(unsigned long agent_id)
         return -1;
     }
 
-    if(event_data){
+    if(event_data && event_data->ret_flag){
         event_data->send_flag = 1;
+        event_data->ret_flag = 0;
 	/* Wake up the client waiting */
         wake_up(&event_data->send_response_wq);
     }
@@ -211,12 +219,22 @@ int TC_NS_register_agent(TC_NS_DEV_File* dev_file, unsigned int agent_id,
 
     if(find_flag){
         printk(KERN_WARNING"agent is exist\n");
-        ret = TEEC_ERROR_GENERIC;
+        if((agent_id == AGENT_FS_ID) || (agent_id == AGENT_MISC_ID) || (agent_id == AGENT_RPMB_ID)){
+            event_data->ret_flag = 0;
+            event_data->send_flag = 0;
+            event_data->owner = dev_file;
+            event_data->agent_alive = 1;
+            init_waitqueue_head(&(event_data->wait_event_wq));
+            init_waitqueue_head(&(event_data->send_response_wq));
+            ret = TEEC_SUCCESS;
+        }
+        else
+            ret = TEEC_ERROR_GENERIC;
         goto error;
     }
 
     if(!shared_mem){
-        printk(KERN_WARNING"shared mem is not exist\n");
+        TCERR("shared mem is not exist\n");
         ret = TEEC_ERROR_GENERIC;
         goto error;
     }
@@ -249,7 +267,9 @@ int TC_NS_register_agent(TC_NS_DEV_File* dev_file, unsigned int agent_id,
         mutex_init(&event_data->work_lock);
         event_data->ret_flag = 0;
         event_data->send_flag = 0;
-        event_data->buffer = shared_mem->kernel_addr;
+        event_data->buffer = shared_mem;
+        event_data->owner = dev_file;
+        event_data->agent_alive = 1;
         init_waitqueue_head(&(event_data->wait_event_wq));
         init_waitqueue_head(&(event_data->send_response_wq));
         INIT_LIST_HEAD(&event_data->head);
@@ -273,6 +293,7 @@ int TC_NS_unregister_agent(unsigned long agent_id)
     unsigned int smc_cmd_phys;
     unsigned char uuid[17] = {0};
     TC_NS_Operation operation = {0};
+
     if (TC_NS_get_uid() != 0) {
         TCERR("It is a fake tee agent\n");
         return TEEC_ERROR_GENERIC;
@@ -289,13 +310,13 @@ int TC_NS_unregister_agent(unsigned long agent_id)
     spin_unlock_irqrestore(&agent_control.lock, flags);
 
     if(!find_flag){
-        TCERR(KERN_WARNING"agent is not found\n");
+        TCERR("agent is not found\n");
         return TEEC_ERROR_GENERIC;
     }
 
     operation.paramTypes = TEE_PARAM_TYPE_VALUE_INPUT;
     operation.paramTypes = operation.paramTypes << 12;
-    operation.params[0].value.a= virt_to_phys(event_data->buffer);
+    operation.params[0].value.a= virt_to_phys(event_data->buffer->kernel_addr);
     operation.params[0].value.b = SZ_4K;
 
     //memset(&smc_cmd, 0, sizeof(TC_NS_SMC_CMD));
@@ -316,6 +337,19 @@ int TC_NS_unregister_agent(unsigned long agent_id)
     return ret;
 }
 
+int TC_NS_unregister_agent_client(TC_NS_DEV_File* dev_file)
+{
+    struct __smc_event_data *event_data = NULL, *tmp;
+    int ret;
+    int find_flag = 0;
+    unsigned long flags;
+    list_for_each_entry_safe(event_data, tmp, &agent_control.agent_list, head){
+        if(event_data->owner == dev_file) {
+            TC_NS_unregister_agent(event_data->agent_id);
+        }
+    }
+    return TEEC_SUCCESS;
+}
 int TC_NS_alloc_exception_mem(unsigned int agent_id)
 {
     TC_NS_SMC_CMD smc_cmd = {0};

@@ -1,10 +1,12 @@
 config ARM64
 	def_bool y
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
+	select ARCH_HAS_OPP
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select ARCH_HAS_OPP
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_SUPPORTS_ATOMIC_RMW
+	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION
 	select ARCH_WANT_FRAME_POINTERS
@@ -18,6 +20,7 @@ config ARM64
 	select COMMON_CLK
 	select CPU_PM if (SUSPEND || CPU_IDLE)
 	select DCACHE_WORD_ACCESS
+	select GENERIC_ALLOCATOR
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
 	select GENERIC_CPU_AUTOPROBE
@@ -36,6 +39,7 @@ config ARM64
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_C_RECORDMCOUNT
+	select HAVE_CC_STACKPROTECTOR
 	select HAVE_DEBUG_BUGVERBOSE
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_API_DEBUG
@@ -86,6 +90,10 @@ config NO_IOPORT
 config STACKTRACE_SUPPORT
 	def_bool y
 
+config ILLEGAL_POINTER_VALUE
+	hex
+	default 0xdead000000000000
+
 config LOCKDEP_SUPPORT
 	def_bool y
 
@@ -123,6 +131,9 @@ config IOMMU_HELPER
 	def_bool SWIOTLB
 
 config FIX_EARLYCON_MEM
+	def_bool y
+
+config KERNEL_MODE_NEON
 	def_bool y
 
 source "init/Kconfig"
@@ -230,6 +241,32 @@ config ARM_AMBA
 endmenu
 
 menu "Kernel Features"
+
+menu "ARM errata workarounds"
+
+config ARM64_ERRATUM_845719
+	bool "Cortex-A53: 845719: a load might read incorrect data"
+	depends on COMPAT
+	default n
+	help
+	  This option adds an alternative code sequence to work around ARM
+	  erratum 845719 on Cortex-A53 parts up to r0p4.
+
+	  When running a compat (AArch32) userspace on an affected Cortex-A53
+	  part, a load at EL0 from a virtual address that matches the bottom 32
+	  bits of the virtual address used by a recent load at (AArch64) EL1
+	  might return incorrect data.
+
+	  The workaround is to write the contextidr_el1 register on exception
+	  return to a 32-bit task.
+	  Please note that this does not necessarily enable the workaround,
+	  as it depends on the alternative framework, which will only patch
+	  the kernel if an affected CPU is detected.
+
+	  If unsure, say Y.
+
+endmenu
+
 
 config ARM64_64K_PAGES
 	bool "Enable 64KB pages support"
@@ -369,6 +406,13 @@ config SCHED_HMP_LITTLE_PACKING
 	  packing_enable: 1 to enable, 0 to disable packing. Default 1.
 	  packing_limit: runqueue load ratio where a RQ is considered
 	    to be full. Default is NICE_0_LOAD * 9/8.
+
+config SCHED_HMP_BOOST
+	bool "boost feature for HMP"
+	depends on SCHED_HMP
+	default n
+	help
+	  Allows hmp boost to increase performance.
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-32)"

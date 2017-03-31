@@ -667,6 +667,8 @@ extern IMG_RESULT DMANKM_LocateDevice(
 
  @Input     hDevHandle :	The DMAN device handle.
 
+ @Input     bEnableLock :       Flag to enable LOCK/UNLOCK. Enabled if IMG_TRUE
+
  @Return    None.
 
 ******************************************************************************/
@@ -1258,7 +1260,8 @@ extern IMG_VOID DMANKM_SuspendDevice(
 
 ******************************************************************************/
 extern IMG_VOID DMANKM_ResumeDevice(
-    IMG_HANDLE             hDevHandle
+    IMG_HANDLE             hDevHandlei,
+    IMG_BOOL 	           bEnableLock
 );
 
 /*!

@@ -19,6 +19,7 @@
 //#include "isp_ops.h"
 
 #define SEATTLE_FPGA
+#define ISP_WRITE_SENSOR_BUFFERSIZE  256
 
 extern bool is_ovisp23_poweron(void);
 
@@ -522,7 +523,6 @@ int hw_sensor_power_up(sensor_t *s_ctrl)
 			rc = misp_init();
 			break;
 		case SENSOR_LDO_EN:
-			gpio_direction_output(66,1);
 			rc = hw_sensor_gpio_config(LDO_EN, s_ctrl->board_info,
 				power_setting, POWER_ON);
 			break;
@@ -689,6 +689,30 @@ int hw_sensor_i2c_read(sensor_t *s_ctrl, void *data)
 	return rc;
 }
 
+int hw_sensor_i2c_read_otp(sensor_t *s_ctrl, void *data)
+{
+	struct sensor_cfg_data *cdata = (struct sensor_cfg_data *)data;
+	long   rc = 0;
+	unsigned int reg, *val;
+	i2c_t i2c_config = {0};
+	memcpy(&i2c_config, &(s_ctrl->board_info->i2c_config), sizeof(i2c_t));
+
+	cam_debug("%s: cdata->i2c_addr=%d", __func__, cdata->i2c_addr);
+
+	if(0 !=  cdata->i2c_addr )
+	{
+		i2c_config.addr = cdata->i2c_addr;
+		i2c_config.addr_bits = cdata->addr_bit;
+		i2c_config.val_bits = cdata->val_bit;
+	}
+	cam_debug("%s: address=0x%x\n,i2c_config.addr =%d", __func__, cdata->cfg.reg.subaddr,i2c_config.addr);
+	reg = cdata->cfg.reg.subaddr;
+	val = &cdata->cfg.reg.value;
+	rc = hw_isp_read_sensor_byte(&i2c_config, reg, (u16 *)val);
+    
+	return rc;
+}
+
 int hw_sensor_i2c_write(sensor_t *s_ctrl, void *data)
 {
 	struct sensor_cfg_data *cdata = (struct sensor_cfg_data *)data;
@@ -716,14 +740,26 @@ int hw_sensor_i2c_read_seq(sensor_t *s_ctrl, void *data)
 	struct sensor_i2c_setting setting;
 	int size = sizeof(struct sensor_i2c_reg)*cdata->cfg.setting.size;
 	long rc = 0;
+	unsigned char ucbuff[ISP_WRITE_SENSOR_BUFFERSIZE];
 
 	cam_debug("%s: enter.\n", __func__);
-
-	setting.setting = (struct sensor_i2c_reg*)kzalloc(size, GFP_KERNEL);
-	if (NULL == setting.setting) {
-		cam_err("%s kmalloc error.\n", __func__);
-		return -ENOMEM;
+	if(0 == size){
+		return 0;
 	}
+	if(size < ISP_WRITE_SENSOR_BUFFERSIZE )
+	{
+		setting.setting = (struct sensor_i2c_reg*)ucbuff;
+	}
+	else
+	{
+		setting.setting = (struct sensor_i2c_reg*)vmalloc(size);
+		if (NULL == setting.setting) {
+			cam_err("%s kmalloc error.\n", __func__);
+			return -ENOMEM;
+		}
+	}
+
+	memset(setting.setting, 0, size);
 
 	if (copy_from_user(setting.setting,
 		(void __user *)cdata->cfg.setting.setting, size)) {
@@ -763,7 +799,10 @@ int hw_sensor_i2c_read_seq(sensor_t *s_ctrl, void *data)
 	}
 
 fail:
-	kfree(setting.setting);
+	if(size >= ISP_WRITE_SENSOR_BUFFERSIZE )
+	{
+		vfree(setting.setting);
+	}	
 	return rc;
 }
 
@@ -771,19 +810,34 @@ int hw_sensor_i2c_write_seq( sensor_t *s_ctrl, void *data)
 {
 	struct sensor_cfg_data *cdata = (struct sensor_cfg_data *)data;
 	struct sensor_i2c_setting setting;
-	int data_length = sizeof(struct sensor_i2c_reg)*cdata->cfg.setting.size;
+	unsigned int data_length = sizeof(struct sensor_i2c_reg)*cdata->cfg.setting.size;
 	long rc = 0;
+	unsigned char ucbuff[ISP_WRITE_SENSOR_BUFFERSIZE];
 
 	cam_info("%s: enter setting=%p size=%d.\n", __func__,
 			cdata->cfg.setting.setting,
 			(unsigned int)cdata->cfg.setting.size);
 
-	setting.setting = (struct sensor_i2c_reg*)kzalloc(data_length, GFP_KERNEL);
-	if (NULL == setting.setting) {
-		cam_err("%s kmalloc error.\n", __func__);
-		return -ENOMEM;
+	if(0 == data_length){
+		return 0;
 	}
 
+	if(data_length < ISP_WRITE_SENSOR_BUFFERSIZE )
+	{
+		setting.setting = (struct sensor_i2c_reg*)ucbuff;
+	}
+	else
+	{
+		setting.setting = (struct sensor_i2c_reg*)vmalloc(data_length);
+
+		if (NULL == setting.setting) {
+			cam_err("%s kmalloc error.\n", __func__);
+			return -ENOMEM;
+		}
+
+	}
+
+       memset(setting.setting, 0, data_length);
 	if (copy_from_user(setting.setting,
 		(void __user *)cdata->cfg.setting.setting, data_length)) {
 		cam_err("%s copy_from_user error.\n", __func__);
@@ -793,7 +847,13 @@ int hw_sensor_i2c_write_seq( sensor_t *s_ctrl, void *data)
 
 	rc = hw_isp_write_sensor_seq(&s_ctrl->board_info->i2c_config, setting.setting, cdata->cfg.setting.size);
 out:
-	kfree(setting.setting);
+	if(data_length >= ISP_WRITE_SENSOR_BUFFERSIZE )
+	{
+		vfree(setting.setting);
+	}	
+
+
+	cam_info("%s: exit\n", __func__);
 	return rc;
 }
 #if 0
@@ -888,12 +948,13 @@ int hw_sensor_get_dt_data(struct platform_device *pdev,
 		{"reset", "fsin", "pwdn", "vcm_pwdn", "suspend", "reset2", "ldo_en", "ois", "ois2"};
 
 	cam_debug("enter %s", __func__);
-	sensor_info = kzalloc(sizeof(hwsensor_board_info_t),
-				GFP_KERNEL);
+	sensor_info = vmalloc(sizeof(hwsensor_board_info_t));
 	if (!sensor_info) {
 		cam_err("%s failed %d\n", __func__, __LINE__);
 		return -ENOMEM;
 	}
+
+	memset(sensor_info, 0, sizeof(hwsensor_board_info_t));
 	sensor->board_info= sensor_info;
 
 	rc = of_property_read_string(of_node, "huawei,sensor_name",
@@ -1127,7 +1188,7 @@ int hw_sensor_get_dt_data(struct platform_device *pdev,
 	return rc;
 fail:
 	cam_err("%s error exit.\n", __func__);
-	kfree(sensor_info);
+	vfree(sensor_info);
 	sensor_info = NULL;
 	return rc;
 }

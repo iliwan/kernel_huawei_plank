@@ -390,7 +390,7 @@ VOS_UINT32 at_ftm_tmode_dspcnf(VOS_VOID* pParam)
     ftm_SetNoneSig(FTM_NONESIG_RTT_OPEN);
     ftm_SetDefault();
 
-    return at_ftm_tmode_setcnf(ERR_MSP_SUCCESS);
+    return at_ftm_tmode_setcnf(ERR_MSP_SUCCESS);
 }
 
 /*****************************************************************************
@@ -607,7 +607,7 @@ VOS_UINT32 at_ftm_bandsw_dspcnf(VOS_VOID* pParam)
 {
     at_ftm_bandsw_store(FTM_F_CT_STORE_REQ_GLOBAL, NULL);
 
-    return at_ftm_bandsw_setcnf(ERR_MSP_SUCCESS);
+    return at_ftm_bandsw_setcnf(ERR_MSP_SUCCESS);
     
 }
 
@@ -919,7 +919,7 @@ VOS_UINT32 at_ftm_tselrf_timeout()
 VOS_UINT32 at_ftm_tselrf_dspcnf(VOS_VOID* pParam)
 {
     at_ftm_tselrf_store(FTM_F_CT_STORE_REQ_GLOBAL, NULL);
-    return at_ftm_tselrf_setcnf(ERR_MSP_SUCCESS);
+    return at_ftm_tselrf_setcnf(ERR_MSP_SUCCESS);
 }
 
 /*****************************************************************************

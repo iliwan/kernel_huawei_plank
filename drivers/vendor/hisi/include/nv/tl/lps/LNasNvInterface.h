@@ -118,6 +118,7 @@ typedef struct
     VOS_UINT32                          ulUlNasCount;
     VOS_UINT32                          ulDlNasCount;
 }LNAS_LMM_NV_EPS_SEC_CONTEXT_STRU;
+/* modified by lihong00150010 2012-07-31 cs+ps1 begin */
 typedef struct
 {
     VOS_UINT32                          bitOpUeCenter       :1;       /* 1: VALID; 0: INVALID*/
@@ -125,6 +126,7 @@ typedef struct
 
     LNAS_LMM_UE_CENTER_ENUM_UINT32      enUeCenter;
 }LNAS_LMM_NV_UE_CENTER_STRU;
+/* modified by lihong00150010 2012-07-31 cs+ps1 end */
 
 
 typedef struct

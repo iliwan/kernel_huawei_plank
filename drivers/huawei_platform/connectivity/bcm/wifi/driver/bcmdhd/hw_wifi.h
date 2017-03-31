@@ -19,7 +19,7 @@ HUAWEI-2014.007:       0728             set bcn_timeout for beacon loss and roam
 #include <dhd.h>
 #include <wlioctl.h>
 #include <wl_iw.h>
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 
 #define        HUAWEI_VERSION_STR ", HUAWEI-2014.007"
 

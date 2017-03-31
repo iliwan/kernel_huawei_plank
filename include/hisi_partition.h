@@ -7,8 +7,12 @@
 #define PART_PTALBE            "ptable"                 
 #define PART_VRL               "vrl"               
 #define PART_VRL_BKUP          "vrl_bkup"          
-#define PART_MCUIMAGE          "mcuimage"          
-#define PART_RESERVED0         "reserved0"         
+#define PART_MCUIMAGE          "mcuimage"
+#ifdef CONFIG_PRODUCTION_CARMEL
+#define PART_FRP               "frp"
+#else
+#define PART_RESERVED0         "reserved0"
+#endif
 #define PART_FASTBOOT          "fastboot"          
 #define PART_MODEMNVBKUP       "modemnvbkup"       
 #define PART_NVME              "nvme"              
@@ -49,8 +53,12 @@
 /*根据mmcblk编号引用,顺序必须和externel/efipartition中partitions[]顺序一致*/      
 #define BLK_VRL               "/dev/block/mmcblk0p1"  
 #define BLK_VRL_BKUP          "/dev/block/mmcblk0p2"  
-#define BLK_MCUIMAGE          "/dev/block/mmcblk0p3"  
-#define BLK_RESERVED0         "/dev/block/mmcblk0p4"  
+#define BLK_MCUIMAGE          "/dev/block/mmcblk0p3"
+#ifdef CONFIG_PRODUCTION_CARMEL
+#define BLK_FRP               "/dev/block/mmcblk0p4"
+#else
+#define BLK_RESERVED0         "/dev/block/mmcblk0p4"
+#endif
 #define BLK_FASTBOOT          "/dev/block/mmcblk0p5"  
 #define BLK_MODEMNVBKUP       "/dev/block/mmcblk0p6"  
 #define BLK_NVME              "/dev/block/mmcblk0p7"  
@@ -91,8 +99,12 @@
 /*根据block2mtd:mmcblk编号引用,顺序必须和externel/efipartition中partitions[]顺序一致*/ 
 #define BLK_MTD_VRL               "block2mtd: /dev/block/mmcblk0p1"  
 #define BLK_MTD_VRL_BKUP          "block2mtd: /dev/block/mmcblk0p2"  
-#define BLK_MTD_MCUIMAGE          "block2mtd: /dev/block/mmcblk0p3"  
-#define BLK_MTD_RESERVED0         "block2mtd: /dev/block/mmcblk0p4"  
+#define BLK_MTD_MCUIMAGE          "block2mtd: /dev/block/mmcblk0p3"
+#ifdef CONFIG_PRODUCTION_CARMEL
+#define BLK_MTD_FRP               "block2mtd: /dev/block/mmcblk0p4"
+#else
+#define BLK_MTD_RESERVED0         "block2mtd: /dev/block/mmcblk0p4"
+#endif
 #define BLK_MTD_FASTBOOT          "block2mtd: /dev/block/mmcblk0p5"  
 #define BLK_MTD_MODEMNVBKUP       "block2mtd: /dev/block/mmcblk0p6"  
 #define BLK_MTD_NVME              "block2mtd: /dev/block/mmcblk0p7"  

@@ -833,6 +833,7 @@ VOS_UINT32 atSetSdloadCnf(VOS_UINT8 ucClientId,VOS_VOID *pMsgBlock)
 
     return AT_OK;
 }
+/* END: To_Be_Deleted_V7R2 */
 #if 0
 //*****************************************************************************
 // º¯ÊýÃû³Æ: atQryBootRomVer

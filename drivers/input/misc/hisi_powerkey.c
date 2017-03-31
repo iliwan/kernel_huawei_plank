@@ -44,7 +44,7 @@ extern void set_watchdog_resetflag(void);
 #endif
 #endif
 #if defined (CONFIG_HUAWEI_DSM)
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #endif
 #include <linux/hw_lcd_common.h>
 
@@ -99,10 +99,6 @@ static void powerkey_timer_func(unsigned long data)
 }
 #endif
 struct lcd_pwr_status_t lcd_pwr_status;
-#ifdef CONFIG_AP_POWERKEY_SENDS_PROX_SENSOR_REPORT
-extern int powerkey_sends_prox_flag;
-extern int ap_powerkey_sends_prox_sensor_report(int value);
-#endif
 static irqreturn_t hisi_powerkey_handler(int irq, void *data)
 {
 	struct hisi_powerkey_info *info = (struct hisi_powerkey_info *)data;
@@ -129,11 +125,6 @@ static irqreturn_t hisi_powerkey_handler(int irq, void *data)
 			#endif
 			input_report_key(info->idev, KEY_POWER, POWER_KEY_PRESS);
 			input_sync(info->idev);
-#ifdef CONFIG_AP_POWERKEY_SENDS_PROX_SENSOR_REPORT
-			if (powerkey_sends_prox_flag) {
-				ap_powerkey_sends_prox_sensor_report(1);
-			}
-#endif
 	} else if (info->irq[1] == irq) {
 			pr_info("[%s]response release interrupt!\n", __FUNCTION__);
 			#if defined(CONFIG_HISILICON_PLATFORM_MAINTAIN)

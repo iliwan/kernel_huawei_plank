@@ -119,6 +119,7 @@ extern "C" {
 
 /*zhengjunyan add for PC_Lint 2011-06-14 end*/
 
+/*Modified by dongying for UT,2010-2-1,begin*/
 #elif defined(PS_UT_SWITCH)|| defined(_GAS_UT_SWITCH_)
 #include "stdlib.h"
 
@@ -134,6 +135,7 @@ extern "C" {
 #define PS_MEM_MOVE(pDestBuffer,pSrcBuffer,ulBuffLen)       memmove(pDestBuffer,pSrcBuffer,ulBuffLen)
 
 #else
+/*Modified by dongying for UT,2010-2-1,end*/
 /*ÄÚ´æ¿½±´ºê¶¨Òå*/
 #define PS_MEM_CPY(pucDestBuffer, pucSrcBuffer, ulBufferLen) \
              VOS_MemCpy( pucDestBuffer, pucSrcBuffer, ulBufferLen )

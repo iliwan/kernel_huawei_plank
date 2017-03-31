@@ -28,6 +28,11 @@
 
 #include "hw_soft_3a.h"
 
+#define MIN_SUPPORT_LONG_EXPO       100     //Minimum support expo time unit:us
+#define SEGMENT_SUPPORT_LONG_EXPO   700000  //Segmetation for rear sensor two group setting for BShutter algo unit:us
+#define MAX_SUPPORT_LONG_EXPO       3000000 //Maxmum support expo time unit:us
+#define SEGMENT_EXPO_TIME_TO_LINE   2000000 //Segmetation for translation from expo time to expo line, to ensure the kernel integer division accuracy unit:us
+
 typedef enum {
 	CAMERA_3A_UNLOCKED =0,
 	CAMERA_3A_LOCKED = 1,
@@ -79,6 +84,12 @@ struct i2c_t {
 	i2c_length val_bits;
 };
 
+typedef enum _ecgc_support_type_s {
+	ECGC_TYPE_NORMAL_BSHUTTER_SHORT = 0,//This is used for normal snapshot and B shutter shot expo
+	ECGC_TYPE_BSHUTTER_LONG,           //For B shutter long expo only
+	ECGC_TYPE_MAX                   //not support  B shutter long expo only
+} ecgc_support_type_s;
+
 /* For sensor framesize definition */
 typedef struct _framesize_s {
 	u32 left;
@@ -96,9 +107,42 @@ typedef struct _framesize_s {
 	camera_resolution_type resolution_type;
 	bool summary;
 	bool zsl_only;
+	ecgc_support_type_s ecgc_support_type; //use this segment to diff long_expo setting support
 	sensor_setting_t sensor_setting;	/* sensor setting for cmdset */
 	u32 lane_clk;
+	u32 max_expo;
+	u32 pclk;
+
 } framesize_s;
+
+typedef struct _b_shutter_ae_iso_s {
+	int long_expo_expo;
+	int long_expo_iso;
+} b_shutter_ae_iso_s;
+
+typedef struct _b_shutter_aecagc_s {
+	int expo;
+	int gain;
+	int vts;
+} b_shutter_aecagc_s;
+
+typedef struct _b_shutter_hdr_aeciso_s{
+	int hdrCounter;
+	b_shutter_ae_iso_s b_shutter_ae_iso[40];
+}b_shutter_hdr_aeciso_s;
+
+typedef struct _b_shutter_hdr_aecagc_s{
+	int hdrCounter;
+	b_shutter_aecagc_s b_shutter_aec_agc[40];
+	int currExcuteOrder;
+}b_shutter_hdr_aecagc_s;
+
+typedef struct _b_shutter_tryae_aecagc_s {
+	int tryae_expo;
+	int tryae_gain;
+	int tryae_vts;
+	int tryae_set_vts_flag;
+} b_shutter_tryae_aecagc_s;
 
 /* For ISP coordinate structure */
 typedef struct _coordinate_s {
@@ -127,6 +171,19 @@ typedef struct crop_rect_s {
 	u32 crop_height;
 } crop_rect_s;
 
+
+typedef struct ae_stats_s{
+	int expo;
+	int iso;
+	int expo_hint;
+}ae_stats;
+
+typedef enum {
+    HW_NORMAL_EXPOSURE = 0,
+    HW_OVER_EXPOSURE,
+    HW_UNDER_EXPOSURE,
+    HW_PART_OVER_EXPOSURE
+} expo_level_t;
 
 typedef struct _axis_triple {
 	int x;
@@ -249,6 +306,9 @@ typedef struct {
 	u32 (*isp_get_current_ccm_rgain)(void);
 	u32 (*isp_get_current_ccm_bgain)(void);
 
+	int (*isp_get_current_y)(void);
+	int (*set_pro_manual_iso)(int iso);
+	int (*set_pro_manual_expo)(int  expo);
 } isp_tune_ops;
 
 typedef struct _camera_flashlight {
@@ -338,8 +398,8 @@ typedef struct _camera_sensor {
 	/* enum/try/set the resolutions */
 	int (*enum_framesizes) (struct v4l2_frmsizeenum *framesizes);
 	int (*try_framesizes) (struct v4l2_frmsizeenum *framesizes);
-	int (*set_framesizes) (camera_state state,
-			       struct v4l2_frmsize_discrete *fs, int flag, camera_setting_view_type view_type,bool zsl_preview);
+	int (*set_framesizes) (camera_state state, struct v4l2_frmsize_discrete *fs, int flag, camera_setting_view_type view_type,
+		bool zsl_preview,camera_b_shutter_mode b_shutter_mode,ecgc_support_type_s ecgc_type, camera_pro_mode pro_type, u32 expo);
 	int (*get_framesizes) (camera_state state,
 			       struct v4l2_frmsize_discrete *fs);
 
@@ -394,6 +454,7 @@ typedef struct _camera_sensor {
 
 	void (*set_vts) (u16 vts);
 	u32 (*get_vts_reg_addr) (void);
+	u32 (*get_vts) (void);
 
 	/* effect */
 	void (*set_effect) (camera_effects effect);
@@ -484,6 +545,8 @@ typedef struct _camera_sensor {
 	void (*check_otp_status)(sensor_otp_status *status);
 	void (*get_sensor_reg)(int reg, int *value);
 	void (*set_sensor_reg)(int reg, int value);
+	u32  support_max_vts;
+	u32  support_expoline_offset;
 
 } camera_sensor;
 

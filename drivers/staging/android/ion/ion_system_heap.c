@@ -36,6 +36,7 @@ static const int num_orders = ARRAY_SIZE(orders);
 static int order_to_index(unsigned int order)
 {
 	int i;
+
 	for (i = 0; i < num_orders; i++)
 		if (order == orders[i])
 			return i;
@@ -72,7 +73,7 @@ static struct page *alloc_buffer_page(struct ion_system_heap *heap,
 	} else {
 		gfp_t gfp_flags = low_order_gfp_flags;
 
-		if (order > 4)
+		if (order >= 4)
 			gfp_flags = high_order_gfp_flags;
 		page = alloc_pages(gfp_flags, order);
 		if (!page) {
@@ -97,10 +98,33 @@ static void free_buffer_page(struct ion_system_heap *heap,
 			     struct ion_buffer *buffer, struct page *page,
 			     unsigned int order)
 {
-#ifdef CONFIG_ARCH_HI6XXX
+#if defined(CONFIG_ARCH_HI6XXX)
 	bool cached = ion_buffer_cached(buffer);
 
 	if (!cached && !(buffer->private_flags & ION_PRIV_FLAG_SHRINKER_FREE)) {
+		struct ion_page_pool *pool = heap->pools[order_to_index(order)];
+
+		ion_page_pool_free(pool, page);
+	} else {
+		__free_pages(page, order);
+	}
+#elif defined(CONFIG_ARCH_HI3630)
+	bool cached = ion_buffer_cached(buffer);
+
+	//max page in pool is 32M / 4K = 8192 pages
+#define MAX_PAGES_IN_POOLS (8192)
+	int page_cnt = 0;
+	int i;
+	for (i = 0; i < num_orders; i++) {
+		struct ion_page_pool *pool = heap->pools[i];
+		mutex_lock(&pool->mutex);
+		page_cnt += ((1 << pool->order) * pool->high_count);
+		page_cnt += ((1 << pool->order) * pool->low_count);
+		mutex_unlock(&pool->mutex);
+	}
+
+	if (!cached && !(buffer->private_flags & ION_PRIV_FLAG_SHRINKER_FREE)
+		&& (page_cnt <= MAX_PAGES_IN_POOLS)) {
 		struct ion_page_pool *pool = heap->pools[order_to_index(order)];
 		ion_page_pool_free(pool, page);
 	} else {
@@ -129,7 +153,7 @@ static struct page_info *alloc_largest_available(struct ion_system_heap *heap,
 		return NULL;
 	}
 
-	if (time_before(jiffies, alloc_failed_time_stamp + HZ * 10)) {
+	if (time_before(jiffies, alloc_failed_time_stamp + 10)) {
 		if (8 == alloc_failed_order)
 			i = 1;
 		else if (4 == alloc_failed_order)
@@ -294,7 +318,9 @@ static int ion_system_heap_shrink(struct ion_heap *heap, gfp_t gfp_mask,
 static void ion_system_heap_buffer_zero(struct ion_buffer *buffer)
 {
 	ion_heap_buffer_zero(buffer);
-
+#if defined(CONFIG_ARCH_HI3630)
+	hi3630_fc_allcpu_allcache();
+#endif
 	return;
 }
 
@@ -320,8 +346,10 @@ static int ion_system_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 							struct ion_system_heap,
 							heap);
 	int i;
+
 	for (i = 0; i < num_orders; i++) {
 		struct ion_page_pool *pool = sys_heap->pools[i];
+
 		seq_printf(s, "%d order %u highmem pages in pool = %lu total\n",
 			   pool->high_count, pool->order,
 			   (1 << pool->order) * PAGE_SIZE * pool->high_count);
@@ -359,7 +387,7 @@ struct ion_heap *ion_system_heap_create(struct ion_platform_heap *unused)
 		struct ion_page_pool *pool;
 		gfp_t gfp_flags = low_order_gfp_flags;
 
-		if (orders[i] > 4)
+		if (orders[i] >= 4)
 			gfp_flags = high_order_gfp_flags;
 		pool = ion_page_pool_create(gfp_flags, orders[i]);
 		if (!pool)

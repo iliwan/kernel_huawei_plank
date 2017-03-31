@@ -1846,6 +1846,7 @@ TAF_UINT32 At_QryParaCmd(TAF_UINT8 ucIndex)
     }
 }
 
+/* BEGIN: Added by liuyang id:48197, 2006/8/2   PN:A32D02883*/
 
 
 TAF_UINT32 At_QryFPlmnPara(TAF_UINT8 ucIndex)
@@ -3227,10 +3228,10 @@ VOS_VOID AT_GetSmoothAntennaLevel(
                与 atSetAnlevelCnfSameProc处理相同
  输入参数  : TAF_INT16   	sRssi,
              TAF_UINT8    *sLevel,
-             TAF_INT16    *sRsrp,              
+             TAF_INT16    *sRsrp,
              TAF_INT16    *sRsrq
  输出参数  : TAF_UINT8    *sLevel,
-             TAF_INT16    *sRsrp,              
+             TAF_INT16    *sRsrp,
              TAF_INT16    *sRsrq
  返 回 值  : 无
  调用函数  :
@@ -3241,12 +3242,12 @@ VOS_VOID AT_GetSmoothAntennaLevel(
     作    者   : l00305157
     修改内容   : Service_State_Optimize_PhaseI项目修改
 *****************************************************************************/
-TAF_VOID AT_CalculateLTESignalValue(  
+TAF_VOID AT_CalculateLTESignalValue(
                                               VOS_INT16    *psRssi,
                                               VOS_UINT8    *pusLevel,
-                                              VOS_INT16    *psRsrp,             
+                                              VOS_INT16    *psRsrp,
                                               VOS_INT16    *psRsrq
-                                                              
+
 )
 {
         VOS_UINT8                           enCurAntennaLevel;
@@ -3266,7 +3267,7 @@ TAF_VOID AT_CalculateLTESignalValue(
         {
             /* 取绝对值 */
             sRsrp            = (-(*psRsrp));
-            
+
             /* 调用函数AT_CalculateAntennaLevel来根据D25算法计算出信号格数 */
             enCurAntennaLevel = AT_CalculateLTEAntennaLevel((VOS_INT16)(sRsrp));
         }
@@ -3292,7 +3293,7 @@ TAF_VOID AT_CalculateLTESignalValue(
         {
             *psRssi = ( VOS_INT16)((*psRssi - AT_RSSI_LOW) / 2);
         }
-    
+
         sRsrp = (*psRsrp == 99)?99:(-(*psRsrp));
         sRsrq = (*psRsrq == 99)?99:(-(*psRsrq));
 
@@ -3300,7 +3301,7 @@ TAF_VOID AT_CalculateLTESignalValue(
         *psRsrq = sRsrq;
 
         return;
-        
+
 }
 #endif
 
@@ -8248,9 +8249,90 @@ VOS_UINT32 AT_QryEconfErrPara(VOS_UINT8 ucIndex)
 
 }
 
+/* Added by zwx247453 for VOLTE SWITCH, 2015-02-02, Begin */
+/*****************************************************************************
+ 函 数 名  : AT_QryImsSwitchPara
+ 功能描述  : 查询IMS 设置
+             命令格式 :^IMSSWITCH?
+ 输入参数  : 无
+ 输出参数  : 无
+ 返 回 值  : VOS_UINT32
+ 调用函数  :
+ 被调函数  :
+
+ 修改历史      :
+  1.日   期  : 2015-02-02
+    作   者  : zwx247453
+    修改内容 : 新生成
+
+*****************************************************************************/
+VOS_UINT32 AT_QryImsSwitchPara(VOS_UINT8 ucIndex)
+{
+    VOS_UINT32                          ulRst;
+
+    /* 参数检查 */
+    if (AT_CMD_OPT_READ_CMD != g_stATParseCmd.ucCmdOptType)
+    {
+        return AT_ERROR;
+    }
+
+    /* AT 给MMA 发送查询请求消息 */
+    ulRst = TAF_MMA_QryImsSwitchReq(WUEPS_PID_AT,
+                                    gastAtClientTab[ucIndex].usClientId,
+                                    0);
+    if (VOS_TRUE == ulRst)
+    {
+        gastAtClientTab[ucIndex].CmdCurrentOpt = AT_CMD_IMS_SWITCH_QRY;
+        return AT_WAIT_ASYNC_RETURN;
+    }
+    else
+    {
+        return AT_ERROR;
+    }
+}
+
+/*****************************************************************************
+ 函 数 名  : AT_QryCevdpPara
+ 功能描述  : 查询优选域状态
+              命令格式 :+CEVDP?
+ 输入参数  : 无
+ 输出参数  : 无
+ 返 回 值  : VOS_UINT32
+ 调用函数  :
+ 被调函数  :
+
+ 修改历史      :
+  1.日   期  : 2015-02-02
+    作   者  : zwx247453
+    修改内容 : 新生成
+
+*****************************************************************************/
+VOS_UINT32 AT_QryCevdpPara(VOS_UINT8 ucIndex)
+{
+    VOS_UINT32                          ulRst;
+
+    /* 参数检查 */
+    if (AT_CMD_OPT_READ_CMD != g_stATParseCmd.ucCmdOptType)
+    {
+        return AT_ERROR;
+    }
+
+    /* AT 给MMA 发送查询请求消息 */
+    ulRst = TAF_MMA_QryVoiceDomainReq(WUEPS_PID_AT,
+                                      gastAtClientTab[ucIndex].usClientId,
+                                      0);
+    if (VOS_TRUE == ulRst)
+    {
+        gastAtClientTab[ucIndex].CmdCurrentOpt = AT_CMD_VOICE_DOMAIN_QRY;
+        return AT_WAIT_ASYNC_RETURN;
+    }
+    else
+    {
+        return AT_ERROR;
+    }
+}
+/* Added by zwx247453 for VOLTE SWITCH, 2015-02-02, End */
 #endif
-
-
 VOS_UINT32 AT_QryUserCfgOPlmnPara(VOS_UINT8 ucIndex)
 {
     VOS_UINT32                          ulRst;
@@ -8543,6 +8625,7 @@ VOS_UINT32 AT_QryVoicePreferPara(VOS_UINT8 ucIndex)
 }
 #endif
 
+/*Added by z00306637 for RATRFSWITCH, 2015-01-04, begin*/
 /*****************************************************************************
  函 数 名  : At_QryRatRfSwitch
  功能描述  : 查询RF Profile Id
@@ -8595,6 +8678,7 @@ VOS_UINT32 At_QryRatRfSwitch(VOS_UINT8 ucIndex)
                                             stTriModeFemProfileIdStru.ulProfileId);
     return AT_OK;
 }
+/*Added by z00306637 for RATRFSWITCH, 2015-01-04, end*/
 
 #ifdef  __cplusplus
   #if  __cplusplus

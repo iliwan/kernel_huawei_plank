@@ -866,12 +866,18 @@ static ssize_t dbg_cfg_write(struct file *filp, const char __user *buffer,
 {
 	int index = 0;
 
+	if (count > MX_BUF_LEN) {
+		pr_err("[%s]input size > max size\n", __func__);
+		return -ENOMEM;
+	}
+
 	memset(g_ctemp, 0, MX_BUF_LEN);
 
-	if (copy_from_user(g_ctemp, buffer, count)) {
+	if (copy_from_user(g_ctemp, buffer, count - 1)) {
 		pr_info("error!\n");
 		return -EFAULT;
 	}
+	g_ctemp[count - 1] = '\0';
 
 	if (('0' == g_ctemp[0]) && ('x' == g_ctemp[1])) {
 		if (sscanf(g_ctemp + 2, "%x", &index))
@@ -945,12 +951,18 @@ static ssize_t dbg_timer_write(struct file *filp, const char __user *buffer,
 {
 	int index = 0;
 
+	if (count > MX_BUF_LEN) {
+		pr_err("[%s]input size > max size\n", __func__);
+		return -ENOMEM;
+	}
+
 	memset(g_ctemp, 0, MX_BUF_LEN);
 
-	if (copy_from_user(g_ctemp, buffer, count)) {
+	if (copy_from_user(g_ctemp, buffer, count - 1)) {
 		pr_info("error!\n");
 		return -EFAULT;
 	}
+	g_ctemp[count - 1] = '\0';
 
 	if (sscanf(g_ctemp, "%d", &index))
 		g_utimer_inms = index;
@@ -1006,12 +1018,18 @@ static ssize_t dbg_rtc_write(struct file *filp, const char __user *buffer,
 {
 	int index = 0;
 
+	if (count > MX_BUF_LEN) {
+		pr_err("[%s]input size > max size\n", __func__);
+		return -ENOMEM;
+	}
+
 	memset(g_ctemp, 0, MX_BUF_LEN);
 
-	if (copy_from_user(g_ctemp, buffer, count)) {
+	if (copy_from_user(g_ctemp, buffer, count - 1)) {
 		pr_info("error!\n");
 		return -EFAULT;
 	}
+	g_ctemp[count - 1] = '\0';
 
 	if (sscanf(g_ctemp, "%d", &index))
 		g_urtc_ins = index;

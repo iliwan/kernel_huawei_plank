@@ -533,8 +533,10 @@ typedef struct
     VOS_UINT32                          ulCUIMCheck             : 1;
     VOS_UINT32                          ulAPDURepeate           : 1;
     VOS_UINT32                          ulPKCS15                : 1;
-    VOS_UINT32                          ulP2ActiveAID           : 1;
-    VOS_UINT32                          ulRsv                   :18;
+    VOS_UINT32                          ulP2ActiveAID           : 1;    
+    VOS_UINT32                          ulOpenChannelCSIM       : 1;
+	VOS_UINT32                          ulIgnoreDFCheck         : 1;
+    VOS_UINT32                          ulRsv                   :16;
 }USIMM_FEATURE_CFG_BIT_STRU;
 
 
@@ -830,7 +832,12 @@ typedef struct
                                                                 Major：0x02代表重要
                                                                 Critical：0x01代表紧急（默认）
                                                               说明：值为0x03， 0x03/0x02/0x01都上报 */
-    VOS_UINT8                          aucReportBitMap[2];
+    VOS_UINT8                          aucReportBitMap[2]; /* A0000000 00000DCB
+                                                              A代表主动上报开关
+                                                              B代表语音质量特性开关
+                                                              C代表搜网特性故障主动上报开关
+                                                              D代表RAT频繁切换主动上报开关
+                                                           */
 }NV_ID_ERR_LOG_CTRL_INFO_STRU;
 
 
@@ -1595,11 +1602,13 @@ typedef struct
     VOS_UINT32                          ulImsiPolling           : 1;
     VOS_UINT32                          ulCglaGetRsp            : 1;
     VOS_UINT32                          ulAIDFCPSave            : 1;
-    VOS_UINT32                          ulCUIMCheck             : 1;    
+    VOS_UINT32                          ulCUIMCheck             : 1;
     VOS_UINT32                          ulAPDURepeate           : 1;
     VOS_UINT32                          ulPKCS15                : 1;
-    VOS_UINT32                          ulP2ActiveAID           : 1;
-    VOS_UINT32                          ulRsv                   :18;
+    VOS_UINT32                          ulP2ActiveAID           : 1;    
+    VOS_UINT32                          ulOpenChannelCSIM       : 1;
+	VOS_UINT32                          ulIgnoreDFCheck         : 1;
+    VOS_UINT32                          ulRsv                   :16;
 }USIMM_FEATURE_CFG_BIT_STRU;
 
 

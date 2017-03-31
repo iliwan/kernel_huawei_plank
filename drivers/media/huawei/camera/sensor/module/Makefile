@@ -64,15 +64,15 @@ ifeq ($(CONFIG_HUAWEI_CAMERA_USE_S5K4E1GA),y)
 endif
 
 ifeq ($(CONFIG_HUAWEI_CAMERA_USE_IMX179_REAR),y)
-	obj-n += imx179_rear.o
+	obj-y += imx179_rear.o
 endif
 
 ifeq ($(CONFIG_HUAWEI_CAMERA_USE_IMX179_FRONT),y)
-	obj-n += imx179_front.o
+	obj-y += imx179_front.o
 endif
 
 ifeq ($(CONFIG_HUAWEI_CAMERA_USE_OV8865_REAR),y)
-	obj-n += ov8865_rear.o
+	obj-y += ov8865_rear.o
 endif
 ifeq ($(CONFIG_HUAWEI_CAMERA_USE_IMX219),y) 
 	obj-y += imx219.o
@@ -100,6 +100,14 @@ endif
 
 ifeq ($(CONFIG_HUAWEI_CAMERA_USE_IMX230_PLK),y)
 	obj-y += imx230_plk.o
+endif
+
+ifeq ($(CONFIG_HUAWEI_CAMERA_USE_OV13850_LISZT),y)
+	obj-y += ov13850_liszt.o
+endif
+
+ifeq ($(CONFIG_HUAWEI_CAMERA_USE_AR1335),y)
+	obj-y += ar1335.o
 endif
 
 ifeq ($(CONFIG_HUAWEI_CAMERA_USE_CAM_NUMBER),y)

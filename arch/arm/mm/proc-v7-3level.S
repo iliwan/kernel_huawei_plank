@@ -78,8 +78,13 @@ ENTRY(cpu_v7_set_pte_ext)
 	tst	rh, #1 << (57 - 32)		@ L_PTE_NONE
 	bicne	rl, #L_PTE_VALID
 	bne	1f
-	tst	rh, #1 << (55 - 32)		@ L_PTE_DIRTY
-	orreq	rl, #L_PTE_RDONLY
+
+	eor	ip, rh, #1 << (55 - 32)	@ toggle L_PTE_DIRTY in temp reg to
+					@ test for !L_PTE_DIRTY || L_PTE_RDONLY
+	tst	ip, #1 << (55 - 32) | 1 << (58 - 32)
+	orrne	rl, #PTE_AP2
+	biceq	rl, #PTE_AP2
+
 1:	strd	r2, r3, [r0]
 	ALT_SMP(W(nop))
 	ALT_UP (mcr	p15, 0, r0, c7, c10, 1)		@ flush_pte
@@ -87,24 +92,7 @@ ENTRY(cpu_v7_set_pte_ext)
 	mov	pc, lr
 ENDPROC(cpu_v7_set_pte_ext)
 
-	/*
-	 * Memory region attributes for LPAE (defined in pgtable-3level.h):
-	 *
-	 *   n = AttrIndx[2:0]
-	 *
-	 *			n	MAIR
-	 *   UNCACHED		000	00000000
-	 *   BUFFERABLE		001	01000100
-	 *   DEV_WC		001	01000100
-	 *   WRITETHROUGH	010	10101010
-	 *   WRITEBACK		011	11101110
-	 *   DEV_CACHED		011	11101110
-	 *   DEV_SHARED		100	00000100
-	 *   DEV_NONSHARED	100	00000100
-	 *   unused		101
-	 *   unused		110
-	 *   WRITEALLOC		111	11111111
-	 */
+
 .equ	PRRR,	0xeeaa4400			@ MAIR0
 .equ	NMRR,	0xff000004			@ MAIR1
 

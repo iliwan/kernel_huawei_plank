@@ -108,7 +108,9 @@ static inline void __cpuinit arch_counter_set_user_access(void)
 	cntkctl &= ~(ARCH_TIMER_USR_PT_ACCESS_EN
 			| ARCH_TIMER_USR_VT_ACCESS_EN
 			| ARCH_TIMER_VIRT_EVT_EN
+#ifndef CONFIG_ARCH_HI3630
 			| ARCH_TIMER_USR_VCT_ACCESS_EN
+#endif
 			| ARCH_TIMER_USR_PCT_ACCESS_EN);
 	arch_timer_set_cntkctl(cntkctl);
 }

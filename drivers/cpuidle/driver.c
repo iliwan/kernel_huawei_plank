@@ -95,7 +95,7 @@ static struct cpuidle_driver *__cpuidle_get_cpu_driver(int cpu)
 static void __cpuidle_unregister_all_cpu_driver(struct cpuidle_driver *drv)
 {
 	int cpu;
-	for_each_present_cpu(cpu)
+	for_each_cpu(cpu, drv->cpumask)
 		__cpuidle_unregister_driver(drv, cpu);
 }
 
@@ -104,14 +104,14 @@ static int __cpuidle_register_all_cpu_driver(struct cpuidle_driver *drv)
 	int ret = 0;
 	int i, cpu;
 
-	for_each_present_cpu(cpu) {
+	for_each_cpu(cpu, drv->cpumask)  {
 		ret = __cpuidle_register_driver(drv, cpu);
 		if (ret)
 			break;
 	}
 
 	if (ret)
-		for_each_present_cpu(i) {
+		for_each_cpu(i, drv->cpumask)  {
 			if (i == cpu)
 				break;
 			__cpuidle_unregister_driver(drv, i);

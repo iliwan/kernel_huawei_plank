@@ -103,7 +103,7 @@ int load_file(char *filename, u8 * addr,u32 *size)
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 
-	fp = filp_open(filename, file_flag, 0666);
+	fp = filp_open(filename, file_flag, 0644);
 	if (IS_ERR_OR_NULL(fp)) {
 		print_error("open file error!\n");
 		return -1;

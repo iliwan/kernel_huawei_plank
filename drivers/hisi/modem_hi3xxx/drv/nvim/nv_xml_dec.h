@@ -275,7 +275,7 @@ typedef struct
 
 u32 xml_decode_main(FILE* fp,s8* map_path,u32 card_type);
 void xml_help(void);
-
+u32 xml_nv_write_to_mem(u8* pdata,u32 size,u32 file_id,u32 offset);
 
 
 

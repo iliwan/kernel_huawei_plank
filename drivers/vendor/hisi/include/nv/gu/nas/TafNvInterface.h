@@ -369,6 +369,14 @@ enum TAF_FLASH_DIRECTORY_TYPE_ENUM
     TAF_FLASH_DIRECTORY_TYPE_BUTT
 };
 typedef VOS_UINT8 TAF_FLASH_DIRECTORY_TYPE_ENUM_UINT16;
+enum TAF_CALL_CCWA_CTRL_MODE_ENUM
+{
+    TAF_CALL_CCWA_CTRL_BY_3GPP          = 0,
+    TAF_CALL_CCWA_CTRL_BY_IMS           = 1,
+
+    TAF_CALL_CCWA_CTRL_MODE_BUTT
+};
+typedef VOS_UINT8   TAF_CALL_CCWA_CTRL_MODE_ENUM_U8;
 
 
 /*****************************************************************************
@@ -1458,6 +1466,7 @@ typedef struct
     bit2: NarrowBand Dcs 控制(V9 not support)
     bit3: B39/B3 干扰冲突策略2(G射频优先模式)
     bit4: RES 使能开关，1表示支持RSE特性，0表示不支持RSE特性
+    bit5: GSM900与LTE B7干扰控制
     */
     VOS_UINT8                          ucSolutionMask;
     VOS_UINT8                          aucAdditonCfg[3];
@@ -1683,7 +1692,33 @@ typedef struct
 } TAF_NV_PDN_TEARDOWN_POLICY_STRU;
 
 
+typedef struct
+{
+    VOS_UINT32                          ulStatisticTime;                        /* 统计时间，单位为秒 */
+    VOS_UINT32                          ulSwitchNum;                            /* gutl频繁切换的次数 */
+} TAF_NV_RAT_FREQUENTLY_SWITCH_CHR_RPT_CFG_STRU;
 
+
+typedef struct
+{
+    /* 此NV 用来设置呼叫等待的控制模式，ulCcwaCtrlMode为0，则呼叫等待由3gpp网络控制；
+       ulCcwaCtrlMode为1，则呼叫等待由UE控制，用于VOLTE的网络。
+      （在VoLTE的网络上，AP配置CCWA支持时，IMS并没有和网络交互，VoLTE的电话的CCWA由UE控制）。 */
+    TAF_CALL_CCWA_CTRL_MODE_ENUM_U8     enCcwaCtrlMode;
+    VOS_UINT8                           ucReserved0;
+    VOS_UINT8                           ucReserved1;
+    VOS_UINT8                           ucReserved2;
+} TAF_CALL_NVIM_CCWA_CTRL_MODE_STRU;
+
+
+typedef struct
+{
+    VOS_UINT32                          ulEnable;           /* 使能标识 */
+    VOS_UINT32                          ulTxWakeTimeout;    /* 上行发送唤醒超时保护 */
+    VOS_UINT32                          ulRxWakeTimeout;    /* 下行接收唤醒超时保护 */
+    VOS_UINT32                          ulReserved;
+
+} TAF_NV_ADS_WAKE_LOCK_CFG_STRU;
 typedef struct
 {
     VOS_UINT8                           ucSecType;
@@ -1691,7 +1726,26 @@ typedef struct
     VOS_UINT16                          ausBlackList[TAF_NV_BLACK_LIST_MAX_NUM];
 } TAF_NV_NVWR_SEC_CTRL_STRU;
 
+typedef struct
+{
+    VOS_UINT32                           ulIpv6AddrTestModeCfg;                 /* 0x55aa55aa是测试模式，其他值为正常模式 */
+}TAF_NVIM_IPV6_ADDR_TEST_MODE_CFG_STRU;
 
+/* Add by l00305157 for Service_State_Optimize_PhaseII, 2015-02-11, begin */
+/*****************************************************************************
+ 结构名    : TAF_MMA_NVIM_DELAY_REPORT_SERVICE_STATUS_STRU
+ 结构说明  : en_NV_Item_DELAY_REPORT_SERVICE_STATUS_CFG NV项结构
+ 1. 日    期   : 2015年02月11日
+    作    者   : l00305157
+    修改内容   : Service_State_Optimize_PhaseII 项目修改
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT8                           ucEnable;                               /* 0:NV 未激活; 1:NV 激活 */
+    VOS_UINT8                           aucReserved[3];
+    VOS_UINT32                          ulRptSrvStaDelayTimerValue;             /*延时上报定时器时长,单位:秒 */               
+}TAF_MMA_NVIM_DELAY_REPORT_SERVICE_STATUS_STRU;
+/* Add by l00305157 for Service_State_Optimize_PhaseII, 2015-02-11, end */
 
 #ifdef __cplusplus
     #if __cplusplus

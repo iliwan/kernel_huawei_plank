@@ -71,8 +71,8 @@ obj-$(CONFIG_REGULATOR_WM8350) += wm8350-regulator.o
 obj-$(CONFIG_REGULATOR_WM8400) += wm8400-regulator.o
 obj-$(CONFIG_REGULATOR_WM8994) += wm8994-regulator.o
 obj-$(CONFIG_HI3XXX_REGULATOR_HI6421V300) += hi3xxx_hi6421v300_regulator.o
-obj-$(CONFIG_HI3XXX_REGULATOR_KIRIN925) += hi3xxx_krin925_regulator.o
-
+obj-$(CONFIG_HI3XXX_REGULATOR_KIRIN930) += hi3xxx_krin930_regulator.o
+obj-$(CONFIG_HI3XXX_REGULATOR_KIRIN920) += hi3xxx_krin920_regulator.o
 obj-$(CONFIG_REGULATOR_HI6XXX) += hi6xxx_regulator.o
 obj-$(CONFIG_REGULATOR_HI6XXX) += hi6xxx_regulator_adapt.o
 obj-$(CONFIG_REGULATOR_HI6XXX) += test_hi6xxx_regulator.o

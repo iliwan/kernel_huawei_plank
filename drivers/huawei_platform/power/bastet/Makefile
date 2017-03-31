@@ -48,7 +48,7 @@ EXTRA_CFLAGS += -I$(BALONG_TAF_DIR)/comm/src/acore/bastet/inc
 EXTRA_CFLAGS += -I$(BALONG_TAF_DIR)/comm/src/acore/RNIC/Inc/
 
 ifneq ($(TARGET_ARM_TYPE), arm64)
-#EXTRA_CFLAGS += -D__LINUX_ARM_ARCH__=7 -march=armv7-a -Uarm
+EXTRA_CFLAGS += -D__LINUX_ARM_ARCH__=7 -march=armv7-a -Uarm
 endif
 
 EXTRA_CFLAGS +=  -DVOS_LINUX=4 -DOSA_CPU_ACPU=1 -DVOS_OS_VER=VOS_LINUX -DVOS_OSA_CPU=OSA_CPU_ACPU -D__LOG_RELEASE__ \

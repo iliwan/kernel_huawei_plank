@@ -227,6 +227,7 @@ void adp_pmu_hi6561_resume(void);
 
 
 unsigned int pmu_hi6561_reg_save(void);
+void pmu_hi6561_close_all_power(void);
 
 
 unsigned int pmu_hi6561_reg_resume(void);
@@ -261,6 +262,8 @@ void pastar_suspend_late(void);
 
 #endif
 void bsp_pastar_leakage_bugfix(void);
+void bsp_pastar_init(void);
+
 #ifdef __cplusplus
 }
 #endif

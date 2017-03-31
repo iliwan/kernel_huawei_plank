@@ -47,7 +47,9 @@ enum {
 	ALTEK6045_PIPE_0 = 0,
 	ALTEK6045_PIPE_1 = 1,
 	ALTEK6045_PIPE_DUAL = 2,
-	ALTEK6045_PIPE_MAX = 3,
+	ALTEK6045_PIPE_3 = 3,
+	ALTEK6045_PIPE_4 = 4,
+	ALTEK6045_PIPE_MAX = 5,
 };
 
 enum altek6045_pipe_test_stage {
@@ -73,6 +75,8 @@ typedef struct _tag_altek6045
 
 #define VOLTAGE_1P1V		1100000
 #define VOLTAGE_1P8V		1800000
+#define MIPI_ERR_MIN		39
+#define MIPI_ERR_MAX		44
 
 altek6045_private_data_t altek6045_pdata;
 static altek6045_t s_altek6045;
@@ -82,6 +86,8 @@ static int cross_height = 0;
 static int ois_done = 0;
 static int ois_check = 0;
 wait_queue_head_t ois_queue;
+
+static int extisp_type = EXTISP_NULL;
 
 #define OIS_TEST_TIMEOUT        (HZ * 8)
 //---
@@ -118,6 +124,10 @@ int altek6045_matchid(const hwextisp_intf_t* i, hwextisp_config_data_t *data)
 	return rc;
 }
 
+int altek6045_get_chipid(void)
+{
+    return extisp_type;
+}
 extern unsigned int get_boot_into_recovery_flag(void);
 int altek6045_exec_cmd(const hwextisp_intf_t* i, hwextisp_config_data_t *data)
 {
@@ -139,7 +149,6 @@ int altek6045_exec_cmd(const hwextisp_intf_t* i, hwextisp_config_data_t *data)
 	out_len = (data->cmd & EXTISP_CMD_OUT_LEN_MASK)>>EXTISP_CMD_OUT_LEN_SHIT;
 	in_len = (data->cmd & EXTISP_CMD_IN_LEN_MASK)>>EXTISP_CMD_IN_LEN_SHIT;
 	opcode = (data->cmd & EXTISP_CMD_OPCODE_MASK)>>EXTISP_CMD_OPCODE_SHIT;
-	cam_info("%s :dir_type %d, block_response %d, out_len %d, in_len %d, opcode %x ", __func__, dir_type, block_response, out_len, in_len, opcode);
 	out_buf = in_buf = data->u.buf;
 	out_to_block = (EXTISP_BLOCK_RESPONSE_CMD == block_response)? true: false;
 	out_from_block = (EXTISP_BLOCK_WRITE_CMD == block_response) ? true : false;
@@ -156,6 +165,7 @@ int altek6045_exec_cmd(const hwextisp_intf_t* i, hwextisp_config_data_t *data)
 			cam_err("%s kmalloc failed", __func__);
 			return -ENOMEM;;
 		}
+		memset(out_buf,0,out_len);
 	}
 
 	if(out_from_block) {
@@ -197,6 +207,7 @@ int altek6045_exec_cmd(const hwextisp_intf_t* i, hwextisp_config_data_t *data)
 			rc = -EFAULT;
 		}
 		kfree(out_buf);
+	    out_buf = NULL;
 	}
 	if(out_from_block) {
 		if(out_buf) {
@@ -229,7 +240,6 @@ static ssize_t altel6045_powerctrl_store(struct device *dev,
 
 	return count;
 }
-
 
 static struct device_attribute altel6045_powerctrl =
     __ATTR(power_ctrl, 0664, altel6045_powerctrl_show, altel6045_powerctrl_store);
@@ -276,7 +286,6 @@ static ssize_t altel6045_test_pipe_store(struct device_driver *drv,
 								const char *buf, size_t count);
 static DRIVER_ATTR(test_pipe, 0664, altel6045_test_pipe_show, altel6045_test_pipe_store);
 
-
 static ssize_t altel6045_test_pipe_store(struct device_driver *drv,
 												  const char *buf, size_t count)
 {
@@ -285,26 +294,26 @@ static ssize_t altel6045_test_pipe_store(struct device_driver *drv,
 	u8 sizeout = 0;
 	u16 opcode = 0;
 	const char *pos = buf;
-       int  extisp_type = EXTISP_NULL;
+	int  extisp_type = EXTISP_NULL;
+	u16 sensor_id = 0;
+	u8  module_id = 0;
 
 	cam_info("%s enter %s", __func__, buf);
-       extisp_type = misp_get_chipid();
+	extisp_type = misp_get_chipid();
 
-        if (0 == strncmp("DBC_Begin", pos, strlen("DBC_Begin")))
-        {
-            misp_cmd_filter = 1;
-            cam_info("%s misp set  DBC mode to on",__func__);
-            return count;
-        }
+	if (0 == strncmp("DBC_Begin", pos, strlen("DBC_Begin")))
+	{
+		misp_cmd_filter = 1;
+		cam_info("%s misp set  DBC mode to on",__func__);
+		return count;
+	}
 
-        if (0 == strncmp("DBC_End", pos, strlen("DBC_End")))
-        {
-            misp_cmd_filter = 0;
-            cam_info("%s misp set  DBC mode to off",__func__);
-            return count;
-        }
-
-
+	if (0 == strncmp("DBC_End", pos, strlen("DBC_End")))
+	{
+		misp_cmd_filter = 0;
+		cam_info("%s misp set  DBC mode to off",__func__);
+		return count;
+	}
 
 	/* input:test_pipe=0 test_pipe=1 test_pipe=2 */
 	if (0 == strncmp("test_pipe", pos, strlen("test_pipe"))) {
@@ -322,6 +331,11 @@ static ssize_t altel6045_test_pipe_store(struct device_driver *drv,
 		test_pipe_id = ALTEK6045_PIPE_1;
 	} else if (*pos == '2') {
 		test_pipe_id = ALTEK6045_PIPE_DUAL;
+	} else if (*pos == '3') {
+		test_pipe_id = ALTEK6045_PIPE_3;
+	} else if (*pos == '4') {
+		test_pipe_id = ALTEK6045_PIPE_4;
+		misp_get_module_info(1,&sensor_id,&module_id);
 	} else {
 	//	test_pipe_id = -1;
 		cam_info("%s invalid argument", __func__);
@@ -336,19 +350,35 @@ static ssize_t altel6045_test_pipe_store(struct device_driver *drv,
 		in_buf[0] = in_buf[2] = 1;
 		in_buf[1] = in_buf[3] = 99;
 	} else {
-            if(extisp_type == EXTISP_AL6045){
-                in_buf[test_pipe_id * 2] = 1;
-                in_buf[test_pipe_id * 2 + 1] = 99;
-                sizeout = 33;
-            }else{
-        		in_buf[0] = 1;
-        		if(test_pipe_id == ALTEK6045_PIPE_0) {
-        			in_buf[1]=101;
-        		} else {
-        			in_buf[1]=100;
-        		}
-                    sizeout = 53;
-            }
+		if(extisp_type == EXTISP_AL6045){
+			in_buf[test_pipe_id * 2] = 1;
+			in_buf[test_pipe_id * 2 + 1] = 99;
+			sizeout = 33;
+		} else {
+			in_buf[0] = 1;
+			if(test_pipe_id == ALTEK6045_PIPE_0) {
+				in_buf[1]=101;
+			} else if (test_pipe_id == ALTEK6045_PIPE_3) {
+				/*test miniisp with sensor IMX278*/
+				in_buf[1]=110;
+				cam_info("%s checksum : 110  test miniisp with main sensor IMX278", __func__);
+			} else if (test_pipe_id == ALTEK6045_PIPE_4) {
+				/*test miniisp with sensor IMX179*/
+				if (sensor_id == 0x179) {
+					in_buf[1]=112;
+					cam_info("%s checksum : 112  test miniisp with front sensor IMX179", __func__);
+				} else if (sensor_id == 0x8865) {
+					in_buf[1]=113;
+					cam_info("%s checksum : 113  test miniisp with front sensor ov8865", __func__);
+				} else {
+					cam_err("%s front sensor id is wrong", __func__);
+					goto err;
+				}
+			} else {
+				in_buf[1]=100;
+			}
+			sizeout = 53;
+		}
 	}
 	opcode = ISPCMD_CAMERA_SET_SENSORMODE;
 	ret = misp_exec_unidir_cmd(opcode, true, false, in_buf, sizeof(in_buf));
@@ -373,6 +403,11 @@ static ssize_t altel6045_test_pipe_store(struct device_driver *drv,
 	for (index = 0; index < sizeout; index++) {
 		if(out_buf[index] != 1) {
 			set_test_result(test_pipe_id, ALTEK6045_PIPE_TEST_BAD);
+			if ((index >= MIPI_ERR_MIN) && (index <= MIPI_ERR_MAX)) {
+				cam_err("%s MIPI RX checksum failed, out_buf index:%d, value:%d", __func__, index,out_buf[index]);
+			} else {
+				cam_err("%s ISP internal checksum failed, out_buf index:%d, value:%d", __func__, index,out_buf[index]);
+			}
 			goto err;
 		}
 	}
@@ -567,6 +602,15 @@ int altel6045_get_dt_data(const hwextisp_intf_t *i, struct device_node *of_node)
         return ret;
     }
 #endif
+
+    ret = of_property_read_u32(of_node, "hisi,chip-type",
+        &extisp_type);
+    cam_info("%s hisi,chip-type %d, ret %d\n", __func__,
+        extisp_type, ret);
+    if (ret < 0) {
+        cam_err("%s failed %d\n", __func__, __LINE__);
+    }
+
 	return ret;
 }
 

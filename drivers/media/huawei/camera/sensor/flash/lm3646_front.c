@@ -29,7 +29,6 @@
 #define MODE_FLASH			0x03
 #define STROBE_DISABLE			0x00
 #define TORCH_DISABLE			0x00
-#define TX_ENABLE				0x08
 #define INDUCTOR_CURRENT_LIMMIT 0xf0
 #define FLASH_TIMEOUT_TIME        0x47    //400ms
 
@@ -616,7 +615,6 @@ static int hw_lm3646_front_register_attribute(struct hw_flash_ctrl_t *flash_ctrl
         cam_err("%s failed to creat lightness attribute.", __func__);
         goto err_create_lightness_file;
     }
-
     rc = device_create_file(dev, &hw_lm3646_front_flash_mask);
     if (rc < 0) {
         cam_err("%s failed to creat flash_mask attribute.", __func__);

@@ -1230,9 +1230,9 @@ static sensor_setting_t s5k4e1ga_sunny_cherryplus_init_array[] = {
 };
 
 static framesize_s s5k4e1ga_sunny_cherryplus_framesizes[] = {
-    {0, 0, 1280, 960, 2982, 1100, 30, 30, 0x14b, 0x113, 0x100, VIEW_FULL, RESOLUTION_4_3, false, false,{s5k4e1ga_sunny_cherryplus_framesize_1280x960, ARRAY_SIZE(s5k4e1ga_sunny_cherryplus_framesize_1280x960)}, CLK_500M },
-    //{0, 0, 1920, 1088, 2982, 1200, 27, 27, 0x141, 0x10C, 0x200, VIEW_FULL, RESOLUTION_4_3, false,false, {s5k4e1ga_sunny_framesize_1080p, ARRAY_SIZE(s5k4e1ga_sunny_framesize_1080p)}, CLK_500M },
-    {0, 0, 2592, 1952, 2982, 2200, 15, 15, 0x14b, 0x113, 0x100, VIEW_FULL, RESOLUTION_4_3, false, false,{s5k4e1ga_sunny_cherryplus_framesize_full, ARRAY_SIZE(s5k4e1ga_sunny_cherryplus_framesize_full)}, CLK_500M },
+    {0, 0, 1280, 960, 2982, 1100, 30, 30, 0x14b, 0x113, 0x100, VIEW_FULL, RESOLUTION_4_3, false, false,ECGC_TYPE_MAX,{s5k4e1ga_sunny_cherryplus_framesize_1280x960, ARRAY_SIZE(s5k4e1ga_sunny_cherryplus_framesize_1280x960)}, CLK_500M },
+    //{0, 0, 1920, 1088, 2982, 1200, 27, 27, 0x141, 0x10C, 0x200, VIEW_FULL, RESOLUTION_4_3, false,false, false,{s5k4e1ga_sunny_framesize_1080p, ARRAY_SIZE(s5k4e1ga_sunny_framesize_1080p)}, CLK_500M },
+    {0, 0, 2592, 1952, 2982, 2200, 15, 15, 0x14b, 0x113, 0x100, VIEW_FULL, RESOLUTION_4_3, false, false,ECGC_TYPE_MAX,{s5k4e1ga_sunny_cherryplus_framesize_full, ARRAY_SIZE(s5k4e1ga_sunny_cherryplus_framesize_full)}, CLK_500M },
 };
 
 #endif /* _S5K4E1GA_SUNNY_CHERRYPLUS_H_ */

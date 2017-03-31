@@ -28,7 +28,7 @@
 #include <linux/hisi_hi3630_of_coresight.h>
 #include <linux/hisi_hi3630_coresight.h>
 #include <linux/ion.h>
-#include <linux/hisi_ion.h>
+#include <linux/hisi/hisi_ion.h>
 #if 0
 #include <linux/usb/usb_qdss.h>
 #include <mach/memory.h>

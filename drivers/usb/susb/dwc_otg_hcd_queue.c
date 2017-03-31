@@ -74,6 +74,7 @@ void dwc_otg_hcd_qh_free(dwc_otg_hcd_t * hcd, dwc_otg_qh_t * qh)
 			buf_size = 4096;
 		} else {
 			buf_size = hcd->core_if->core_params->max_transfer_size;
+			buf_size = (buf_size + dwc_max_packet(qh->maxp) - 1) & ~(dwc_max_packet(qh->maxp) - 1);
 		}
 
 		DWC_DMA_FREE(buf_size, qh->dw_align_buf, qh->dw_align_buf_dma);

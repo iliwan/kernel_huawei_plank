@@ -495,9 +495,9 @@ static __net_init int ip_proc_init_net(struct net *net)
 	if (!proc_create("snmp", S_IRUGO, net->proc_net, &snmp_seq_fops))
 		goto out_snmp;
 #ifdef CONFIG_HW_WIFIPRO_PROC
-	if (wifipro_init_proc(net)){
+    if (wifipro_init_proc(net)){
         WIFIPRO_WARNING("wifipro_init_proc fail!");
-	}
+    }
 #endif
 
 	return 0;

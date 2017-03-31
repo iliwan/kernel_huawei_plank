@@ -38,7 +38,7 @@
 #include <linux/hisi/hi6xxx-lcd_type.h>
 
 #if defined (CONFIG_HUAWEI_DSM)
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 
 #define LDO17_PHYS_ADDR 	(0X93)
 #define LSW50_PHYS_ADDR	(0xAC)
@@ -61,6 +61,7 @@ struct dsm_client *tp_dclient = NULL;
 
 static unsigned char LDO17_status = 0;
 static unsigned char LSW50_status = 0;
+static bool chip_detfail_dsm= false;
 #endif
 
 struct ts_data g_ts_data;
@@ -101,6 +102,24 @@ static struct ts_device_data g_ts_device_map[] =
 		.ops = &ts_cypress_ops,
 	},
 #endif
+#ifdef CONFIG_WACOM_TS
+	[2]	=	{
+		.chip_name = "wacom",
+		.irq_gpio = TS_IO_UNDEFINE,
+		.irq_config = TS_IRQ_CFG_UNDEFINE,
+		.reset_gpio = TS_IO_UNDEFINE,
+		.ops = &ts_wacom_ops,
+	},
+#endif
+#ifdef CONFIG_HIDEEP_TS
+	[3]	=	{
+		.chip_name = "hideep",
+		.irq_gpio = TS_IO_UNDEFINE,
+		.irq_config = TS_IRQ_CFG_UNDEFINE,
+		.reset_gpio = TS_IO_UNDEFINE,
+		.ops = &ts_hideep_ops,
+	},
+#endif
 };
 
 static int ts_i2c_write(u8 *buf, u16 length)
@@ -123,6 +142,10 @@ static int ts_i2c_write(u8 *buf, u16 length)
 	} while (++count < I2C_RW_TRIES);
 
 #if defined (CONFIG_HUAWEI_DSM)
+	if(!chip_detfail_dsm ) {
+		TS_LOG_ERR("chip write init no need dsm \n");
+		return -EIO;
+	}
 	LDO17_status = 0;//hi6xxx_pmic_reg_read(LDO17_PHYS_ADDR);
 	LSW50_status = 0;//hi6xxx_pmic_reg_read(LSW50_PHYS_ADDR);
 	if(!dsm_client_ocuppy(tp_dclient)){
@@ -178,6 +201,10 @@ static int ts_i2c_read(u8 *reg_addr, u16 reg_len, u8 *buf, u16 len)
 	} while (++count < I2C_RW_TRIES);
 
 #if defined (CONFIG_HUAWEI_DSM)
+	if(!chip_detfail_dsm ) {
+		TS_LOG_ERR("chip read init no need dsm \n");
+		return -EIO;
+	}
 	LDO17_status = 0;//hi6xxx_pmic_reg_read(LDO17_PHYS_ADDR);
 	LSW50_status = 0;//hi6xxx_pmic_reg_read(LSW50_PHYS_ADDR);
 	if(!dsm_client_ocuppy(tp_dclient)){
@@ -195,37 +222,6 @@ reset_gpio:%d\t value:%d.\nLDO17_status is 0x%x.\nLSW50_status is 0x%x\nI2C_stat
 	return -EIO;
 }
 
-static int ts_i2c_read_nodsm(u8 *reg_addr, u16 reg_len, u8 *buf, u16 len)
-{
-	int count = 0;
-	int ret;
-	struct i2c_msg xfer[2];
-
-	/*register addr*/
-	xfer[0].addr = g_ts_data.client->addr;
-	xfer[0].flags = 0;
-	xfer[0].len = reg_len;
-	xfer[0].buf = reg_addr;
-
-	/* Read data */
-	xfer[1].addr = g_ts_data.client->addr;
-	xfer[1].flags = I2C_M_RD;
-	xfer[1].len = len;
-	xfer[1].buf = buf;
-
-	do {
-		ret = i2c_transfer(g_ts_data.client->adapter, xfer, 2);
-		if (ret == 2) {
-			return NO_ERR;
-		}
-
-		msleep(I2C_WAIT_TIME);
-	} while (++count < I2C_RW_TRIES);
-
-	TS_LOG_ERR("ts_i2c_read failed\n");
-	return -EIO;
-}
-
 static int ts_spi_read(u8 *reg_addr, u16 reg_len, u8 *buf, u16 len)
 {
 	return NO_ERR;
@@ -235,7 +231,6 @@ static struct ts_bus_info ts_bus_i2c_info = {
 	.btype		= TS_BUS_I2C,
 	.bus_write	= ts_i2c_write,
 	.bus_read	= ts_i2c_read,
-	.bus_read_nodsm	= ts_i2c_read_nodsm,
 };
 
 static struct ts_bus_info ts_bus_spi_info = {
@@ -359,6 +354,54 @@ static int get_one_cmd(struct ts_cmd_node *cmd)
 	error = NO_ERR;
 
 out:
+	return error;
+}
+
+ssize_t ts_project_id_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int error = NO_ERR;
+	unsigned char ts_state = 0;
+	struct ts_cmd_node cmd;
+	struct ts_chip_project_id_param *info = NULL;
+
+	TS_LOG_INFO("%s called\n", __func__);
+
+	ts_state = atomic_read(&g_ts_data.state);
+	if (TS_WORK != ts_state){
+		TS_LOG_ERR("can not read project id when power off\n");
+		error = -EINVAL;
+		goto out;
+	}
+
+	info = (struct ts_chip_project_id_param *)kzalloc(sizeof(struct ts_chip_project_id_param), GFP_KERNEL);
+	if (!info) {
+		TS_LOG_ERR("malloc failed\n");
+		error = -ENOMEM;
+		goto out;
+	}
+
+
+	cmd.command = TS_GET_CHIP_PROJECT_ID;
+	cmd.cmd_param.prv_params = (void *)info;
+
+	error = put_one_cmd(&cmd, SHORT_SYNC_TIMEOUT);
+	if (error) {
+		TS_LOG_ERR("put cmd error :%d\n", error);
+		goto out;
+	}
+
+	if (info->status != TS_ACTION_SUCCESS) {
+		TS_LOG_ERR("read action failed\n");
+		error = -EIO;
+		goto out;
+	}
+
+	error = snprintf(buf, CHIP_PROJECT_ID_LENGTH+1,"%s\n",info->project_id);
+
+out:
+	if (info)
+		kfree(info);
+	TS_LOG_DEBUG("%s done\n", __func__);
 	return error;
 }
 
@@ -674,6 +717,122 @@ out:
 	return error;
 }
 
+
+static ssize_t ts_touch_weight_switch_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int error = NO_ERR;
+	struct ts_cmd_node *cmd = NULL;
+	struct ts_single_touch_info *info = NULL;
+
+	TS_LOG_INFO("ts_touch_weight_switch_show called\n");
+
+	if (dev == NULL) {
+		TS_LOG_ERR("dev is null\n");
+		error = -EINVAL;
+		goto out;
+	}
+
+	cmd = (struct ts_cmd_node *)kzalloc(sizeof(struct ts_cmd_node), GFP_KERNEL);
+	if (!cmd) {
+		TS_LOG_ERR("malloc failed\n");
+		error = -ENOMEM;
+		goto out;
+	}
+	info = (struct ts_single_touch_info *)kzalloc(sizeof(struct ts_single_touch_info), GFP_KERNEL);
+	if (!info) {
+		TS_LOG_ERR("malloc failed\n");
+		error = -ENOMEM;
+		goto out;
+	}
+
+	info->op_action = TS_ACTION_READ;
+	cmd->command = TS_TOUCH_WEIGHT_SWITCH;
+	cmd->cmd_param.prv_params = (void *)info;
+	error = put_one_cmd(cmd, SHORT_SYNC_TIMEOUT);
+	if (error) {
+		TS_LOG_ERR("put cmd error :%d\n", error);
+		error = -EBUSY;
+		goto out;
+	}
+
+	if (info->status == TS_ACTION_SUCCESS)
+		error = snprintf(buf, MAX_STR_LEN, "%d\n", info->single_touch_switch);
+	else
+		error = -EFAULT;
+
+out:
+	if (cmd)
+		kfree(cmd);
+	if (info)
+		kfree(info);
+	TS_LOG_DEBUG("ts_touch_weight_switch_show done\n");
+	return error;
+}
+
+static ssize_t ts_touch_weight_switch_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int value;
+	int error;
+	struct ts_cmd_node *cmd = NULL;
+	struct ts_single_touch_info *info = NULL;
+
+	TS_LOG_INFO("ts_touch_weight_switch_store called\n");
+
+	if (dev == NULL) {
+		TS_LOG_ERR("dev is null\n");
+		error = -EINVAL;
+		goto out;
+	}
+
+	error = sscanf(buf, "%u", &value);
+	if (error <= 0) {
+		TS_LOG_ERR("sscanf return invaild :%d\n", error);
+		error = -EINVAL;
+		goto out;
+	}
+	TS_LOG_DEBUG("sscanf value is %u\n", value);
+
+	cmd = (struct ts_cmd_node *)kzalloc(sizeof(struct ts_cmd_node), GFP_KERNEL);
+	if (!cmd) {
+		TS_LOG_ERR("malloc failed\n");
+		error = -ENOMEM;
+		goto out;
+	}
+	info = (struct ts_single_touch_info *)kzalloc(sizeof(struct ts_single_touch_info), GFP_KERNEL);
+	if (!info) {
+		TS_LOG_ERR("malloc failed\n");
+		error = -ENOMEM;
+		goto out;
+	}
+
+	info->op_action = TS_ACTION_WRITE;
+	info->single_touch_switch = value;
+	cmd->command = TS_TOUCH_WEIGHT_SWITCH;
+	cmd->cmd_param.prv_params = (void *)info;
+	error = put_one_cmd(cmd, SHORT_SYNC_TIMEOUT);
+	if (error) {
+		TS_LOG_ERR("put cmd error :%d\n", error);
+		error = -EBUSY;
+		goto out;
+	}
+
+	if (info->status != TS_ACTION_SUCCESS) {
+		TS_LOG_ERR("action failed\n");
+		error = -EIO;
+		goto out;
+	}
+
+	error = count;
+
+out:
+	if (cmd)
+		kfree(cmd);
+	if (info)
+		kfree(info);
+	TS_LOG_DEBUG("ts_touch_weight_switch_store done\n");
+	return error;
+}
+
 static int ts_send_holster_cmd(void)
 {
 	int error;
@@ -697,6 +856,40 @@ static int ts_send_holster_cmd(void)
 out:
 	return error;
 }
+
+static int ts_wakeup_gesture_enable_cmd(u8 switch_value)
+{
+	int error = NO_ERR;
+	struct ts_cmd_node cmd;
+	struct ts_wakeup_gesture_enable_info *info = &g_ts_data.feature_info.wakeup_gesture_enable_info;
+
+	info->op_action = TS_ACTION_WRITE;
+	info->switch_value= switch_value;
+	cmd.command = TS_WAKEUP_GESTURE_ENABLE;
+	cmd.cmd_param.prv_params = (void *)info;
+
+	if (TS_WORK == atomic_read(&g_ts_data.state)){
+		TS_LOG_ERR("can not enable/disable wakeup_gesture when tp is working in normal mode\n");
+		error = -EINVAL;
+		goto out;
+	}
+
+	error = put_one_cmd(&cmd, SHORT_SYNC_TIMEOUT);
+	if (error) {
+		TS_LOG_ERR("%s: put cmd error :%d\n", __func__, error);
+		error = -EBUSY;
+		goto out;
+	}
+	if (g_ts_data.feature_info.wakeup_gesture_enable_info.status != TS_ACTION_SUCCESS) {
+		TS_LOG_ERR("%s action failed\n", __func__);
+		error = -EIO;
+		goto out;
+	}
+
+out:
+	return error;
+}
+
 
 static int ts_send_roi_cmd(enum ts_action_status read_write_type, int timeout)
 {
@@ -944,6 +1137,26 @@ out:
 	return error;
 }
 
+static ssize_t ts_support_tp_feature_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int error = NO_ERR;
+	struct ts_device_data *dev_data = g_ts_data.chip_data;
+
+	TS_LOG_INFO("ts_support_tp_feature_show called\n");
+
+	if (dev == NULL) {
+		TS_LOG_ERR("dev is null\n");
+		error = -EINVAL;
+		goto out;
+	}
+
+	error = snprintf(buf, MAX_STR_LEN, "0x%x\n", dev_data->tp_func_flag);
+
+out:
+	TS_LOG_INFO("ts_support_tp_feature_show done\n");
+	return error;
+}
+
 static ssize_t ts_fw_update_sd_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	int error = NO_ERR;
@@ -1088,6 +1301,52 @@ free_memory:
 out:
 	TS_LOG_INFO("ts_reg_operate_store done\n");
 	return error;
+}
+
+static ssize_t ts_wakeup_gesture_enable_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int value;
+	int error;
+
+	TS_LOG_INFO("%s called\n", __func__);
+
+	error = sscanf(buf, "%u", &value);
+	if (error <= 0) {
+		TS_LOG_ERR("sscanf return invaild :%d\n", error);
+		error = -EINVAL;
+		goto out;
+	}
+
+	error = ts_wakeup_gesture_enable_cmd(value);
+	if (error) {
+		TS_LOG_ERR("ts_wakeup_gesture_enable_cmd failed\n");
+		error = -ENOMEM;
+		goto out;
+	}
+
+	error = count;
+
+out:
+	return error;
+}
+
+static ssize_t ts_wakeup_gesture_enable_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct ts_wakeup_gesture_enable_info *info = &g_ts_data.feature_info.wakeup_gesture_enable_info;
+	ssize_t ret;
+
+	TS_LOG_INFO("%s called\n", __func__);
+
+	if (dev == NULL) {
+		TS_LOG_ERR("dev is null\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = snprintf(buf, MAX_STR_LEN, "%d\n", info->switch_value);
+out:
+	return ret;
 }
 
 static ssize_t ts_easy_wakeup_gesture_show(struct device *dev,
@@ -1369,15 +1628,98 @@ static ssize_t ts_roi_data_debug_show(struct device *dev,
 	return count;
 }
 
+static DEVICE_ATTR(touch_project_id, (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH), ts_project_id_show, NULL);
+
+static ssize_t ts_capacitance_test_type_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int error = NO_ERR;
+	struct ts_cmd_node *cmd = NULL;
+	struct ts_test_type_info *info = NULL;
+
+	TS_LOG_INFO("ts_touch_test_mode_show called\n");
+
+	if (dev == NULL) {
+		TS_LOG_ERR("dev is null\n");
+		error = -EINVAL;
+		goto out;
+	}
+
+	cmd = (struct ts_cmd_node *)kzalloc(sizeof(struct ts_cmd_node), GFP_KERNEL);
+	if (!cmd) {
+		TS_LOG_ERR("malloc failed\n");
+		error = -ENOMEM;
+		goto out;
+	}
+	info = (struct ts_test_type_info *)kzalloc(sizeof(struct ts_test_type_info), GFP_KERNEL);
+	if (!info) {
+		TS_LOG_ERR("malloc failed\n");
+		error = -ENOMEM;
+		goto out;
+	}
+
+	info->op_action = TS_ACTION_READ;
+	cmd->command = TS_TEST_TYPE;
+	cmd->cmd_param.prv_params = (void *)info;
+	error = put_one_cmd(cmd, SHORT_SYNC_TIMEOUT);
+	if (error) {
+		TS_LOG_ERR("put cmd error :%d\n", error);
+		error = -EBUSY;
+		goto out;
+	}
+
+	if (info->status == TS_ACTION_SUCCESS)
+		error = snprintf(buf, MAX_STR_LEN, "%s\n", info->tp_test_type);
+	else
+		error = -EFAULT;
+
+out:
+	if (cmd)
+		kfree(cmd);
+	if (info)
+		kfree(info);
+	TS_LOG_DEBUG("ts_touch_test_mode_show done\n");
+	return error;
+}
+
+static ssize_t ts_capacitance_test_type_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int value;
+	int error;
+
+	TS_LOG_INFO("ts_capacitance_test_type_store called\n");
+
+	if (dev == NULL) {
+		TS_LOG_ERR("dev is null\n");
+		error = -EINVAL;
+		goto out;
+	}
+
+	error = sscanf(buf, "%u", &value);
+	if (error <= 0) {
+		TS_LOG_ERR("sscanf return invaild :%d\n", error);
+		error = -EINVAL;
+		goto out;
+	}
+	TS_LOG_DEBUG("sscanf value is %u\n", value);
+	error = count;
+
+out:
+	TS_LOG_DEBUG("ts_capacitance_test_type_store done\n");
+	return error;
+}
+
 static DEVICE_ATTR(touch_chip_info, (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH), ts_chip_info_show, ts_chip_info_store);
 static DEVICE_ATTR(calibrate, S_IRUSR, ts_calibrate_show, NULL);
 static DEVICE_ATTR(touch_glove, (S_IRUSR|S_IWUSR), ts_glove_mode_show, ts_glove_mode_store);
+static DEVICE_ATTR(touch_weight, (S_IRUSR|S_IWUSR), ts_touch_weight_switch_show, ts_touch_weight_switch_store);
 static DEVICE_ATTR(touch_sensitivity, S_IWUSR, NULL, ts_sensitivity_store);
 static DEVICE_ATTR(hand_detect, S_IRUSR, ts_hand_detect_show, NULL);
+static DEVICE_ATTR(support_tp_feature, S_IRUSR, ts_support_tp_feature_show, NULL);
 static DEVICE_ATTR(loglevel, (S_IRUSR|S_IWUSR), ts_loglevel_show, ts_loglevel_store);
 static DEVICE_ATTR(touch_window, (S_IRUSR|S_IWUSR), ts_touch_window_show, ts_touch_window_store);
 static DEVICE_ATTR(fw_update_sd, S_IWUSR, NULL, ts_fw_update_sd_store);
 static DEVICE_ATTR(easy_wakeup_gesture, (S_IRUSR | S_IWUSR), ts_easy_wakeup_gesture_show, ts_easy_wakeup_gesture_store);
+static DEVICE_ATTR(wakeup_gesture_enable, (S_IRUSR | S_IWUSR), ts_wakeup_gesture_enable_show, ts_wakeup_gesture_enable_store);
 static DEVICE_ATTR(touch_dsm_debug, S_IRUSR | S_IRGRP | S_IROTH, ts_dsm_debug_show, NULL);
 static DEVICE_ATTR(easy_wakeup_control, S_IWUSR, NULL, ts_easy_wakeup_control_store);
 static DEVICE_ATTR(easy_wakeup_position, S_IRUSR, ts_easy_wakeup_position_show, NULL);
@@ -1385,18 +1727,22 @@ static DEVICE_ATTR(touch_register_operation, S_IRUSR | S_IRGRP | S_IWUSR | S_IWG
 static DEVICE_ATTR(roi_enable, (S_IRUSR | S_IRGRP | S_IWUSR | S_IWGRP), ts_roi_enable_show, ts_roi_enable_store);
 static DEVICE_ATTR(roi_data, (S_IRUSR | S_IRGRP), ts_roi_data_show, NULL);
 static DEVICE_ATTR(roi_data_debug, (S_IRUSR | S_IRGRP), ts_roi_data_debug_show, NULL);
-
+static DEVICE_ATTR(tp_capacitance_test_type, (S_IRUSR|S_IWUSR), ts_capacitance_test_type_show, ts_capacitance_test_type_store);
 
 static struct attribute *ts_attributes[] = {
+	&dev_attr_touch_project_id.attr,
 	&dev_attr_touch_chip_info.attr,
        &dev_attr_calibrate.attr,
        &dev_attr_touch_glove.attr,
+       &dev_attr_touch_weight.attr,
        &dev_attr_touch_sensitivity.attr,
        &dev_attr_hand_detect.attr,
        &dev_attr_loglevel.attr,
+       &dev_attr_support_tp_feature.attr,
        &dev_attr_touch_window.attr,
        &dev_attr_fw_update_sd.attr,
        &dev_attr_easy_wakeup_gesture.attr,
+       &dev_attr_wakeup_gesture_enable.attr,
        &dev_attr_touch_dsm_debug.attr,
        &dev_attr_easy_wakeup_control.attr,
        &dev_attr_easy_wakeup_position.attr,
@@ -1404,6 +1750,7 @@ static struct attribute *ts_attributes[] = {
 	   &dev_attr_roi_enable.attr,
 	   &dev_attr_roi_data.attr,
 	   &dev_attr_roi_data_debug.attr,
+	   &dev_attr_tp_capacitance_test_type.attr,
 	NULL
 };
 
@@ -1457,12 +1804,18 @@ static int rawdata_proc_show(struct seq_file *m, void *v)
 		error = -EIO;
 		goto out;
 	}
-	seq_printf(m, "result:%s\n", info->result);
+
+	seq_printf(m, "%s\n", info->result);
 	seq_printf(m, "*************touch data*************\n");
 
 	row_size = info->buff[0];
 	range_size = info->buff[1];
 	seq_printf(m, "rx: %d, tx : %d\n", row_size, range_size);
+
+	if (g_ts_data.chip_data->rawdata_arrange_swap) {
+		row_size = info->buff[1];
+		range_size = info->buff[0];
+	}
 
 	for (index=0; row_size*index+2 < info->used_size; index++) {
 		if (0 == index) {
@@ -1489,7 +1842,7 @@ out:
 	if (cmd)
 		kfree(cmd);
 
-	TS_LOG_INFO("rawdata_proc_show done\n");
+	TS_LOG_INFO("rawdata_proc_show done:status=%d\n",error);
 	return error;
 }
 
@@ -1509,7 +1862,7 @@ static void procfs_create(void)
 {
 	if (!proc_mkdir("touchscreen", NULL))
 		return;
-	proc_create("touchscreen/rawdata", S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, NULL, &rawdata_proc_fops);
+	proc_create("touchscreen/tp_capacitance_data", S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, NULL, &rawdata_proc_fops);
 	return;
 }
 
@@ -1594,7 +1947,7 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 							TS_LOG_ERR("no resume, blank: %d, event:%lu, state: %d\n", *blank, event, ts_state);
 							break;
 						}
-					}
+				}
 				break;
 			case FB_EVENT_BLANK:
 				TS_LOG_DEBUG("resume: event = %lu, not care\n", event);
@@ -1834,8 +2187,15 @@ static void ts_film_touchplus(struct ts_fingers *finger, int finger_num,struct i
 	static int pre_special_button_key = TS_TOUCHPLUS_INVALID;
 	int key_max = TS_TOUCHPLUS_KEY2;
 	int key_min = TS_TOUCHPLUS_KEY3;
+	unsigned char ts_state = 0;
 
 	TS_LOG_DEBUG("ts_film_touchplus called\n");
+
+	/*discard touchplus report in gesture wakeup mode*/
+	ts_state = atomic_read(&g_ts_data.state);
+	if ((TS_SLEEP == ts_state) || (TS_WORK_IN_SLEEP == ts_state)) {
+		return;
+	}
 
 	/*touchplus(LingXiYiZhi) report ,  The difference between ABS_report and touchpls key_report
 	*when ABS_report is running, touchpls key will not report
@@ -1980,6 +2340,8 @@ static int ts_power_control(int irq_id,
 			if (dev->ops->chip_suspend)
 				error = dev->ops->chip_suspend();
 			enable_irq(irq_id);
+			out_cmd->command = TS_WAKEUP_GESTURE_ENABLE;
+			out_cmd->cmd_param.prv_params = (void *)&g_ts_data.feature_info.wakeup_gesture_enable_info;
 			break;
 		case TS_IC_SHUT_DOWN:
 			disable_irq(irq_id);
@@ -1994,6 +2356,7 @@ static int ts_power_control(int irq_id,
 		case TS_AFTER_RESUME:		/*do nothing*/
 			if (dev->ops->chip_after_resume)
 				error = dev->ops->chip_after_resume((void *)&g_ts_data.feature_info);
+			send_up_msg_in_resume();
 			atomic_set(&g_ts_data.state, TS_WORK);
 			enable_irq(irq_id);
 			ts_start_wd_timer(&g_ts_data);
@@ -2086,6 +2449,24 @@ static inline int ts_dsm_debug(struct ts_cmd_node *in_cmd, struct ts_cmd_node *o
 	return error;
 }
 
+static int ts_get_chip_project_id(struct ts_cmd_node *in_cmd, struct ts_cmd_node *out_cmd)
+{
+	int error = NO_ERR;
+	struct ts_device_data *dev = g_ts_data.chip_data;
+	struct ts_chip_project_id_param *info = (struct ts_chip_project_id_param *)in_cmd->cmd_param.prv_params;
+
+	TS_LOG_INFO("%s called\n", __func__);
+
+	if (dev->ops->chip_get_project_id)
+		error = dev->ops->chip_get_project_id(info->project_id);
+
+	if (error)
+		info->status = TS_ACTION_FAILED;
+	else
+		info->status = TS_ACTION_SUCCESS;
+
+	return error;
+}
 static int ts_get_chip_info(struct ts_cmd_node *in_cmd, struct ts_cmd_node *out_cmd)
 {
 	int error = NO_ERR;
@@ -2104,6 +2485,26 @@ static int ts_get_chip_info(struct ts_cmd_node *in_cmd, struct ts_cmd_node *out_
 
 	return error;
 }
+
+static int ts_get_capacitance_test_type(struct ts_cmd_node *in_cmd, struct ts_cmd_node *out_cmd)
+{
+	int error = NO_ERR;
+	struct ts_device_data *dev = g_ts_data.chip_data;
+	struct ts_test_type_info *info = (struct ts_test_type_info *)in_cmd->cmd_param.prv_params;
+
+	TS_LOG_INFO("get_mmi_test_mode called\n");
+
+	if (dev->ops->chip_get_capacitance_test_type)
+		error = dev->ops->chip_get_capacitance_test_type(info);
+
+	if (error)
+		info->status = TS_ACTION_FAILED;
+	else
+		info->status = TS_ACTION_SUCCESS;
+
+	return error;
+}
+
 static int ts_set_info_flag(struct ts_cmd_node *in_cmd, struct ts_cmd_node *out_cmd)
 {
 	int error = NO_ERR;
@@ -2180,6 +2581,28 @@ static inline int ts_palm_switch(struct ts_cmd_node *in_cmd, struct ts_cmd_node 
 
 	return error;
 }
+
+static inline int ts_touch_weight_switch(struct ts_cmd_node *in_cmd, struct ts_cmd_node *out_cmd)
+{
+	int error = -EIO;
+	struct ts_device_data *dev = g_ts_data.chip_data;
+	struct ts_single_touch_info *info = (struct ts_single_touch_info *)in_cmd->cmd_param.prv_params;
+
+	TS_LOG_DEBUG("weight action :%d, value:%d", info->op_action, info->single_touch_switch);
+
+	if (dev->ops->chip_single_touch_switch)
+		error = dev->ops->chip_single_touch_switch(info);
+
+	if (error)
+		info->status = TS_ACTION_FAILED;
+	else
+		info->status = TS_ACTION_SUCCESS;
+
+	TS_LOG_DEBUG("touch_weight switch process result: %d\n", error);
+
+	return error;
+}
+
 static inline int ts_glove_switch(struct ts_cmd_node *in_cmd, struct ts_cmd_node *out_cmd)
 {
 	int error = -EIO;
@@ -2197,6 +2620,31 @@ static inline int ts_glove_switch(struct ts_cmd_node *in_cmd, struct ts_cmd_node
 		info->status = TS_ACTION_SUCCESS;
 
 	TS_LOG_DEBUG("glove switch process result: %d\n", error);
+
+	return error;
+}
+
+static inline int ts_wakeup_gesture_enable_switch(struct ts_cmd_node *in_cmd, struct ts_cmd_node *out_cmd)
+{
+	int error = -EIO;
+	struct ts_device_data *dev = g_ts_data.chip_data;
+	struct ts_wakeup_gesture_enable_info *info = (struct ts_wakeup_gesture_enable_info *)in_cmd->cmd_param.prv_params;
+
+	TS_LOG_INFO("%s: write value: %d", __func__, info->switch_value);
+
+	if (atomic_read(&g_ts_data.state) == TS_WORK_IN_SLEEP && dev->ops->chip_wakeup_gesture_enable_switch){
+		error = dev->ops->chip_wakeup_gesture_enable_switch(info);
+	}
+
+	info->op_action = TS_ACTION_UNDEF;
+	if (error) {
+		info->status = TS_ACTION_FAILED;
+		TS_LOG_ERR("%s, process error: %d\n", __func__, error);
+	} else {
+		info->status = TS_ACTION_SUCCESS;
+	}
+
+	TS_LOG_DEBUG("%s, process result: %d\n", __func__, error);
 
 	return error;
 }
@@ -2428,6 +2876,11 @@ static int ts_proc_command(struct ts_cmd_node *cmd)
 	struct ts_cmd_node *proc_cmd = cmd;
 	struct ts_cmd_node *out_cmd = &pang_cmd_buff;
 
+	if (sync && atomic_read(&sync->timeout_flag) == TS_TIMEOUT) {
+		kfree(sync);
+		goto out;
+	}
+
 	if (!ts_cmd_need_process(proc_cmd)) {
 		TS_LOG_INFO("no need to process cmd:%d", proc_cmd->command);
 		goto out;
@@ -2468,6 +2921,8 @@ related_proc:
 		case TS_GET_CHIP_INFO:
 			ts_get_chip_info(proc_cmd, out_cmd);
 			break;
+		case TS_GET_CHIP_PROJECT_ID:
+			ts_get_chip_project_id(proc_cmd, out_cmd);
 		case TS_SET_INFO_FLAG:
 			ts_set_info_flag(proc_cmd, out_cmd);
 			break;
@@ -2479,6 +2934,11 @@ related_proc:
 			break;
 		case TS_GLOVE_SWITCH:
 			ts_glove_switch(proc_cmd, out_cmd);
+			break;
+		case TS_TEST_TYPE:
+			ts_get_capacitance_test_type(proc_cmd, out_cmd);
+		case TS_TOUCH_WEIGHT_SWITCH:
+			ts_touch_weight_switch(proc_cmd, out_cmd);
 			break;
 		case TS_PALM_SWITCH:
 			ts_palm_switch(proc_cmd, out_cmd);
@@ -2508,6 +2968,9 @@ related_proc:
 			break;
 		case TS_CHECK_STATUS:
 			ts_check_status(proc_cmd, out_cmd);
+			break;
+		case TS_WAKEUP_GESTURE_ENABLE:
+			ts_wakeup_gesture_enable_switch(proc_cmd, out_cmd);
 			break;
 		case TS_HOLSTER_SWITCH:
 			ts_holster_switch(proc_cmd, out_cmd);
@@ -2818,8 +3281,25 @@ static int ts_parse_roi_supported(void)
 			g_ts_data.feature_info.roi_info.roi_supported = 0;
 			return -EINVAL;
 		}
+		TS_LOG_INFO("roi_supported = %d\n", g_ts_data.feature_info.roi_info.roi_supported);
+
+		error = of_property_read_u32(g_ts_data.node, "roi_control_addr_offset", &g_ts_data.feature_info.roi_info.roi_control_addr_offset);
+		if (error) {
+			TS_LOG_ERR("%s:get roi_control_addr_offset failed, used default.\n",__func__);
+			g_ts_data.feature_info.roi_info.roi_control_addr_offset = ROI_CTRL_DEFAULT_OFFSET;
+			error = NO_ERR;
+		}
+		TS_LOG_INFO("roi_control_addr_offset = %d\n", g_ts_data.feature_info.roi_info.roi_control_addr_offset);
+
+		error = of_property_read_u32(g_ts_data.node, "roi_data_addr_offset", &g_ts_data.feature_info.roi_info.roi_data_addr_offset);
+		if (error) {
+			TS_LOG_ERR("%s:get roi_data_addr_offset failed, used default.\n",__func__);
+			g_ts_data.feature_info.roi_info.roi_data_addr_offset = ROI_DATA_DEFAULT_OFFSET;
+			error = NO_ERR;
+		}
+		TS_LOG_INFO("roi_data_addr_offset = %d\n", g_ts_data.feature_info.roi_info.roi_data_addr_offset);
 	}
-	TS_LOG_INFO("roi_supported = %d\n", g_ts_data.feature_info.roi_info.roi_supported);
+	
 	return error;
 }
 
@@ -3049,7 +3529,9 @@ static int ts_init(void)
 	if (error) {
 		TS_LOG_ERR("chip init failed : %d,  try fw update again\n", error);
 	}
-
+	#if defined (CONFIG_HUAWEI_DSM)
+	    chip_detfail_dsm = true;// true means after chip init to dsm
+	#endif
 	error = ts_register_algo();
 	if (error) {
 		TS_LOG_ERR("ts register algo failed : %d\n", error);

@@ -140,6 +140,19 @@ extern "C" {
 
 #define WPHY_MNTN_HSUPA_RPT_VALUE_MAX_NUM       ( 120 )
 
+#define WPHY_MNTN_RL_SCRAM_MAX_NUM              ( 6 )
+
+#define WPHY_MNTN_DEMOD_FINGER_MAX_NUM          ( 13 )
+
+#define WPHY_MNTN_EQ_FINGER_RPT_MAX_NUM         ( 2 )
+
+#define WPHY_MNTN_BLER_RPT_MAX_NUM              ( 5 )
+
+#define WPHY_MNTN_DPA_ERROR_CODE_RPT_MAX_NUM    ( 2 )
+
+#define WPHY_MNTN_MP_WIN_MAX_NUM                ( 3 )
+
+
 /*****************************************************************************
   3 枚举定义
 *****************************************************************************/
@@ -595,6 +608,9 @@ enum WPHY_TOOL_MNTN_MSG_ID_ENUM
     ID_WPHY_TOOL_TAS_PROTECT_STATE_IND          = 0xF0B2,                       /* _H2ASN_MsgChoice WPHY_TOOL_TAS_PROTECT_STATE_IND_STRU */
 
     ID_WPHY_TOOL_TAS_STATUS_STATE_REPORT_IND    = 0xF0B3,                       /* _H2ASN_MsgChoice WPHY_TOOL_TAS_STATUS_REPORT_IND_STRU */
+    ID_WPHY_TOOL_IDLE_MNTN_RPT_IND              = 0xF0B4,                       /* _H2ASN_MsgChoice WPHY_TOOL_IDLE_MNTN_RPT_STRU */
+    ID_WPHY_TOOL_FACH_MNTN_RPT_IND              = 0xF0B5,                       /* _H2ASN_MsgChoice WPHY_TOOL_FACH_MNTN_RPT_STRU */
+    ID_WPHY_TOOL_DCH_MNTN_RPT_IND               = 0xF0B6,                       /* _H2ASN_MsgChoice WPHY_TOOL_DCH_MNTN_RPT_STRU */
 
     ID_WPHY_TOOL_MSG_ID_BUTT
 };
@@ -2217,7 +2233,7 @@ typedef struct
     WPHY_TOOL_MNTN_MSG_ID_ENUM_UINT16           enMsgId;                        /*_H2ASN_Skip */ /* 原语类型 */
     VOS_UINT16                                  usToolsId;                      /* 保留字段 */
     VOS_INT16                                   sPiResult;
-    VOS_UINT16                                  usRsv;
+    VOS_UINT16                                  usPiSoftValue;
 }WPHY_TOOL_PI_INT_RESULT_IND_STRU;
 
 /*****************************************************************************
@@ -2230,6 +2246,8 @@ typedef struct
     VOS_UINT16                                  usToolsId;                      /* 保留字段 */
     VOS_INT16                                   sAiResult;                      /* AI结果,+1；-1；0 */
     VOS_UINT16                                  usReTranNum;                    /* 重传次数 */
+    VOS_INT16                                   sCurrentPower;                  /* 当前功率,单位 0.1dBm */
+    VOS_INT16                                   usRsv;
 }WPHY_TOOL_AI_INT_RESULT_IND_STRU;
 
 /*****************************************************************************
@@ -2773,7 +2791,7 @@ typedef struct
 *****************************************************************************/
 typedef struct
 {
-    PHY_UINT16                                  auhwRptValue[WPHY_MNTN_HSUPA_RPT_VALUE_MAX_NUM][WPHY_MNTN_HSUPA_OM_CARERIER_NUM];
+    VOS_UINT16                                  auhwRptValue[WPHY_MNTN_HSUPA_RPT_VALUE_MAX_NUM][WPHY_MNTN_HSUPA_OM_CARERIER_NUM];
 }WPHY_TOOL_UPA_SUBFRAME_RPT_INFO_STRU;
 
 /*****************************************************************************
@@ -3177,8 +3195,455 @@ typedef struct
 }GPHY_TOOL_TAS_STATUS_REPORT_IND_STRU;
 
 /*****************************************************************************
+ 结构名    : WPHY_TOOL_SINGLE_XO_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 单时钟下当前ppm，scpll配置值，温度值，AFC值
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT32                          uwAfcValue;                             /* AFC */
+} WPHY_TOOL_SINGLE_XO_INFO_STRU;
+
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_FE_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 前端信息
+*****************************************************************************/
+typedef struct
+{
+
+    /* SSI_EN开关/RSSI/AGC档位/DCOFFSET/AFC/BLOCK、NOBLOCK状态天线开关/ABB线控/TRCV_ON状态/单双天线状态  */
+    WPHY_TOOL_SINGLE_XO_INFO_STRU       stSingleXoInfo;                         /* 单时钟下当前ppm，scpll配置值，温度值，AFC值 */
+    VOS_UINT32                          uwFeRssi;                               /* RSSI 1414 */
+    VOS_UINT32                          uwWagcSwitch;                           /* WAGC_SWITCH 1400 */
+
+} WPHY_TOOL_FE_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_LOWPOWER_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 低功耗相关信息
+*****************************************************************************/
+typedef struct
+{
+    /* RF/PA/BBP/ABB上下电状态，不睡原因  */
+    VOS_UINT16                          uhwGuBbpTopMemOffFlg;                   /* GuBbp MEM是否下电判断 */
+    VOS_UINT16                          uhwGuBbpTopMemStatus;                   /* 存储当前的上电状态 */
+    VOS_UINT32                          uwGuBbpLPPurposeBitmap;                 /* TOP1B2B上下电操作目的,是因为TURBO还是DPA */
+    VOS_UINT16                          uhwBbpMasterOffFlg;                     /* BBP MASTER是否下电判断 */
+    VOS_UINT16                          uhwBbpMasterStatus;                     /* 存储当前BBP MASTER的上电状态 */
+    VOS_INT16                           shwAnt2CtrlFlag;                        /* 分集开关 */
+    VOS_UINT16                          uhwReserved;
+} WPHY_TOOL_LOWPOWER_INFO_STRU;
+
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_TIMING_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 定时信息
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT16                          uhwSfn;                                 /* 系统定时SFN值 */
+    VOS_UINT16                          uhwCfn;                                 /* 系统定时CFN值 */
+    VOS_UINT16                          uhwSlot;                                /* 系统定时SLOT值 */
+    VOS_UINT16                          uhwChip;                                /* 系统定时CHIP值 */
+} WPHY_TOOL_TIMING_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_MULTIPUTH_UNIT1_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 多径搜索单元1相关信息
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT32                          uwEn;                                   /* 单元1使能信息 0xFD902020 */
+    VOS_UINT32                          uwMode;                                 /* 单元1模式 0xFD902024 */
+    VOS_UINT32                          uwScram;                                /* 扰码 0xFD902028 */
+    VOS_UINT32                          uwCpichSync;                            /* 帧头信息 0xFD90202C */
+    VOS_UINT32                          uwWinOffset;                            /* 窗位置 0xFD902030 */
+} WPHY_TOOL_MULTIPUTH_UNIT1_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_FINGER_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 多径搜索结果信息
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT32                          uwFingerEnergy;                           /* 径能量 */
+    VOS_UINT32                          uwFingerPos;                              /* 径相位 */
+} WPHY_TOOL_FINGER_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_FINGER_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 单元0 1 2的 F0最强径信息
+*****************************************************************************/
+typedef struct
+{
+    WPHY_TOOL_FINGER_INFO_STRU            astFingerInfo[WPHY_MNTN_MP_WIN_MAX_NUM];
+} WPHY_TOOL_MP_FINGER_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_TWO_ANT_MP_FINGER_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 双天线 单元0 1 2的 F0最强径信息
+*****************************************************************************/
+typedef struct
+{
+    WPHY_TOOL_FINGER_INFO_STRU            astAnt1FingerInfo[WPHY_MNTN_MP_WIN_MAX_NUM];
+    WPHY_TOOL_FINGER_INFO_STRU            astAnt2FingerInfo[WPHY_MNTN_MP_WIN_MAX_NUM];
+} WPHY_TOOL_TWO_ANT_MP_FINGER_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_DEMOD_FINGER_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 解调径相关信息
+*****************************************************************************/
+typedef struct
+{
+    WPHY_TOOL_FINGER_INFO_STRU            astDemodFingerInfo[WPHY_MNTN_DEMOD_FINGER_MAX_NUM];
+} WPHY_TOOL_DEMOD_FINGER_INFO_STRU;
+
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_PRI_WIN_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 主小区窗头尾信息
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT32                          uwPriWinTop;                            /* 窗头信息 0xFD9040C0 */
+    VOS_UINT32                          uwPriWinEnd;                            /* 窗尾信息 0xFD9040C4 */
+} WPHY_TOOL_PRI_WIN_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_SOFT_WIN_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 软窗头尾信息
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT32                          uwSoftWinTop;                           /* 软窗头信息 0xFD9040C8 */
+    VOS_UINT32                          uwSoftWinEnd;                           /* 软窗尾信息 0xFD9040CC */
+} WPHY_TOOL_SOFT_WIN_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_RL_SCRAM_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 链路扰码初相
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT16                          auhwRlScram[WPHY_MNTN_RL_SCRAM_MAX_NUM];
+} WPHY_TOOL_RL_SCRAM_INFO_STRU;
+
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_MEASURE_CTRL_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 测量调度状态
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT16                          uhwIntraMeasureStatus;                           /*本频测量状态*/
+    VOS_UINT16                          uhwInterMeasureStatus;                           /*异频测量状态  */
+    VOS_UINT16                          uhwInterRATMeasureStatus;                        /*异系统测量状态*/
+    VOS_UINT16                          uhwInterRATBSICStatus;                           /*异系统BSIC验证状态*/
+    #if FEATURE_LTE                                                                      /* _H2ASN_Skip */
+    VOS_UINT16                          uhwInterRATLteMeasureStatus;                     /*异系统LTE测量状态*/
+    #endif /* FEATURE_LTE */                                                             /* _H2ASN_Skip */
+    VOS_UINT16                          uhwReserved;
+}WPHY_TOOL_MEASURE_CTRL_INFO_STRU;
+
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_CS_CTRL_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 小区搜索调度状态
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT16                          uhwIntraStatusFlg;                      /* 周期本频搜索状态标志，为了防止启动两次STEP1, 及禁止测量模块将频率切到别的频点  */
+    VOS_UINT16                          uhwInterStatusFlg;                      /* 周期异频搜索状态标志, 为了防止启动两次STEP1, 及禁止测量模块将频率切到别的频点  */
+}WPHY_TOOL_CS_CTRL_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_SYS_TIME_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 系统定时信息
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT32                          uwSysTime;                              /* 系统定时 */
+    VOS_UINT32                          uwCpichPathPos;                         /* 跟踪小区CPICH最早径在绝对时标上的位置 */
+    VOS_UINT32                          uwDpchPathPos;                          /* 跟踪小区SCCPCH/DPCH最早径在绝对时标上的位置 */
+}WPHY_TOOL_SYS_TIME_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_ERROR_CODE_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 误码信息
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT32                          uwErrorBlocks;                          /* 错块数  */
+    VOS_UINT32                          uwTotalBlocks;                          /* 总块数 */
+}WPHY_TOOL_ERROR_CODE_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_R99_BLER_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : R99下行信道误码统计
+*****************************************************************************/
+typedef struct
+{
+    WPHY_TOOL_ERROR_CODE_INFO_STRU      astBlerInfo[WPHY_MNTN_BLER_RPT_MAX_NUM];
+}WPHY_TOOL_R99_BLER_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_DPA_ERROR_CODE_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : DPA译码误码统计
+*****************************************************************************/
+typedef struct
+{
+    WPHY_TOOL_ERROR_CODE_INFO_STRU      astErrorCode[WPHY_MNTN_DPA_ERROR_CODE_RPT_MAX_NUM];
+}WPHY_TOOL_DPA_ERROR_CODE_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_DPA_EQ_FINGER_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : DPA 均衡解调径信息
+*****************************************************************************/
+typedef struct
+{
+    WPHY_TOOL_FINGER_INFO_STRU            astEqFingerInfo[WPHY_MNTN_EQ_FINGER_RPT_MAX_NUM];
+}WPHY_TOOL_DPA_EQ_FINGER_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_RA_STATUS_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 随机接入状态信息
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT16                          uhwAccessStatus;
+    VOS_UINT16                          uhwAccessProcess;                       /*随机接入上报状态*/
+}WPHY_TOOL_RA_STATUS_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_PI_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : PI可维可测信息
+*****************************************************************************/
+typedef struct
+{
+    VOS_INT16                           shwSfn;                                 /* PI SFN值 */
+    VOS_INT16                           shwSlot;                                /* PI SLOT值 */
+    VOS_INT16                           shwChip;                                /* PI CHIP值 */
+    VOS_UINT16                          uhwPiAckNum;                            /* 解到PI为ACK的个数 */
+    VOS_UINT16                          uhwPiTotalNum;                          /* 解到PI总个数 */
+    VOS_UINT16                          uhwReserved;
+} WPHY_TOOL_PI_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_TX_POW_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 上行发射功率信息
+*****************************************************************************/
+typedef struct
+{
+    VOS_INT16                           shwTxAvrgPwr;
+    VOS_INT16                           shwTxMaxPwr;
+    VOS_INT16                           shwTxMinPwr;
+    VOS_INT16                           shwFilterDpcchPwr;
+    VOS_INT16                           shwAllowUlMaxPower;
+    VOS_UINT16                          uhwReserved;
+}WPHY_TOOL_TX_POW_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_TPC_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 当前帧TPC统计值
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT32                          uwDlTpcS0To7;
+    VOS_UINT32                          uwDlTpcS8To15;
+    VOS_UINT32                          uwUlTpc;
+}WPHY_TOOL_TPC_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_GAIN_FACTOR_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 各信道功率因子
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT16                          uhwBc;
+    VOS_UINT16                          uhwBd;
+    VOS_UINT16                          uhwBhs;
+    VOS_UINT16                          uhwReserved;
+}WPHY_TOOL_GAIN_FACTOR_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_CM_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 压模信息
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT32                          uwDlGapPara;
+    VOS_UINT32                          uwUlGapPara;
+}WPHY_TOOL_CM_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_TIME_MEA_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 时间测量信息
+*****************************************************************************/
+typedef struct
+{
+    VOS_UINT16                          uhwSfncfnMeasFlag;
+    VOS_INT16                           shwScramCodeNum;
+}WPHY_TOOL_TIME_MEA_INFO_STRU;
+
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_COMM_BUSINESS_INFO_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : WPHY各状态公共可维可测信息上报
+*****************************************************************************/
+typedef struct
+{
+    WPHY_TOOL_TIMING_INFO_STRU          stTimingInfo;                           /* 定时上报信息(公共携带SFN CFN SLOT SLICE信息) */
+    VOS_UINT16                          uhwCurrentFreq;                         /* 当前主小区频点 */
+    VOS_UINT16                          uhwSysSramcode;                         /* 当前主小区扰码 */
+    WPHY_TOOL_RL_SCRAM_INFO_STRU        stRlScramInfo;                          /* 链路0、6扰码初相 */
+    WPHY_TOOL_DEMOD_FINGER_INFO_STRU    stDemodFingerInfo;                      /* 所有有效解调径能量径位置 */
+    WPHY_TOOL_MULTIPUTH_UNIT1_INFO_STRU stUnit1Info;                            /* 多径搜索单元1相关信息 */
+    WPHY_TOOL_MP_FINGER_INFO_STRU       stMpFingerInfo;                         /* 单元0,1,2 f0多径能量及相位，通过多径中断获取，不另外读 */
+    WPHY_TOOL_PRI_WIN_INFO_STRU         stPriWinInfo;                           /* 主小区窗头尾 */
+    WPHY_TOOL_MEASURE_CTRL_INFO_STRU    stMeasureCtrlInfo;                      /* 测量任务调度状态 */
+    WPHY_TOOL_CS_CTRL_INFO_STRU         stCsCtrlInfo;                           /* 小区搜索调度状态 */
+    WPHY_TOOL_R99_BLER_INFO_STRU        stR99BlerInfo;                          /* 下行信道误码统计 */
+    VOS_UINT32                          uwDemEn;                                /* 0-15bit为解调信道使能，16bit为传输信道使能 */
+}WPHY_TOOL_COMM_BUSINESS_INFO_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_IDLE_MNTN_RPT_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : IDLE态可维可测信息上报
+*****************************************************************************/
+typedef struct
+{
+    WPHY_TOOL_MNTN_MSG_ID_ENUM_UINT16   enMsgId;                                /*_H2ASN_Skip */ /* 原语类型 */
+    VOS_UINT16                          usToolsId;                              /* 保留字段 */
+
+    WPHY_TOOL_FE_INFO_STRU              stFeInfo;                               /* 前端信息 */
+    WPHY_TOOL_COMM_BUSINESS_INFO_STRU   stCommBusinessInfo;                     /* 公共业务信息 */
+    WPHY_TOOL_LOWPOWER_INFO_STRU        stLowPowerInfo;                         /* 低功耗相关 */
+}WPHY_TOOL_IDLE_MNTN_RPT_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_FACH_MNTN_RPT_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : FACH态可维可测信息上报
+*****************************************************************************/
+typedef struct
+{
+    WPHY_TOOL_MNTN_MSG_ID_ENUM_UINT16   enMsgId;                                /*_H2ASN_Skip */ /* 原语类型 */
+    VOS_UINT16                          usToolsId;                              /* 保留字段 */
+
+    WPHY_TOOL_FE_INFO_STRU              stFeInfo;                               /* 前端信息 */
+    WPHY_TOOL_COMM_BUSINESS_INFO_STRU   stCommBusinessInfo;                     /* 公共业务信息 */
+    WPHY_TOOL_RA_STATUS_INFO_STRU       stRaStatus;
+    WPHY_TOOL_SYS_TIME_INFO_STRU        stSysTimeInfo;                          /* 系统定时，最早径信息 */
+    VOS_UINT32                          uwMaxAndMinTxPow;                       /* 最大最小功率值 0xFD90C0A4*/
+    VOS_UINT32                          uwDpchSccpchDataPow;                    /* DPCH/SCCPCH信道子域能量值 */
+}WPHY_TOOL_FACH_MNTN_RPT_STRU;
+
+/*****************************************************************************
+ 结构名    : WPHY_TOOL_DCH_MNTN_RPT_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : DCH态可维可测信息上报
+*****************************************************************************/
+typedef struct
+{
+    WPHY_TOOL_MNTN_MSG_ID_ENUM_UINT16       enMsgId;                            /*_H2ASN_Skip */ /* 原语类型 */
+    VOS_UINT16                              usToolsId;                          /* 保留字段 */
+
+    WPHY_TOOL_FE_INFO_STRU                  stFeInfo;                           /* 前端信息 */
+    WPHY_TOOL_COMM_BUSINESS_INFO_STRU       stCommBusinessInfo;                 /* 公共业务信息 */
+    WPHY_TOOL_SOFT_WIN_INFO_STRU            stSoftWinInfo;
+    WPHY_TOOL_TX_POW_INFO_STRU              stTxPow;                            /* 上行发射功率 */
+    WPHY_TOOL_TPC_INFO_STRU                 stTpcInfo;                          /* 当前帧TPC统计值 */
+    WPHY_TOOL_TWO_ANT_MP_FINGER_INFO_STRU   stTwoAntMpFingerInfo;
+    WPHY_TOOL_DPA_ERROR_CODE_INFO_STRU      stDpaErrorCode;                     /* DPA译码误码统计 */
+    WPHY_TOOL_DPA_EQ_FINGER_INFO_STRU       stDpaEqFinger;                      /* 均衡解调径信息 */
+    WPHY_TOOL_GAIN_FACTOR_STRU              stGainFactor;                       /* 各信道功率因子 */
+    WPHY_TOOL_SYS_TIME_INFO_STRU            stSysTimeInfo;                      /* 系统定时，最早径信息 */
+    WPHY_TOOL_CM_INFO_STRU                  stCmInfo;                           /* 压模情况 */
+    WPHY_TOOL_TIME_MEA_INFO_STRU            stTimeMeaInfo;                      /* 时间测量情况 */
+    VOS_UINT32                              uwSyncInd;                          /* 当前帧同失步状态 */
+    VOS_INT16                               shwSirTarget;                       /* 外环功控值 */
+    VOS_UINT16                              uhwOlpcCtrlMode;                    /* 外环功控控制模式BLER或者BER */
+    VOS_UINT32                              uwDpchSccpchDataPow;                /* DPCH/SCCPCH信道子域能量值 */
+    VOS_UINT32                              uwBerError;                         /* BER误码统计 */
+    VOS_UINT32                              uwMaxAndMinTxPow;                   /* 最大最小功率值 0xFD90C0A4*/
+    VOS_UINT32                              uwPcUlChanEn;                       /* bit由低到高分别表示上行E-DCH、DCH、RACH、HSUPA、功控使能信息 */
+}WPHY_TOOL_DCH_MNTN_RPT_STRU;
+
+/*****************************************************************************
   7 UNION定义
 *****************************************************************************/
+/*****************************************************************************
+ 联合体名   : WPHY_TOOL_MNTN_RPT_UNION
+ 协议表格   :
+ ASN.1描述  :
+ 联合体说明 : WPHY可维可测信息上报
+*****************************************************************************/
+typedef union
+{
+    WPHY_TOOL_IDLE_MNTN_RPT_STRU        stIdleMntnRpt;                          /* IDLE态可维可测信息上报 */
+    WPHY_TOOL_FACH_MNTN_RPT_STRU        stFachMntnRpt;                          /* FACH态可维可测信息上报 */
+    WPHY_TOOL_DCH_MNTN_RPT_STRU         stDchMntnRpt;                           /* DCH态可维可测信息上报 */
+}WPHY_TOOL_MNTN_RPT_UNION;
+
+
 
 
 /*****************************************************************************

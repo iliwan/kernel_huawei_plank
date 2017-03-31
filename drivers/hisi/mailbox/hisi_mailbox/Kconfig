@@ -42,6 +42,14 @@ config HI6XXX_RPROC
 	help
 	  hi6xxx kernel API about remote processor communication
 
+comment "hi3630 modem reset kernel API about remote processor communication"
+config HISI_RPROC
+        bool "hi3630 modem reset ipc kernel API"
+        default n
+        help
+          hi3630 modem reset kernel API about remote processor communication
+	  only hi3630 could use this
+
 comment "hisi rproc kernel API debugfs"
 config HISI_RPROC_DEBUGFS
 	bool "hisi rproc kernel API debugfs"

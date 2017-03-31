@@ -242,18 +242,16 @@ config VIDEO_MEM2MEM_TESTDEV
 	  framework.
 endif #V4L_TEST_DRIVERS
 
-menuconfig VIDEO_HISI_CAMERA
+menuconfig VIDEO_HI3630_CAMERA
 	bool "Hisilicon Camera multimedia devices"
 	depends on MEDIA_CONTROLLER
 	default n
 	---help---
 	  Say Y here to enable Hisilicon Camera/V4L2 Features support
 
-if VIDEO_HISI_CAMERA
-
+if VIDEO_HI3630_CAMERA
 source "drivers/media/platform/ovisp23/Kconfig"
-
-endif #VIDEO_HISI_CAMERA
+endif
 
 menuconfig VIDEO_HI6210_CAMERA
 	bool "HI6210 Camera Devices"

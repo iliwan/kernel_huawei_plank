@@ -1,7 +1,7 @@
 / {
 	huawei_charger: huawei_charger{
 		compatible = "huawei,charger";
-		status = "disable";
+		status = "disabled";
 	};
 	charging_core:charging_core{
 		compatible = "huawei,charging_core";
@@ -22,7 +22,7 @@
 		inductance_para =
 			"-32767", "15", "1600", "0",
 			"15", "32767", "1700", "0";
-		status = "disable";
+		status = "disabled";
 	};
 	amba {
 		i2c1: i2c@FDF0A000 {
@@ -33,7 +33,7 @@
 				gpio_int = <&gpio24 5 0>;
 				rilim = <220>;
 				adc_channel_iin = <10>;
-				status = "disable";
+				status = "disabled";
 			};
 
 			bq2429x_charger: bq2429x_charger@6B{
@@ -41,7 +41,7 @@
 				reg = <0x6B>;
 				gpio_cd = <&gpio0 3 0>;
 				gpio_int = <&gpio24 5 0>;
-				status = "disable";
+				status = "disabled";
 			};
 			bq25892_charger: bq25892_charger@6B{
 				compatible = "huawei,bq25892_charger";
@@ -53,7 +53,7 @@
 				rilim = <124>;
 				adc_channel_iin = <10>;
 				fcp_support = <0>;
-				status = "disable";
+				status = "disabled";
 			};
 		};
 	};

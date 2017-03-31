@@ -140,6 +140,7 @@ typedef enum _bsp_module_e
     BSP_MODU_HI6559_RTC,
     BSP_MODU_HSUART,
     BSP_MODU_PARF,
+/* yangzhi for sc file backup and restore begin: */
     BSP_MODU_SC,
 /* yangzhi for sc file backup and restore end! */	
     BSP_MODU_PM_OM,

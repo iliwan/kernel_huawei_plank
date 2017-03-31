@@ -1,6 +1,6 @@
 #ifndef _HISILICON_EFUSE_H_
 #define _HISILICON_EFUSE_H_
-
+#ifndef CONFIG_HI3630_EFUSE
 typedef enum tag_efuse_log_level {
     log_level_disable = 0,
     log_level_error = 1,
@@ -32,14 +32,14 @@ typedef struct tag_efusec_data{
     EFUSE_ATTRIBUTION_INFO efuse_attrs_parsed_from_dts[efuse_mem_attr_max];
 }EFUSEC_DATA;
 
-#define OK                      (0)     /* �ɹ� */
-#define ERROR                   (-1)    /* ������������Ͳ�֧�� ���ִ������*/
-#define ERROR_EXIT_PD           (-2)    /* �����˳�power downģʽ */
-#define ERROR_ENTER_PD          (-3)    /* �����˳�power downģʽ */
-#define ERROR_APB_PGM_DIS       (-4)    /* ��ǰeFusec��������д */
-#define ERROR_EFUSEC_READ       (-5)    /* �������һ��eFuse������ */
-#define ERROR_PRE_WRITE         (-6)    /* δ���Ԥ��д��λ */
-#define ERROR_PG_OPERATION      (-7)    /* �������һ��eFuseд���� */
+#define OK                      (0)     /* ³É¹¦ */
+#define ERROR                   (-1)    /* °üÀ¨²ÎÊý´íÎóºÍ²»Ö§³Ö Á½ÖÖ´íÎóÇé¿ö*/
+#define ERROR_EXIT_PD           (-2)    /* ²»ÄÜÍË³öpower downÄ£Ê½ */
+#define ERROR_ENTER_PD          (-3)    /* ²»ÄÜÍË³öpower downÄ£Ê½ */
+#define ERROR_APB_PGM_DIS       (-4)    /* µ±Ç°eFusec²»ÔÊÐíÉÕÐ´ */
+#define ERROR_EFUSEC_READ       (-5)    /* ²»ÄÜÍê³ÉÒ»´ÎeFuse¶Á²Ù×÷ */
+#define ERROR_PRE_WRITE         (-6)    /* Î´Íê³ÉÔ¤ÉÕÐ´ÖÃÎ» */
+#define ERROR_PG_OPERATION      (-7)    /* ²»ÄÜÍê³ÉÒ»´ÎeFuseÐ´²Ù×÷ */
 
 
 #define HISI_EFUSE_READ_CHIPID             0x1000
@@ -81,34 +81,34 @@ extern int get_efuse_carrierid_value(unsigned char *pu8Buffer, unsigned int u32L
 
 #ifdef CONFIG_HI3XXX_EFUSE
 /*****************************************************************************
-* �� �� ��  : bsp_efuse_read
+* º¯ Êý Ãû  : bsp_efuse_read
 *
-* ��������  : �����ȡEFUSE�е�����
+* ¹¦ÄÜÃèÊö  : °´×é¶ÁÈ¡EFUSEÖÐµÄÊý¾Ý
 *
-* �������  : group  ��ʼgroup
-*                   num  ���鳤��(word��,������16)
-* �������  : pBuf ��EFUSE�е�����
+* ÊäÈë²ÎÊý  : group  ÆðÊ¼group
+*                   num  Êý×é³¤¶È(wordÊý,²»³¬¹ý16)
+* Êä³ö²ÎÊý  : pBuf £ºEFUSEÖÐµÄÊý¾Ý
 *
-* �� �� ֵ  : 
+* ·µ »Ø Öµ  : 
 *
-* ����˵��  : 
+* ÆäËüËµÃ÷  : 
 *
 *****************************************************************************/
 int bsp_efuse_read(unsigned int * pBuf, const unsigned int group, const unsigned int num);
 
 /*****************************************************************************
-* �� �� ��  : bsp_efuse_write
+* º¯ Êý Ãû  : bsp_efuse_write
 *
-* ��������  : ��дEfsue
+* ¹¦ÄÜÃèÊö  : ÉÕÐ´Efsue
 *
-* �������  : pBuf:����д��EFUSEֵ
-*                 group,Efuse��ַƫ��
-*                 len,��д����
-* �������  :
+* ÊäÈë²ÎÊý  : pBuf:´ýÉÕÐ´µÄEFUSEÖµ
+*                 group,EfuseµØÖ·Æ«ÒÆ
+*                 len,ÉÕÐ´³¤¶È
+* Êä³ö²ÎÊý  :
 *
-* �� �� ֵ  :
+* ·µ »Ø Öµ  :
 *
-* ����˵��  :
+* ÆäËüËµÃ÷  :
 *
 *****************************************************************************/
 int bsp_efuse_write(unsigned int *pBuf, const unsigned int group, const unsigned int num);
@@ -119,4 +119,61 @@ extern int test_efuse_display(unsigned char *pu8Buffer, unsigned int u32Lenght, 
 #if HISI_EFUSE_DEBUG == 1
 extern int test_efuse_wr(unsigned int timeout);
 #endif
+#else
+
+#define EFUSE_MAX_SIZE			2048
+#define EFUSEC_GROUP_MAX_COUNT		(EFUSE_MAX_SIZE/32)
+
+#define OK      			(0)
+#define ERROR  				(-1)
+#define ERROR_EXIT_PD			(-2)	/* 不能退出power down模式 */
+#define ERROR_ENTER_PD			(-3)	/* 不能退出power down模式 */
+#define ERROR_APB_PGM_DIS		(-4)	/* 当前eFusec不允许烧写 */
+#define ERROR_EFUSEC_READ		(-5)	/* 不能完成一次eFuse读操作 */
+#define ERROR_PRE_WRITE			(-6)	/* 未完成预烧写置位 */
+#define ERROR_PG_OPERATION		(-7)	/* 不能完成一次eFuse写操作 */
+#define ERROR_SECURE_OS                 (-8)	/* 安全OS执行错误 */
+
+#define	HISI_EFUSE_READ_CHIPID		0x1000
+#define	HISI_EFUSE_READ_DIEID		0x2000
+
+/******************************************************************************
+Function:	    bsp_efuse_write
+Description:	    从指定Words偏移开始写入指定Words个数的eFuse值
+Input:		    buf			- 输入参数，存放要写入到eFuse中的值
+		    size		- 输入参数，要写入的Words个数
+		    group		- 输入参数，从指定的Words偏移处开始写入，
+					  文中表示eFuse分组序号group
+Output:		    none
+Return:		    0: OK  其他: ERROR码
+******************************************************************************/
+extern int bsp_efuse_write(const unsigned int* buf,
+			  const unsigned int group,
+			  const unsigned int size);
+
+/******************************************************************************
+Function:	    bsp_efuse_read
+Description:	    从指定Words偏移开始读取指定Words个数的eFuse值
+Input:		    buf			- 输入&输出参数，存放读取到的eFuse值，
+					  由调用方负责分配内存
+		    group		- 输入参数，从指定的Words偏移处开始读取，
+					  文中表示eFuse分组序号group
+		    size		- 输入参数，要读取的Words个数
+Output:		    buf			- 输出参数，存放读取到的eFuse值，
+					  由调用方负责分配内存
+Return:		    0: OK  其他: ERROR码
+******************************************************************************/
+extern int bsp_efuse_read(unsigned int* buf,
+			  const unsigned int group,
+			  const unsigned int size);
+
+
+
+
+
+#endif
+
+
+
+
 #endif

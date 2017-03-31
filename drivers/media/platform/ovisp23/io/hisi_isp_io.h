@@ -18,13 +18,13 @@
 #include <linux/printk.h>
 
 #define COMMAND_BUFFER_END	(0x34fff)
-#define ISP_COMMAND_BEGIN	(0x60000)
+#define ISP_COMMAND_BEGIN	(0x50000)
 #define ISP_COMMAND_END		(0x6ffff)
 
 /* big-endian to little-endian */
 #define ISP_BIG_ENDIAN(a) ((a) + 3 - 2 * ((a) & 0x3))
 
-extern void __iomem * isp_base;
+extern unsigned int isp_base;
 
 #define GETREG8_ISPHW(reg) \
 	(*(volatile unsigned char *)(isp_base + (((reg) - 0x30000) << 2)))
@@ -91,6 +91,6 @@ extern void __iomem * isp_base;
 
 extern unsigned int CSI_GETREG32(unsigned int reg);
 extern void CSI_SETREG32(unsigned int reg, unsigned int val);
-extern void io_set_isp_base(unsigned long isp_base_addr);
+extern void io_set_isp_base(unsigned int isp_base_addr);
 
 #endif

@@ -501,10 +501,6 @@ extern VOS_VOID SI_PIH_PCSC_PowerOff(SI_PIH_PCSC_REQ_STRU *pstMsg);
 
 extern VOS_UINT32 SI_PIH_PCSCCmdHandle(SI_PIH_PCSC_REQ_STRU *pstMsg);
 
-extern VOS_VOID SI_PIH_VsimWriteableFileUpdate(VOS_UINT16 usFileId, VOS_UINT8 *pucFileContent);
-
-extern VOS_VOID SI_PIH_VsimWriteableFileClear(VOS_VOID);
-
 extern VOS_UINT32 SI_PIH_DeactvieCardTimeOut(VOS_VOID);
 
 extern VOS_UINT32 SI_PIH_ImsiBcd2Ascii(VOS_UINT8 ucLen, VOS_UINT8 * pucNum, VOS_UINT8 * pucAsciiStr);

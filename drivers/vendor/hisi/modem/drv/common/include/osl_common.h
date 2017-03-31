@@ -63,6 +63,7 @@ do {                           \
 #define DDR_WIN_ADDR(offset)	(0x10000000 + (offset))
 #endif
 
+/*begin:list*/
 #undef offsetof
 #ifdef __compiler_offsetof
 #define offsetof(TYPE,MEMBER) __compiler_offsetof(TYPE,MEMBER)
@@ -80,6 +81,7 @@ do {                           \
 	 ((type *)((char *)(ptr) - offsetof(type,member)))
 
 
+/*end:list*/
 #else  /* !OS_K3V3_USE_LPM3_API */
 #include <osl_types.h>
 #include <osl_bio.h>

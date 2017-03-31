@@ -38,9 +38,18 @@
 #define SPEAKER_ID_HIGH    1
 #define SPEAKER_ID_LOW   2
 
+#define SPEAKER_ID_MODE_OF_GPIO    "gpio"
+
+enum {
+    SPEAKER_ID_MODE_USE_GPIO            = 0x0,
+    SPEAKER_ID_MODE_USE_ADC             = 0x1,
+};
+
 struct speaker_id{
     int adc_channel;
     int spk_id_limit;
+    int gpio_id;
+    int check_mode;
 };
 
 struct speaker_id spk_id;
@@ -67,13 +76,31 @@ static int adc_read()
         return SPEAKER_ID_HIGH;
 }
 
+static int gpio_read()
+{
+    int value;
+
+    value = gpio_get_value(spk_id.gpio_id);
+    pr_info("%s:gpio read:%d\n",__FUNCTION__, value);
+
+    if(!value)
+        return SPEAKER_ID_LOW;
+    else
+        return SPEAKER_ID_HIGH;
+}
 
 static ssize_t speakerID_read(struct file *file, char __user *user_buf,
                             size_t count, loff_t *ppos)
 {
     char buf[32] = {0};
-
-    int id = adc_read();
+    int id = 0;
+    
+    if(SPEAKER_ID_MODE_USE_GPIO == spk_id.check_mode){
+        id = gpio_read();
+    } else {
+    	id = adc_read();
+    }
+    
     pr_info("speakerID_read id:%d\n", id);
 
     snprintf(buf, sizeof(buf), "%d", id);
@@ -98,6 +125,45 @@ static struct miscdevice speakerID_device = {
     .fops   = &speakerID_fops,
 };
 
+static ssize_t speaker_id_gpio_show(struct device* dev,
+                                     struct device_attribute* attr, char* buf)
+{
+     return  snprintf(buf, 32, "%d\n", gpio_read());
+}
+
+static DEVICE_ATTR(speaker_id_gpio_status, 0660, speaker_id_gpio_show, NULL);
+
+static struct attribute* speaker_id_attributes[] =
+{
+    &dev_attr_speaker_id_gpio_status.attr,
+    NULL
+};
+
+static const struct attribute_group speaker_id_attr_group =
+{
+    .attrs = speaker_id_attributes,
+};
+
+static int get_check_mode(struct device_node *dev_node)
+{
+    const char *mode;
+    int rc;
+
+    /*get check mode*/
+	rc = of_property_read_string(dev_node, "check_mode", &mode);
+	if (rc) {
+		pr_info("%s: not find dev_node ,rc=%d\n", __FUNCTION__, rc);
+        return SPEAKER_ID_MODE_USE_ADC;
+	} else {
+		pr_info("%s: mode: %s\n", __FUNCTION__, mode);
+    }
+
+    if (!strncmp(mode, SPEAKER_ID_MODE_OF_GPIO, sizeof(SPEAKER_ID_MODE_OF_GPIO))) {
+		return SPEAKER_ID_MODE_USE_GPIO;
+	}else{
+        return SPEAKER_ID_MODE_USE_ADC;
+    }
+}
 
 static int speakerID_probe(struct platform_device *pdev)
 {
@@ -105,36 +171,65 @@ static int speakerID_probe(struct platform_device *pdev)
     const struct of_device_id *match;
     struct device_node *node;
     int temp;
-
+       
     match = of_match_device(speaker_id_match, &pdev->dev);
     if (!match) {
         pr_err("get speaker_id device info err\n");
         return -ENOENT;
     }
     node = pdev->dev.of_node;
+    
+    spk_id.check_mode = get_check_mode(node);
+    
+    if(SPEAKER_ID_MODE_USE_GPIO == spk_id.check_mode){
+        spk_id.gpio_id = of_get_named_gpio(node, "gpios", 0);
+	    if (spk_id.gpio_id  < 0) {
+	        pr_err("%s: spk_id.gpio_id is unvalid!\n",__FUNCTION__);
+	        return -ENOENT;
+	    }
 
-    /* get channel id */
-    if (!of_property_read_u32(node, "channel", &temp)) {
-        spk_id.adc_channel= temp;
-    } else {
-        pr_err("get adc channel failed, set default value\n");
-        spk_id.adc_channel = 5;
-    }
-    /*get speakerID limit value*/
-    if (!of_property_read_u32(node, "spk_id_limit", &temp)) {
-        spk_id.spk_id_limit= temp;
-        pr_info("get spk_id_limit from dts:%d\n", temp);
-    } else {
-        pr_err("get spk_id_limit failed, set default value\n");
-        spk_id.spk_id_limit = SPEAKER_ID_LIMIT;
-    }
+	    if (!gpio_is_valid(spk_id.gpio_id)) {
+	        pr_err("%s:gpio is unvalid!\n",__FUNCTION__);
+	        return -ENOENT;
+	    }
 
+        ret = gpio_request(spk_id.gpio_id, "speaker_id_check");
+	    if (ret) {
+	        pr_err("%s:error request GPIO for speaker_id_check fail %d\n",__FUNCTION__, ret);
+	        return -ENODEV;
+	    }
+	    /* set gpio to input status */
+	    gpio_direction_input(spk_id.gpio_id);
+
+        /* create sysfs for debug function */
+	    if ((sysfs_create_group(&pdev->dev.kobj, &speaker_id_attr_group)) < 0) {
+	        pr_err("%s:failed to register sysfs\n",__FUNCTION__);
+	    }
+        
+    } else {
+	    /* get channel id */
+	    if (!of_property_read_u32(node, "channel", &temp)) {
+	        spk_id.adc_channel= temp;
+	    } else {
+	        pr_err("get adc channel failed, set default value\n");
+	        spk_id.adc_channel = 5;
+	    }
+	    /*get speakerID limit value*/
+	    if (!of_property_read_u32(node, "spk_id_limit", &temp)) {
+	        spk_id.spk_id_limit= temp;
+	        pr_info("get spk_id_limit from dts:%d\n", temp);
+	    } else {
+	        pr_err("get spk_id_limit failed, set default value\n");
+	        spk_id.spk_id_limit = SPEAKER_ID_LIMIT;
+	    }
+    }
+    
     ret = misc_register(&speakerID_device);
     if (ret) {
         pr_err("%s: speakerID_device register failed", __FUNCTION__);
         return ret;
     }
-
+         
     return ret;
 }
 

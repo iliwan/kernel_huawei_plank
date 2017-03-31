@@ -454,6 +454,18 @@ found:
 	va->va_start = addr;
 	va->va_end = addr + size;
 	va->flags = 0;
+
+	va->tid = current->pid;
+	strncpy(va->thread_name, current->comm, sizeof(va->thread_name));
+	va->thread_name[sizeof(va->thread_name) - 1] = 0;
+
+	va->tgid = current->tgid;
+	va->process_name[0] = 0;
+	if (current->group_leader) {
+		strncpy(va->process_name, current->group_leader->comm, sizeof(va->process_name));
+		va->process_name[sizeof(va->process_name) - 1] = 0;
+	}
+
 	__insert_vmap_area(va);
 	free_vmap_cache = &va->rb_node;
 	spin_unlock(&vmap_area_lock);
@@ -927,7 +939,6 @@ static void *vb_alloc(unsigned long size, gfp_t gfp_mask)
 	struct vmap_block *vb;
 	unsigned long addr = 0;
 	unsigned int order;
-	int purge = 0;
 
 	BUG_ON(size & ~PAGE_MASK);
 	BUG_ON(size > PAGE_SIZE*VMAP_MAX_ALLOC);
@@ -951,17 +962,7 @@ again:
 		if (vb->free < 1UL << order)
 			goto next;
 
-		i = bitmap_find_free_region(vb->alloc_map,
-						VMAP_BBMAP_BITS, order);
-
-		if (i < 0) {
-			if (vb->free + vb->dirty == VMAP_BBMAP_BITS) {
-				/* fragmented and no outstanding allocations */
-				BUG_ON(vb->dirty != VMAP_BBMAP_BITS);
-				purge = 1;
-			}
-			goto next;
-		}
+		i = VMAP_BBMAP_BITS - vb->free;
 		addr = vb->va->va_start + (i << PAGE_SHIFT);
 		BUG_ON(addr_to_vb_idx(addr) !=
 				addr_to_vb_idx(vb->va->va_start));
@@ -976,9 +977,6 @@ again:
 next:
 		spin_unlock(&vb->lock);
 	}
-
-	if (purge)
-		purge_fragmented_blocks_thiscpu();
 
 	put_cpu_var(vmap_block_queue);
 	rcu_read_unlock();
@@ -2634,9 +2632,11 @@ static int s_show(struct seq_file *m, void *p)
 		return 0;
 
 	if (!(va->flags & VM_VM_AREA)) {
-		seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
+		seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram",
 			(void *)va->va_start, (void *)va->va_end,
 					va->va_end - va->va_start);
+		seq_printf(m, " (tid=%d name=%s pid=%d name=%s)", va->tid, va->thread_name, va->tgid, va->process_name);
+		seq_putc(m, '\n');
 		return 0;
 	}
 
@@ -2668,6 +2668,8 @@ static int s_show(struct seq_file *m, void *p)
 
 	if (v->flags & VM_VPAGES)
 		seq_printf(m, " vpages");
+
+	seq_printf(m, " (tid=%d name=%s pid=%d name=%s)", va->tid, va->thread_name, va->tgid, va->process_name);
 
 	show_numa_info(m, v);
 	seq_putc(m, '\n');
@@ -2714,7 +2716,7 @@ static int __init proc_vmalloc_init(void)
 }
 module_init(proc_vmalloc_init);
 
-void get_vmalloc_info(struct vmalloc_info *vmi)
+void get_vmalloc_info_filtered(struct vmalloc_info *vmi, unsigned long flags)
 {
 	struct vmap_area *va;
 	unsigned long free_area_size;
@@ -2746,6 +2748,9 @@ void get_vmalloc_info(struct vmalloc_info *vmi)
 		if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEING))
 			continue;
 
+		if (flags != 0xFFFFFFFFUL && (!(va->flags & VM_VM_AREA) || va->vm->flags != flags))
+			continue; // largest_chunk will be useless when filtering with flags
+
 		vmi->used += (va->va_end - va->va_start);
 
 		free_area_size = addr - prev_end;
@@ -2760,6 +2765,11 @@ void get_vmalloc_info(struct vmalloc_info *vmi)
 
 out:
 	spin_unlock(&vmap_area_lock);
+}
+
+void get_vmalloc_info(struct vmalloc_info *vmi)
+{
+	get_vmalloc_info_filtered(vmi, 0xFFFFFFFFUL);
 }
 #endif
 

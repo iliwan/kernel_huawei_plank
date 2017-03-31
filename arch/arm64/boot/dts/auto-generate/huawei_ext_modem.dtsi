@@ -50,7 +50,7 @@
 	};
 	viacbp82d_flashless_boot_dl_uart:viacbp82d_flashless_boot_dl_uart {
 		uart_port = "5";
-		status = "disabled";
+		status = "ok";
 	};
 
 };

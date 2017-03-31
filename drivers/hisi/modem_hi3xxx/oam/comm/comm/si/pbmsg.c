@@ -3720,7 +3720,7 @@ SI_PB_INIT_LIST_STRU    gastPBInitProc[] =
     {PB_INIT_PBC_SEARCH,    SI_PB_InitPBCSearchReq,     SI_PB_InitPBCSearchMsgProc},
     {PB_INIT_PBC_CONTENT2,  SI_PB_InitPBCContentReq2,   SI_PB_InitPBCContentMsgProc2},
     {PB_INIT_SYNCH,         SI_PB_InitSYNCHReq,         SI_PB_InitSYNCHProc},
-    {PB_INIT_INFO_APP,      SI_PB_InitInfoApp,          VOS_NULL_PTR}
+    {PB_INIT_INFO_APP,      SI_PB_InitInfoApp,          SI_PB_InitInfoAppDebug}
 };
 
 VOS_UINT32 SI_PBInitMsgProc (PBMsgBlock *pMsg)

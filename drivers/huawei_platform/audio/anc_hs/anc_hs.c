@@ -33,7 +33,7 @@
 #include <linux/fs.h>
 
 #include <linux/huawei/hisi_adc.h>
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #include "huawei_platform/audio/anc_hs.h"
 
 enum anc_hs_mode
@@ -49,12 +49,6 @@ enum switch_chip_status
     SWITCH_CHIP_5VBOOST       = 1,  /* charging */
 };
 
-enum anc_hs_gpio_type
-{
-    ANC_HS_GPIO_SOC           = 0,
-    ANC_HS_GPIO_CODEC         = 1,
-};
-
 #define  ANC_HS_LIMIT_MIN                  20
 #define  ANC_HS_LIMIT_MAX                  200
 #define  ANC_CHIP_STARTUP_TIME             30
@@ -63,6 +57,17 @@ enum anc_hs_gpio_type
 #define  ADC_NORMAL_LIMIT_MIN              -500
 #define  ADC_NORMAL_LIMIT_MAX              500
 #define  ADC_OUT_OF_RANGE                  2499
+#define  ANC_HS_3POLE_LEAK_CURRENT_LIMIT    43
+
+#define  ANC_HS_HOOK_MIN                  160
+#define  ANC_HS_HOOK_MAX                  185
+#define  ANC_HS_VOLUME_UP_MIN                  205
+#define  ANC_HS_VOLUME_UP_MAX                  230
+#define  ANC_HS_VOLUME_DOWN_MIN                  240
+#define  ANC_HS_VOLUME_DOWN_MAX                  265
+
+#define NO_BUTTON_PRESS                      (-1)
+#define CODEC_GPIO_BASE                      (224)
 
 /* dmd error report definition*/
 static struct dsm_dev dsm_anc_hs =
@@ -92,6 +97,13 @@ struct anc_hs_data
     int anc_hs_limit_min;
     int anc_hs_limit_max;
 
+    int anc_hs_btn_hook_min_voltage;
+    int anc_hs_btn_hook_max_voltage;
+    int anc_hs_btn_volume_up_min_voltage;
+    int anc_hs_btn_volume_up_max_voltage;
+    int anc_hs_btn_volume_down_min_voltage;
+    int anc_hs_btn_volume_down_max_voltage;
+
     bool irq_flag;
     bool boost_flag;
 
@@ -107,13 +119,10 @@ struct anc_hs_data
     struct mutex btn_mutex;
     struct mutex charge_lock;/* charge status protect lock */
     struct wake_lock wake_lock;
-    spinlock_t    irq_lock;
 
     int registered;          /* anc hs regester flag */
     struct anc_dev *dev;     /* anc hs dev */
     void *private_data;      /* store codec decription data*/
-
-    int gpio_type;
 
     /* charging button irq workqueue */
     struct workqueue_struct* anc_hs_btn_delay_wq;
@@ -122,10 +131,28 @@ struct anc_hs_data
 
 static struct anc_hs_data* pdata = NULL;
 
-#define ANC_BTN_MASK (SND_JACK_BTN_0)
+//#define ANC_BTN_MASK (SND_JACK_BTN_0)
+#define ANC_BTN_MASK (SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_BTN_2)
 
 extern void boost5v_denoise_headphone_enable(bool enable);
 
+static inline int anc_hs_gpio_get_value(int gpio)
+{
+    if(gpio >= CODEC_GPIO_BASE) {
+        return gpio_get_value_cansleep(gpio);
+    } else {
+        return gpio_get_value(gpio);
+    }
+}
+
+static inline void anc_hs_gpio_set_value(int gpio, int value)
+{
+    if(gpio >= CODEC_GPIO_BASE) {
+        gpio_set_value_cansleep(gpio, value);
+    } else {
+        gpio_set_value(gpio, value);
+    }
+}
 static void anc_hs_dump(void)
 {
     pr_info("%s: mode:%d,irq:%d,sleep_time:%d,mic_used:%d,switch:%d\n",
@@ -134,7 +161,7 @@ static void anc_hs_dump(void)
             pdata->irq_flag,
             pdata->sleep_time,
             pdata->mic_used,
-            gpio_get_value(pdata->gpio_mic_sw));
+            anc_hs_gpio_get_value(pdata->gpio_mic_sw));
 }
 
 static void anc_dsm_report(int anc_errno, int sys_errno)
@@ -146,7 +173,7 @@ static void anc_dsm_report(int anc_errno, int sys_errno)
                           pdata->irq_flag,
                           pdata->sleep_time,
                           pdata->mic_used,
-                          gpio_get_value(pdata->gpio_mic_sw),
+                          anc_hs_gpio_get_value(pdata->gpio_mic_sw),
                           sys_errno);
         dsm_client_notify(anc_hs_dclient, anc_errno);
     }
@@ -154,34 +181,17 @@ static void anc_dsm_report(int anc_errno, int sys_errno)
 
 static inline void anc_hs_enable_irq(void)
 {
-    unsigned long flags;
-
-    spin_lock_irqsave(&pdata->irq_lock, flags);
     if (!pdata->irq_flag) {
         enable_irq(pdata->mic_irq);
         pdata->irq_flag = true;
     }
-    spin_unlock_irqrestore(&pdata->irq_lock, flags);
 }
 
 static inline void anc_hs_disable_irq(void)
 {
-    unsigned long flags;
-
-    spin_lock_irqsave(&pdata->irq_lock, flags);
     if (pdata->irq_flag) {
         disable_irq_nosync(pdata->mic_irq);
         pdata->irq_flag = false;
-    }
-    spin_unlock_irqrestore(&pdata->irq_lock, flags);
-}
-
-static inline int anc_hs_gpio_get_value(int gpio)
-{
-    if(pdata->gpio_type == ANC_HS_GPIO_CODEC) {
-        return gpio_get_value_cansleep(gpio);
-    } else {
-        return gpio_get_value(gpio);
     }
 }
 
@@ -228,14 +238,12 @@ static int enable_boost(bool enable)
 }
 
 /**
- * anc_hs_need_charge - judge whether it is anc headset
- *
- * @anc_hs_data: anc_hs description data
+ * anc_hs_get_adc_delta
  *
  * get 3 times adc value with 1ms delay and use average value(delta) of it,
  * charge for it when delta is between anc_hs_limit_min and anc_hs_limit_max
  **/
-static bool anc_hs_need_charge(void)
+static int anc_hs_get_adc_delta(void)
 {
     int ear_pwr_h = 0, ear_pwr_l = 0;
     int delta = 0, count, fail_count = 0;
@@ -283,16 +291,53 @@ static bool anc_hs_need_charge(void)
         if(need_report) {
             anc_dsm_report(ANC_HS_ADCH_READ_ERR, 0);
         }
-        return false;
+        return 0;
     }
     /* compute an average value */
     delta /= count;
     pr_info("%s:fianal adc value= %d  count=%d\n", __FUNCTION__, delta, count);
+    return delta;
+}
+
+/**
+ * anc_hs_need_charge - judge whether it is anc headset
+ *
+ *
+ **/
+static bool anc_hs_need_charge(void)
+{
+    int delta = 0;
+
+    delta = anc_hs_get_adc_delta();
     if ((delta >= pdata->anc_hs_limit_min) &&
         (delta <= pdata->anc_hs_limit_max)) {
         return true;
     } else {
         return false;
+    }
+}
+
+/**
+ * anc_hs_get_btn_value - judge which button is pressed
+ *
+ *
+ **/
+static int anc_hs_get_btn_value(void)
+{
+    int delta = 0;
+    delta = anc_hs_get_adc_delta();
+    if ((delta >= pdata->anc_hs_btn_hook_min_voltage) &&
+        (delta <= pdata->anc_hs_btn_hook_max_voltage)) {
+        return SND_JACK_BTN_0;
+    } else if ((delta >= pdata->anc_hs_btn_volume_up_min_voltage) &&
+        (delta <= pdata->anc_hs_btn_volume_up_max_voltage)) {
+        return SND_JACK_BTN_1;
+    } else if ((delta >= pdata->anc_hs_btn_volume_down_min_voltage) &&
+        (delta <= pdata->anc_hs_btn_volume_down_max_voltage)) {
+        return SND_JACK_BTN_2;
+    } else {
+        pr_err("[anc_hs]btn delta not in range delta:%d\n", delta);
+        return NO_BUTTON_PRESS;
     }
 }
 
@@ -392,7 +437,7 @@ static void  anc_hs_charge_judge(void)
 
     mutex_lock(&pdata->charge_lock);
     /* connect 5vboost with hs_mic pin*/
-    gpio_set_value(pdata->gpio_mic_sw, SWITCH_CHIP_5VBOOST);
+    anc_hs_gpio_set_value(pdata->gpio_mic_sw, SWITCH_CHIP_5VBOOST);
     mutex_unlock(&pdata->charge_lock);
 
     /* waiting for anc chip start up*/
@@ -416,7 +461,7 @@ static void  anc_hs_charge_judge(void)
             pr_info("%s(%u) : anc_hs disable irq !\n", __FUNCTION__, __LINE__);
         }
         /* stop charge and change status to CHARGE_OFF*/
-        gpio_set_value(pdata->gpio_mic_sw, SWITCH_CHIP_HSBIAS);
+        anc_hs_gpio_set_value(pdata->gpio_mic_sw, SWITCH_CHIP_HSBIAS);
         udelay(500);
         pdata->anc_hs_mode = ANC_HS_CHARGE_OFF;
     }
@@ -447,7 +492,7 @@ static void update_charge_status(void)
 
         if (pdata->anc_hs_mode == ANC_HS_CHARGE_ON) {
             anc_hs_disable_irq();
-            gpio_set_value(pdata->gpio_mic_sw, SWITCH_CHIP_HSBIAS);
+            anc_hs_gpio_set_value(pdata->gpio_mic_sw, SWITCH_CHIP_HSBIAS);
             udelay(500);
 
             pr_info("%s(%u) : stop charging for anc hs !\n", __FUNCTION__, __LINE__);
@@ -455,7 +500,7 @@ static void update_charge_status(void)
             pdata->mic_used = true;
         } else {
             /* here just make a dmd report */
-            if (gpio_get_value(pdata->gpio_mic_sw) == SWITCH_CHIP_5VBOOST) {
+            if (anc_hs_gpio_get_value(pdata->gpio_mic_sw) == SWITCH_CHIP_5VBOOST) {
                 pr_err("%s(%u) : gpio status is not right !\n", __FUNCTION__, __LINE__);
                 anc_dsm_report(ANC_HS_MIC_WITH_GPIO_ERR, 0);
             }
@@ -476,7 +521,7 @@ static void update_charge_status(void)
                 mutex_lock(&pdata->charge_lock);
                 if(pdata->anc_hs_mode == ANC_HS_CHARGE_OFF){
                     pdata->anc_hs_mode = ANC_HS_CHARGE_ON;
-                    gpio_set_value(pdata->gpio_mic_sw, SWITCH_CHIP_5VBOOST);
+                    anc_hs_gpio_set_value(pdata->gpio_mic_sw, SWITCH_CHIP_5VBOOST);
                     udelay(500);
 
                     anc_hs_enable_irq();
@@ -510,7 +555,7 @@ void anc_hs_start_charge(void)
     pr_info("%s(%u) :enable 5vboost\n", __FUNCTION__, __LINE__);
 
     /* default let hsbias connect to hs-mic pin*/
-    gpio_set_value(pdata->gpio_mic_sw, SWITCH_CHIP_HSBIAS);
+    anc_hs_gpio_set_value(pdata->gpio_mic_sw, SWITCH_CHIP_HSBIAS);
     enable_boost(true);
     pdata->anc_hs_mode = ANC_HS_CHARGE_OFF;
 
@@ -557,6 +602,8 @@ void anc_hs_force_charge(int disable)
  **/
 void anc_hs_charge_detect(int saradc_value, int headset_type)
 {
+    int adc_delta = 0;
+
     if ((pdata == NULL) || (pdata->registered == false)) {
         return ;
     }
@@ -574,7 +621,14 @@ void anc_hs_charge_detect(int saradc_value, int headset_type)
     } else if (headset_type == ANC_HS_3POLE) {
         pr_info("%s : no disable 5vboost for 3-pole headset\n", __FUNCTION__);
         /* 3-pole also support second-detect */
-        //enable_boost(false);
+        enable_boost(false);
+    } else if(headset_type == ANC_HS_REVERT_4POLE) {
+        adc_delta = anc_hs_get_adc_delta();
+        if(adc_delta > ANC_HS_3POLE_LEAK_CURRENT_LIMIT) {
+            //FIXME: workround for 3pole leak-current issue
+            pr_info("%s : close 5v at large current,adc_delta:%d\n", __FUNCTION__, adc_delta);
+            enable_boost(false);
+        }
     }
 
 }
@@ -598,7 +652,7 @@ void anc_hs_stop_charge(void)
     cancel_delayed_work(&pdata->anc_hs_btn_delay_work);
 
     enable_boost(false);
-    gpio_set_value(pdata->gpio_mic_sw, SWITCH_CHIP_HSBIAS);
+    anc_hs_gpio_set_value(pdata->gpio_mic_sw, SWITCH_CHIP_HSBIAS);
     pdata->anc_hs_mode = ANC_HS_CHARGE_OFF;
 
     return;
@@ -692,10 +746,12 @@ static void anc_hs_btn_judge(struct work_struct* work)
     if (!anc_hs_gpio_get_value(pdata->mic_irq_gpio) && (pdata->button_pressed == 0)) {
         /*button down event*/
         pr_info("%s(%u) : button down event !\n", __FUNCTION__, __LINE__);
-
-        btn_report = SND_JACK_BTN_0;
-        pdata->button_pressed = 1;
-        fops->btn_report(btn_report, ANC_BTN_MASK);
+        mdelay(50);
+        btn_report = anc_hs_get_btn_value();
+        if(NO_BUTTON_PRESS != btn_report){
+            pdata->button_pressed = 1;
+            fops->btn_report(btn_report, ANC_BTN_MASK);
+        }
 
     } else if (pdata->button_pressed == 1) {
         /*button up event*/
@@ -809,7 +865,7 @@ static long anc_hs_ioctl(struct file* file, unsigned int cmd,
 static ssize_t anc_hs_info_show(struct device* dev,
                                 struct device_attribute* attr, char* buf)
 {
-    #define HS_INFO_SIZE 256
+    #define HS_INFO_SIZE 512
 
     memset(buf, 0, HS_INFO_SIZE);
 
@@ -819,7 +875,7 @@ static ssize_t anc_hs_info_show(struct device* dev,
     snprintf(buf, HS_INFO_SIZE, "%sirq_flag: %d\n", buf, pdata->irq_flag);
     snprintf(buf, HS_INFO_SIZE, "%schannel_pwl_h: %d\n", buf, pdata->channel_pwl_h);
     snprintf(buf, HS_INFO_SIZE, "%schannel_pwl_l: %d\n", buf, pdata->channel_pwl_l);
-    snprintf(buf, HS_INFO_SIZE, "%sgpio_mic_sw: %d\n", buf, gpio_get_value(pdata->gpio_mic_sw));
+    snprintf(buf, HS_INFO_SIZE, "%sgpio_mic_sw: %d\n", buf, anc_hs_gpio_get_value(pdata->gpio_mic_sw));
     snprintf(buf, HS_INFO_SIZE, "%smic_used: %d\n", buf, pdata->mic_used);
     snprintf(buf, HS_INFO_SIZE, "%sadc_calibration_base: %d\n", buf, pdata->adc_calibration_base);
     snprintf(buf, HS_INFO_SIZE, "%scalibration_current: %d\n", buf,
@@ -827,6 +883,12 @@ static ssize_t anc_hs_info_show(struct device* dev,
 
     snprintf(buf, HS_INFO_SIZE, "%sadc_h: %d\n", buf, hisi_adc_get_value(pdata->channel_pwl_h));
     snprintf(buf, HS_INFO_SIZE, "%sadc_l: %d\n", buf, hisi_adc_get_value(pdata->channel_pwl_l));
+    snprintf(buf, HS_INFO_SIZE, "%sanc_hs_btn_hook_min_voltage: %d\n", buf, pdata->anc_hs_btn_hook_min_voltage);
+    snprintf(buf, HS_INFO_SIZE, "%sanc_hs_btn_hook_max_voltage: %d\n", buf, pdata->anc_hs_btn_hook_max_voltage);
+    snprintf(buf, HS_INFO_SIZE, "%sanc_hs_btn_volume_up_min_voltage: %d\n", buf, pdata->anc_hs_btn_volume_up_min_voltage);
+    snprintf(buf, HS_INFO_SIZE, "%sanc_hs_btn_volume_up_max_voltage: %d\n", buf, pdata->anc_hs_btn_volume_up_max_voltage);
+    snprintf(buf, HS_INFO_SIZE, "%sanc_hs_btn_volume_down_min_voltage: %d\n", buf, pdata->anc_hs_btn_volume_down_min_voltage);
+    snprintf(buf, HS_INFO_SIZE, "%sanc_hs_btn_volume_down_max_voltage: %d\n", buf, pdata->anc_hs_btn_volume_down_max_voltage);
 
     return HS_INFO_SIZE;
 }
@@ -854,7 +916,7 @@ static ssize_t anc_detect_limit_store(struct device* dev,
 static ssize_t anc_gpio_sw_show(struct device* dev,
                                 struct device_attribute* attr, char* buf)
 {
-    return snprintf(buf, 32, "%d\n", gpio_get_value(pdata->gpio_mic_sw));
+    return snprintf(buf, 32, "%d\n", anc_hs_gpio_get_value(pdata->gpio_mic_sw));
 }
 
 static ssize_t anc_gpio_sw_store(struct device* dev,
@@ -869,10 +931,10 @@ static ssize_t anc_gpio_sw_store(struct device* dev,
         return ret;
     }
     if (value) {
-        gpio_set_value(pdata->gpio_mic_sw, 1);
+        anc_hs_gpio_set_value(pdata->gpio_mic_sw, 1);
     }
     else {
-        gpio_set_value(pdata->gpio_mic_sw, 0);
+        anc_hs_gpio_set_value(pdata->gpio_mic_sw, 0);
     }
 
     return count;
@@ -975,10 +1037,38 @@ static void load_anc_hs_config(struct device_node* node)
     } else {
         pdata->anc_hs_limit_max = ANC_HS_LIMIT_MAX;
     }
-    if (!of_property_read_u32(node, "gpio_type", &temp)) {
-        pdata->gpio_type = temp;
+    /* read hook limit */
+    if (!of_property_read_u32(node, "anc_hs_btn_hook_min_voltage", &temp)) {
+        pdata->anc_hs_btn_hook_min_voltage = temp;
     } else {
-        pdata->gpio_type = ANC_HS_GPIO_SOC;
+        pdata->anc_hs_btn_hook_min_voltage = ANC_HS_HOOK_MIN;
+    }
+    if (!of_property_read_u32(node, "anc_hs_btn_hook_max_voltage", &temp)) {
+        pdata->anc_hs_btn_hook_max_voltage = temp;
+    } else {
+        pdata->anc_hs_btn_hook_max_voltage = ANC_HS_HOOK_MAX;
+    }
+    /* read volume up limit */
+    if (!of_property_read_u32(node, "anc_hs_btn_volume_up_min_voltage", &temp)) {
+        pdata->anc_hs_btn_volume_up_min_voltage = temp;
+    } else {
+        pdata->anc_hs_btn_volume_up_min_voltage = ANC_HS_VOLUME_UP_MIN;
+    }
+    if (!of_property_read_u32(node, "anc_hs_btn_volume_up_max_voltage", &temp)) {
+        pdata->anc_hs_btn_volume_up_max_voltage = temp;
+    } else {
+        pdata->anc_hs_btn_volume_up_max_voltage = ANC_HS_VOLUME_UP_MAX;
+    }
+    /* read volume down limit */
+    if (!of_property_read_u32(node, "anc_hs_btn_volume_down_min_voltage", &temp)) {
+        pdata->anc_hs_btn_volume_down_min_voltage = temp;
+    } else {
+        pdata->anc_hs_btn_volume_down_min_voltage = ANC_HS_VOLUME_DOWN_MIN;
+    }
+    if (!of_property_read_u32(node, "anc_hs_btn_volume_down_max_voltage", &temp)) {
+        pdata->anc_hs_btn_volume_down_max_voltage = temp;
+    } else {
+        pdata->anc_hs_btn_volume_down_max_voltage = ANC_HS_VOLUME_DOWN_MAX;
     }
 }
 
@@ -996,7 +1086,6 @@ static int anc_hs_probe(struct platform_device* pdev)
 
     mutex_init(&pdata->charge_lock);
     mutex_init(&pdata->btn_mutex);
-    spin_lock_init(&pdata->irq_lock);
     wake_lock_init(&pdata->wake_lock, WAKE_LOCK_SUSPEND, "anc_hs");
 
     /* init all values */

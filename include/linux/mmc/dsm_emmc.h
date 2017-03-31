@@ -2,7 +2,7 @@
 #ifndef LINUX_MMC_DSM_EMMC_H
 #define LINUX_MMC_DSM_EMMC_H
 
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 
 /* define a 1024 size of array as buffer */
 #define EMMC_DSM_BUFFER_SIZE  2048

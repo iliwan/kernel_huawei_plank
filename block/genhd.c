@@ -1070,9 +1070,16 @@ int disk_expand_part_tbl(struct gendisk *disk, int partno)
 	struct disk_part_tbl *old_ptbl = disk->part_tbl;
 	struct disk_part_tbl *new_ptbl;
 	int len = old_ptbl ? old_ptbl->len : 0;
-	int target = partno + 1;
+	int i, target;
 	size_t size;
-	int i;
+
+	/*
+	 * check for int overflow, since we can get here from blkpg_ioctl()
+	 * with a user passed 'partno'.
+	 */
+	target = partno + 1;
+	if (target < 0)
+		return -EINVAL;
 
 	/* disk_max_parts() is zero during initialization, ignore if so */
 	if (disk_max_parts(disk) && target > disk_max_parts(disk))
@@ -1394,6 +1401,30 @@ int invalidate_partition(struct gendisk *disk, int partno)
 }
 
 EXPORT_SYMBOL(invalidate_partition);
+
+#ifdef CONFIG_HW_SD_HEALTH_DETECT
+/*===========================================================================
+ * FUNCTION: set_sd_disk_health_status
+   PARAMETER:
+ *    @disk:the disk which has been monitor
+      @status:the err code which will translate to real code
+ *
+ * Description: send uevent to vold
+ *
+ * Returns: NULL
+
+===========================================================================*/
+void set_sd_disk_health_status(struct gendisk *disk, char *status)
+{
+    char *event = status;
+    char *envp[] = { event, NULL };
+
+    event[11] = '\0';
+    kobject_uevent_env(&disk_to_dev(disk)->kobj, KOBJ_CHANGE, envp);
+    printk(KERN_ERR "mmc1:report sd abnormal to userspace,status = %s\n",status);
+}
+EXPORT_SYMBOL(set_sd_disk_health_status);
+#endif
 
 /*
  * Disk events - monitor disk events like media change and eject request.

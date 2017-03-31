@@ -42,6 +42,13 @@ extern "C" {
 #define NAS_ERR_LOG_CTRL_LEVEL_MINOR                    (3)                     /* ErrLog等级为次要 */
 #define NAS_ERR_LOG_CTRL_LEVEL_WARNING                  (4)                     /* ErrLog等级为提示 */
 
+/* Added by zwx247453 for CHR optimize, 2015-3-13 Begin */
+#define NAS_ERR_LOG_MAX_RAT_SWITCH_RECORD_MUN           (20)                    /* 指定时间GUTL模式切换最大次数 */
+#define NAS_ERR_LOG_MAX_RAT_SWITCH_STATISTIC_TIME       (172800)                /* GUTL模式最大统计时间，单位秒 */
+
+#define NAS_ERR_LOG_ACTIVE_RPT_FLAG_OFFSET              (7)
+#define NAS_ERR_LOG_RAT_SWITCH_RPT_FLAG_OFFSET          (2)
+/* Added by zwx247453 for CHR optimize, 2015-3-13 End */
 
 /*****************************************************************************
   3 枚举定义
@@ -100,23 +107,38 @@ typedef VOS_UINT8  NAS_ERR_LOG_CALL_STATE_ENUM_U8;
 
 enum NAS_ERR_LOG_ALM_ID_ENUM
 {
-    NAS_ERR_LOG_ALM_CS_REG_FAIL         = 0x01,                                 /* CS域注册失败 */
-    NAS_ERR_LOG_ALM_PS_REG_FAIL         = 0x02,                                 /* PS域注册失败 */
-    NAS_ERR_LOG_ALM_SEARCH_NW_FAIL      = 0x03,                                 /* 搜网失败 */
-    NAS_ERR_LOG_ALM_CS_CALL_FAIL        = 0x04,                                 /* CS呼叫失败及异常挂断 */
-    NAS_ERR_LOG_ALM_PS_CALL_FAIL        = 0x05,                                 /* PS呼叫失败及异常挂断 */
-    NAS_ERR_LOG_ALM_SMS_FAIL            = 0x06,                                 /* 短信失败 */
-    NAS_ERR_LOG_ALM_VC_OPT_FAIL         = 0x07,                                 /* VC操作失败 */
-    NAS_ERR_LOG_ALM_CS_PAGING_FAIL      = 0x08,                                 /* CS PAGING fail */
-    NAS_ERR_LOG_ALM_CS_MT_CALL_FAIL     = 0x09,                                 /* CS MT fail */
-    NAS_ERR_LOG_ALM_CSFB_MT_CALL_FAIL   = 0x0a,                                 /* CSFB MT fail */
-    NAS_ERR_LOG_ALM_MNTN                = 0x0b,                                 /* 故障告警的可维可测 */
-    NAS_ERR_LOG_ALM_NW_DETACH_IND       = 0x0c,                                 /* 网络发起的DETACH指示 */
-    NAS_ERR_LOG_ALM_PS_SRV_REG_FAIL     = 0x0d,                                 /* PS SERVICE拒绝 */
+    NAS_ERR_LOG_ALM_CS_REG_FAIL                             = 0x01,             /* CS域注册失败 */
+    NAS_ERR_LOG_ALM_PS_REG_FAIL                             = 0x02,             /* PS域注册失败 */
+    NAS_ERR_LOG_ALM_SEARCH_NW_FAIL                          = 0x03,             /* 搜网失败 */
+    NAS_ERR_LOG_ALM_CS_CALL_FAIL                            = 0x04,             /* CS呼叫失败及异常挂断 */
+    NAS_ERR_LOG_ALM_PS_CALL_FAIL                            = 0x05,             /* PS呼叫失败及异常挂断 */
+    NAS_ERR_LOG_ALM_SMS_FAIL                                = 0x06,             /* 短信失败 */
+    NAS_ERR_LOG_ALM_VC_OPT_FAIL                             = 0x07,             /* VC操作失败 */
+    NAS_ERR_LOG_ALM_CS_PAGING_FAIL                          = 0x08,             /* CS PAGING fail */
+    NAS_ERR_LOG_ALM_CS_MT_CALL_FAIL                         = 0x09,             /* CS MT fail */
+    NAS_ERR_LOG_ALM_CSFB_MT_CALL_FAIL                       = 0x0a,             /* CSFB MT fail */
+    NAS_ERR_LOG_ALM_MNTN                                    = 0x0b,             /* 故障告警的可维可测 */
+    NAS_ERR_LOG_ALM_NW_DETACH_IND                           = 0x0c,             /* 网络发起的DETACH指示 */
+    NAS_ERR_LOG_ALM_PS_SRV_REG_FAIL                         = 0x0d,             /* PS SERVICE拒绝 */
+    NAS_ERR_LOG_ALM_CM_SRV_REJ_IND                          = 0x0e,             /* CS SERVICE拒绝 */
+    NAS_ERR_LOG_ALM_MO_DETACH_IND                           = 0x0f,             /* 本地发起的DETACH */
+    NAS_ERR_LOG_ALM_RAT_FREQUENTLY_SWITCH                   = 0x10,             /* 4G与2/3G频繁切换 */
 
     NAS_ERR_LOG_ALM_ID_BUTT
 };
 typedef VOS_UINT16  NAS_ERR_LOG_ALM_ID_ENUM_U16;
+
+
+enum NAS_ERR_LOG_UNSOLI_REPORT_TYPE_ENUM
+{
+    NAS_ERR_LOG_FAULT_REPORT                                = 0x01,             /* 故障上报 */
+    NAS_ERR_LOG_ALARM_REPORT                                = 0x02,             /* 告警上报 */
+
+    NAS_ERR_LOG_REPORT_TYPE_BUTT
+};
+typedef VOS_UINT16  NAS_ERR_LOG_UNSOLI_REPORT_TYPE_ENUM_U16;
+
+
 enum NAS_ERR_LOG_ALM_TYPE_ENUM
 {
     NAS_ERR_LOG_ALM_TYPE_COMMUNICATION    = 0x00,                               /* 通信 */
@@ -196,6 +218,21 @@ enum NAS_ERR_LOG_PLMN_SELECTION_RESULT_ENUM
     NAS_ERR_LOG_PLMN_SELECTION_BUTT
 };
 typedef VOS_UINT32 NAS_ERR_LOG_PLMN_SEL_RSLT_ENUM_UINT32;
+
+/* Added by zwx247453 for CHR optimize, 2015-03-10 begin */
+
+enum NAS_ERR_LOG_MO_DETACH_TYPE_ENUM
+{
+    NAS_ERR_LOG_MO_DETACH_NULL          = 0,
+    NAS_ERR_LOG_MO_DETACH_PS            = 1,
+    NAS_ERR_LOG_MO_DETACH_CS            = 2,
+    NAS_ERR_LOG_MO_DETACH_CS_PS         = 3,
+
+    NAS_ERR_LOG_MO_DETACH_BUTT
+};
+
+typedef VOS_UINT32 NAS_ERR_LOG_MO_DETACH_TYPE_ENUM_UINT32;
+/* Added by zwx247453 for CHR optimize, 2015-03-10 begin */
 
 /*****************************************************************************
   4 全局变量声明
@@ -344,7 +381,19 @@ typedef struct
     VOS_UINT32                              ulWPagingCause;                     /* paging原因值 */
     VOS_UINT32                              ulWPagingUeId;                      /* Paging Recorder Id */
 
+    /* 参数的使用说明:
+       1. 如果当前处于位置区更新则通过ucCurrProcType来判断
+       2. 如果主叫建链过程中则通过ucCurrProcType,ucLastEstType来判断
+       3. 如果被叫建链过程中则通过ucCurrProcType,ucLastEstType,ucLastPagingCause来判断
+    */
+    VOS_UINT8                               ucCurrMmState;                      /* MM的当前状态 */
+    VOS_UINT8                               ucCurrProcType;                     /* MM的当前流程类型 */
+    VOS_UINT8                               ucLastEstType;                      /* 最近一次的建链类型，MO OR MT */
+    VOS_UINT8                               ucLastPagingCause;                  /* 最近一次的paging原因值 */
+
 }NAS_ERR_LOG_CS_PAGING_FAIL_EVENT_STRU;
+
+
 typedef struct
 {
     OM_ERR_LOG_HEADER_STRU                  stHeader;
@@ -373,15 +422,52 @@ typedef struct
 }NAS_ERR_LOG_NW_DETACH_IND_EVENT_STRU;
 typedef struct
 {
-    OM_ERR_LOG_HEADER_STRU                    stHeader;
-    VOS_UINT32                                enActionResult;                   /* 操作的结果 */
-    VOS_UINT16                                enRegFailCause;                   /* 操作失败原因 */
-    VOS_UINT8                                 aucReserved[2];
-    VOS_UINT32                                ulServiceSts;                     /* 服务状态 */
-    NAS_MNTN_POSITION_INFO_STRU               stPositionInfo;                   /* 位置信息 */
+    OM_ERR_LOG_HEADER_STRU                  stHeader;
+    VOS_UINT32                              enActionResult;                   /* 操作的结果 */
+    VOS_UINT16                              enRegFailCause;                   /* 操作失败原因 */
+    VOS_UINT8                               aucReserved[2];
+    VOS_UINT32                              ulServiceSts;                     /* 服务状态 */
+    NAS_MNTN_POSITION_INFO_STRU             stPositionInfo;                   /* 位置信息 */
 }NAS_ERR_LOG_PS_SRV_REG_RESULT_EVENT_STRU;
 
 
+typedef struct
+{
+    OM_ERR_LOG_HEADER_STRU              stHeader;
+    NAS_MNTN_POSITION_INFO_STRU         stPositionInfo;                         /* 位置信息 */
+    VOS_UINT32                          ulCause;                                /* 失败原因                                 */
+    VOS_UINT32                          ulServiceStatus ;                       /* 服务状态 */
+}NAS_ERR_LOG_CM_SRV_REJ_IND_EVENT_STRU;
+typedef struct
+{
+    OM_ERR_LOG_HEADER_STRU                  stHeader;
+    NAS_MNTN_POSITION_INFO_STRU             stPositionInfo;                     /* 位置信息 */
+    NAS_ERR_LOG_MO_DETACH_TYPE_ENUM_UINT32  enDetachType;                       /* detach类型 */
+}NAS_ERR_LOG_MO_DETACH_IND_EVENT_STRU;
+
+/*****************************************************************************
+ 结构名    : NAS_ERR_LOG_RAT_SWITCH_RECORD_STRU
+ 结构说明  : RAT切换时需要记录的信息
+ 1.日    期   : 2015年03月13日
+   作    者   : zwx247453
+   修改内容   : 新建
+*****************************************************************************/
+typedef struct
+{
+    NAS_MNTN_POSITION_INFO_STRU         stPositionInfo;
+    VOS_UINT8                           ucRatType;
+    VOS_UINT8                           aucReserved[3];
+    VOS_UINT32                          ulSystemTick;
+}NAS_ERR_LOG_RAT_SWITCH_RECORD_STRU;
+
+
+typedef struct
+{
+    OM_ERR_LOG_HEADER_STRU              stHeader;
+    NAS_ERR_LOG_RAT_SWITCH_RECORD_STRU  astRatSwitchInfo[NAS_ERR_LOG_MAX_RAT_SWITCH_RECORD_MUN];/* RAT切换信息 */
+    VOS_UINT32                          ulStatisticTime;                        /* 统计时间 */
+    VOS_UINT32                          ulSwitchNum;                            /* 切换次数 */
+}NAS_ERR_LOG_RAT_FREQUENTLY_SWITCH_EVENT_STRU;
 typedef struct
 {
     OM_FTM_HEADER_STRU                      stHeader;
@@ -397,6 +483,13 @@ typedef struct
     NAS_ERR_LOG_ALM_ID_ENUM_U16             enAlmID;        /* 异常模块ID */
     VOS_UINT16                              usLogLevel;     /* 上报log等级 */
 }NAS_ERR_LOG_ALM_LEVEL_STRU;
+
+
+typedef struct
+{
+    NAS_ERR_LOG_ALM_ID_ENUM_U16                             enAlmID;            /* 异常模块ID */
+    NAS_ERR_LOG_UNSOLI_REPORT_TYPE_ENUM_U16                 enReportType;       /* 上报log等级 */
+}NAS_ERR_LOG_ALM_REPORT_TYPE_STRU;
 
 
 typedef struct

@@ -64,7 +64,8 @@ enum RCM_PHY_MSG_ID_ENUM
     ID_PHY_RCM_SEARCHING_STATE_REQ          = 0x181a,                           /* _H2ASN_MsgChoice PHY_RCM_SEARCHING_STATE_REQ_STRU */
                                                                                 /* 0x181b,0x181c已经分配给CMMCA -> RCM message使用 */
     ID_PHY_RCM_AGENT_SET_DPDT_CNF           = 0x181d,                           /* _H2ASN_MsgChoice PHY_RCM_AGENTC_SET_DPDT_CNF_STRU */
-
+    ID_PHY_RCM_CPICH_STATE_IND              = 0x181e,
+                                                                                /* 0x181f已经分配给MTC -> RCM message使用 */
     ID_RCM_PHY_START_TAS_REQ                = 0x188e,                           /* _H2ASN_MsgChoice RCM_PHY_START_TAS_REQ_STRU */
     ID_RCM_PHY_STOP_TAS_REQ                 = 0x188f,                           /* _H2ASN_MsgChoice RCM_PHY_STOP_TAS_REQ_STRU */
     ID_RCM_PHY_SET_DPDT_REQ                 = 0x1890,                           /* _H2ASN_MsgChoice RCM_PHY_SET_DPDT_REQ_STRU */
@@ -170,6 +171,22 @@ enum RCM_ACCESS_STATE_ENUM
     RCM_ACCESS_STATE_BUTT
 };
 typedef VOS_UINT16 RCM_ACCESS_STATE_ENUM_UINT16;
+
+/*****************************************************************************
+ 枚举名    : RCM_CPICH_STATE_ENUM
+ 枚举说明  : modem接入状态
+             0:非接入状态
+             1:接入状态
+*****************************************************************************/
+enum RCM_CPICH_STATE_ENUM
+{
+    RCM_CPICH_STATE_NON         = 0,
+    RCM_CPICH_STATE             = 1,
+    RCM_CPICH_STATE_BUTT
+};
+typedef VOS_UINT16 RCM_CPICH_STATE_ENUM_UINT16;
+
+
 
 /*****************************************************************************
  枚举名    : RCM_SEARCHING_STATE_ENUM_UINT16
@@ -555,6 +572,26 @@ typedef struct
     RCM_ACCESS_STATE_ENUM_UINT16                enAccessState;                  /* Access State */
     VOS_UINT16                                  usRsv2;
 }PHY_RCM_ACCESS_STATE_IND_STRU;
+
+/*****************************************************************************
+ 结构名    : PHY_RCM_CPICH_STATE_IND_STRU
+ 协议表格  :
+ ASN.1描述 :
+ 结构说明  : 通知RCM PHY CPICH 状态
+*****************************************************************************/
+typedef struct
+{
+    VOS_MSG_HEADER                                                              /*_H2ASN_Skip*/
+    RCM_PHY_MSG_ID_ENUM_UINT16                  enMsgID;                        /* 原语类型 */ /*_H2ASN_Skip*/
+    VOS_UINT16                                  usRsv;                          /* 保留字段 */
+    VOS_UINT16                                  usOPID;                         /* 操作标识 */
+    VOS_UINT16                                  usRsv1;                         /* 保留字段 */
+    RCM_MODE_ID_ENUM_UINT16                     enModeID;                       /* 模式ID */
+    RCM_MODEM_ID_ENUM_UINT16                    enModemID;                      /* modem ID */
+    RCM_CPICH_STATE_ENUM_UINT16                 enCPICHState;                  /* Access State */
+    VOS_UINT16                                  usRsv2;
+}PHY_RCM_CPICH_STATE_IND_STRU;
+
 
 /*****************************************************************************
  结构名    : PHY_RCM_SEARCHING_STATE_IND_STRU

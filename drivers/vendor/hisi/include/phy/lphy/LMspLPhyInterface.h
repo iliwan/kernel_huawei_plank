@@ -298,6 +298,7 @@ extern "C" {
 
 #define CT_TDS_MODE             2
 
+/* Begin: Added by luzhejun, 2013-08-29,PN:LTE_WIFI */
 /* LTE与WIFI共存特性MSP下发给物理层最大的参数组数目 */
 #define    LMSP_LPHY_MAX_COEX_PARA_NUM                        6
 
@@ -310,7 +311,9 @@ extern "C" {
 #define LMSP_TDS_BAND34_INDEX            0         /*TDS_BANDA*/
 
 #define LMSP_TDS_MAX_BAND_NUM            6
+/* End: Added by luzhejun, 2013-08-29,PN:LTE_WIFI */
 
+/* Begin: Added by luzhejun, 2013-08-29,PN:LTE_WIFI */
 /*****************************************************************************
  枚举名    : LMSP_LPHY_MSG_ID_ENUM
  协议表格  :
@@ -374,6 +377,7 @@ enum LMSP_LPHY_RESULT_ENUM
 };
 typedef UINT16    LMSP_LPHY_RESULT_ENUM_UINT16;
 
+/* End: Added by luzhejun, 2013-08-29,PN:LTE_WIFI */
 
 
 
@@ -1903,6 +1907,7 @@ typedef struct
 
 
 
+/* Begin: Added by luzhejun, 2013-08-29,PN:LTE_WIFI */
 /*****************************************************************************
  结构名    : LMSP_LPHY_COEX_PARA_STRU
  协议表格  :
@@ -1948,6 +1953,7 @@ typedef struct
     LMSP_LPHY_RESULT_ENUM_UINT16               enCoexParaConfigResult;
 } LMSP_LPHY_LTE_WIFI_COEX_SET_CNF_STRU;
 
+/* End: Added by luzhejun, 2013-08-29,PN:LTE_WIFI */
 //*****************************************************************************
 // 描述 : 通用AT命令设置
 // ID   : OM_PHY_COMM_CMD_SET_REQ,PHY_OM_COMM_CMD_SET_CNF,PHY_OM_COMM_CMD_IND

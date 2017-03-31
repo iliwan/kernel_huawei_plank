@@ -363,9 +363,11 @@ typedef struct
     INT32                         lCsInitF0;      //³õÊ¼ÆµÆ«
     INT32                         lInitF0Compensation;      //³õÊ¼ÆµÆ«
     UINT32                        ulDeltFOCompensation;
+    /* BEGIN: Added by yushujing, 2013/3/20   PN:v7r2_mod*/
     INT32                         lRFLoopFilterPCCIni;
     INT32                         lRFLoopFilterPCCCur;
     //INT32                         lSitaIni;
+    /* END:   Added by yushujing, 2013/3/20 */
 }AFC_PDM_CTRL_STRU;
 
 
@@ -495,6 +497,7 @@ typedef struct
     AFC_PROC_STRU             stCrsProc;
 
 }AFC_CARRIER_PARA_STRU;
+/* BEGIN: Added by yushujing, 2013/4/22   PN:v7r2_mod*/
 typedef struct
 {
     INT32 lPhaseInitNext;
@@ -514,6 +517,7 @@ typedef struct
     INT32 lPhaseStepScc;
 }AFC_TPA_PARA_STRU;
 
+/* END:   Added by yushujing, 2013/4/22 */
 
 typedef struct
 {
@@ -548,7 +552,9 @@ typedef struct
     AFC_EMBMS_PHASE_STRU      stEmbmsPhase;
     AFC_BACKUP_CELL_PARA_STRU stHoBackupPara;
     AFC_BACKUP_CELL_PARA_STRU stBgsAnrBackupPara;
+    /* BEGIN: Added by yushujing, 2013/4/22   PN:v7r2_mod*/
     AFC_TPA_PARA_STRU stAfcTpaPara;
+    /* END:   Added by yushujing, 2013/4/22   PN:v7r2_mod*/
     AFC_DCXO_TEMPERATURE_COMPENSATE stAfcTmperatureComp;     //³õÊ¼»¯?
 }AFC_PARA_STRU;
 

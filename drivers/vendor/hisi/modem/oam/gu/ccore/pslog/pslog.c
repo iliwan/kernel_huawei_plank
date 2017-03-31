@@ -205,7 +205,7 @@ VOS_VOID MNTN_GetHeadVersion(VOS_VOID * pVersion )
     }
 
     /*    获取软件版本   */
-    if (VOS_OK != DRV_MEM_VERCTRL((VOS_INT8*)pstVerInfo->acSoftVersion,
+    if (VOS_OK != DRV_MEM_VERCTRL((VOS_CHAR*)pstVerInfo->acSoftVersion,
             MNTN_ERRLOG_SOFTVERSION_SIZE, VER_SOFTWARE, VERIONREADMODE))
     {
         vos_printf("MNTN_GetHeadVersion:get softversion error\n");

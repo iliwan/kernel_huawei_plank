@@ -53,6 +53,7 @@ hwisp_vo_close(
 {
     struct isp_cfg_data data;
     struct ion_handle* hdl = NULL;
+    memset(&data, 0x0, sizeof(data));
     hwisp_t* s = SD2ISP(sd);
     hwcam_data_table_t* cfg = NULL;
     HWCAM_CFG_INFO("instance(0x%p)", s);
@@ -86,7 +87,9 @@ static void hwisp_notify_sof(hwisp_notify_intf_t* i, hwisp_event_t* isp_ev)
     hwisp_t *isp = NULL;
     struct v4l2_event ev;
     struct video_device *vdev = NULL;
-    hwisp_event_t* req = (hwisp_event_t*)ev.u.data;
+    hwisp_event_t* req = NULL;
+    memset(&ev, 0x0, sizeof(ev));
+    req = (hwisp_event_t*)ev.u.data;
 
     isp = NotifytoHwisp(i);
     vdev = isp->subdev.devnode;
@@ -106,7 +109,9 @@ static void hwisp_notify_eof(hwisp_notify_intf_t* i, hwisp_event_t* isp_ev)
     hwisp_t *isp = NULL;
     struct v4l2_event ev;
     struct video_device *vdev = NULL;
-    hwisp_event_t* req = (hwisp_event_t*)ev.u.data;
+    hwisp_event_t* req = NULL;
+    memset(&ev, 0x0, sizeof(ev));
+    req = (hwisp_event_t*)ev.u.data;
 
     isp = NotifytoHwisp(i);
     vdev = isp->subdev.devnode;
@@ -125,7 +130,9 @@ static void hwisp_notify_cmd_ready(hwisp_notify_intf_t* i, hwisp_event_t* isp_ev
     hwisp_t *isp = NULL;
     struct v4l2_event ev;
     struct video_device *vdev = NULL;
-    hwisp_event_t* req = (hwisp_event_t*)ev.u.data;
+    hwisp_event_t* req = NULL;
+    memset(&ev, 0x0, sizeof(ev));
+    req = (hwisp_event_t*)ev.u.data;
 
     isp = NotifytoHwisp(i);
     vdev = isp->subdev.devnode;
@@ -181,8 +188,9 @@ hwisp_subdev_get_info(
         hwisp_t* isp,
         hwisp_info_t* info)
 {
-    memcpy(info->name, hwisp_intf_get_name(isp->hw),
-            HWISP_NAME_SIZE);
+    const char *p_name = hwisp_intf_get_name(isp->hw);
+    size_t size = strlen(p_name) > HWISP_NAME_SIZE ? HWISP_NAME_SIZE : strlen(p_name);
+    memcpy(info->name, hwisp_intf_get_name(isp->hw), size);
     return 0;
 }
 

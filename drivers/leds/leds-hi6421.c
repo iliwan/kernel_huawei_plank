@@ -24,7 +24,7 @@
 #include <linux/clk.h>
 #include <linux/notifier.h>
 #include <linux/nmi.h>
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #include <linux/of_device.h>
 
 extern struct atomic_notifier_head panic_notifier_list;

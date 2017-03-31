@@ -80,19 +80,18 @@ u32 bsp_hardtimer_int_status(u32 timer_id)
 
 void bsp_hardtimer_int_clear(u32 timer_id)
 {
+	u32 stamp =0;
 	writel(0x1,(volatile void *)hard_timer_control[timer_id].intclr_addr);
+	stamp = bsp_get_slice_value();
+	while(get_timer_slice_delta(stamp,bsp_get_slice_value())< 2){}
 }
 static s32 bsp_hardtimer_disable_noirq(u32 timer_id)
 {
 	/*最后1bit写0,关闭之前先清中断*/
 	u32 ret = 0;
-	ret = bsp_hardtimer_int_status(timer_id);
-	if (ret )
-	{
-		bsp_hardtimer_int_clear(timer_id);
-	}
 	ret = readl((const volatile void *)hard_timer_control[timer_id].ctrl_addr);
-	writel(ret&(~0x80),(volatile void *)hard_timer_control[timer_id].ctrl_addr);
+	writel(ret&(~0xA0),(volatile void *)hard_timer_control[timer_id].ctrl_addr);
+	bsp_hardtimer_int_clear(timer_id);
 	return OK;
 }
 s32 bsp_hardtimer_disable(u32 timer_id)
@@ -118,8 +117,6 @@ s32 bsp_hardtimer_alloc(struct bsp_hardtimer_control  *timer_ctrl)
 	hard_timer_control[timer_ctrl->timerId].routine = timer_ctrl->func;
 	hard_timer_control[timer_ctrl->timerId].arg = timer_ctrl->para;
 	spin_lock_irqsave(&hard_timer_control[timer_ctrl->timerId].lock,flags);
-	(void)bsp_hardtimer_disable_noirq(timer_ctrl->timerId);
-
 	timerAddr = hard_timer_control[timer_ctrl->timerId].ctrl_addr;
 	if (TIMER_ONCE_COUNT == timer_ctrl->mode)
 	{
@@ -156,7 +153,7 @@ static s32 bsp_hardtimer_enable_noirq(u32 timer_id)
 	unsigned int ret = 0;
 	(void)bsp_hardtimer_disable_noirq(timer_id);
 	ret = readl((const volatile void *)hard_timer_control[timer_id].ctrl_addr);
-	writel(ret|(~0xFFFFFF7F),(volatile void *)hard_timer_control[timer_id].ctrl_addr);
+	writel(ret|0XA0,(volatile void *)hard_timer_control[timer_id].ctrl_addr);
 	return OK;
 }
 s32 bsp_hardtimer_enable(u32 timer_id)

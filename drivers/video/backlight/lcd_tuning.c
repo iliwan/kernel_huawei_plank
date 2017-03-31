@@ -46,6 +46,7 @@ static long lmdev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	{
 		u32 dgamma;
 		u32 cabc;
+		/* END:   Added by huohua, 2012/02/14 */
 		u32 ctValue[9];
 	}par;
 
@@ -116,6 +117,7 @@ static long lmdev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			}
 		}
 		break;
+		/* END:   Added by huohua, 2012/02/14 */
         case LCD_TUNING_DCPR:
 		{			
 			r = copy_from_user((void *)&par, ptr, sizeof(par.ctValue));

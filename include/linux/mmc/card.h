@@ -245,6 +245,7 @@ struct mmc_part {
 struct mmc_card {
 	struct mmc_host		*host;		/* the host this device belongs to */
 	struct device		dev;		/* the device */
+	u32			ocr;		/* the current OCR setting */
 	unsigned int		rca;		/* relative card address of device */
 	unsigned int		type;		/* card type */
 #define MMC_TYPE_MMC		0		/* MMC card */
@@ -263,6 +264,12 @@ struct mmc_card {
 #define MMC_STATE_HIGHSPEED_200	(1<<8)		/* card is in HS200 mode */
 #define MMC_STATE_SLEEP		(1<<9)			/* card is in sleep state */
 #define MMC_STATE_DOING_BKOPS	(1<<10)		/* card is doing BKOPS */
+
+#ifdef CONFIG_MMC_PASSWORDS
+#define MMC_STATE_LOCKED	(1<<12)		/* card is currently locked */
+#define MMC_STATE_ENCRYPT	(1<<13)		/* card is currently encrypt */
+#endif
+
 	unsigned int		quirks; 	/* card quirks */
 #define MMC_QUIRK_LENIENT_FN0	(1<<0)		/* allow SDIO FN0 writes outside of the VS CCCR range */
 #define MMC_QUIRK_BLKSZ_FOR_BYTE_MODE (1<<1)	/* use func->cur_blksize */
@@ -293,6 +300,11 @@ struct mmc_card {
 	struct sd_scr		scr;		/* extra SD information */
 	struct sd_ssr		ssr;		/* yet more SD information */
 	struct sd_switch_caps	sw_caps;	/* switch (CMD6) caps */
+#ifdef CONFIG_MMC_PASSWORDS 
+    bool swith_voltage;             /* whether sdcard voltage swith to 1.8v  */
+	bool auto_unlock;
+	u8	 unlock_pwd[20]; // 1(len) + max_pwd(16) + 0xFF 0xFF + 0 = 20
+#endif
 
 	unsigned int		sdio_funcs;	/* number of SDIO functions */
 	struct sdio_cccr	cccr;		/* common card info */
@@ -436,6 +448,10 @@ static inline void __maybe_unused remove_quirk(struct mmc_card *card, int data)
 #define mmc_card_removed(c)	((c) && ((c)->state & MMC_CARD_REMOVED))
 #define mmc_card_is_sleep(c)	((c)->state & MMC_STATE_SLEEP)
 #define mmc_card_doing_bkops(c)	((c)->state & MMC_STATE_DOING_BKOPS)
+#ifdef CONFIG_MMC_PASSWORDS
+#define mmc_card_locked(c)	((c)->state & MMC_STATE_LOCKED)
+#define mmc_card_encrypt(c)	((c)->state & MMC_STATE_ENCRYPT)
+#endif
 
 #define mmc_card_set_present(c)	((c)->state |= MMC_STATE_PRESENT)
 #define mmc_card_set_readonly(c) ((c)->state |= MMC_STATE_READONLY)
@@ -452,6 +468,10 @@ static inline void __maybe_unused remove_quirk(struct mmc_card *card, int data)
 #define mmc_card_set_sleep(c)	((c)->state |= MMC_STATE_SLEEP)
 
 #define mmc_card_clr_sleep(c)	((c)->state &= ~MMC_STATE_SLEEP)
+#ifdef CONFIG_MMC_PASSWORDS
+#define mmc_card_set_locked(c)	((c)->state |= MMC_STATE_LOCKED)
+#define mmc_card_set_encrypted(c)	((c)->state |= MMC_STATE_ENCRYPT)
+#endif
 
 /*
  * Quirk add/remove for MMC products.

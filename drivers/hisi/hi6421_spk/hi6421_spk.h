@@ -21,6 +21,7 @@
 
 #define HI6421_SPK_CRTL_1	(0xBF << 2)
 #define HI6421_SPK_CRTL_3	(0xC1 << 2)
+#define HI6421_SPK_CFG      (0xC0 << 2)
 
 struct hi6421_spk_platform_data {
 	struct regulator_bulk_data	regu_ldo8;

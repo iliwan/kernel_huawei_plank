@@ -696,6 +696,33 @@ typedef struct
    VOS_UINT8                            ucRsv3;                     /* 保留位 */
 }NVIM_GAS_FAST_AREA_LOST_CFG_STRU;
 
+
+typedef struct
+{
+    VOS_UINT8                            ucAutoFrInvalidMask;   /* 生效标志。各bit值 0 表示可以返回, 1 表示无效不可以返回 */
+                                                                /* bit0: CSFB 主叫, NAS仍未反馈业务建立结果的情况下是否可以返回 */
+                                                                /* bit1: CSFB 被叫, NAS仍未反馈业务建立结果的情况下是否可以返回 */
+                                                                /* bit2~bit8: 保留位 */
+
+    VOS_UINT8                            ucRsv1;                /* 保留位 */
+    VOS_UINT8                            ucRsv2;                /* 保留位 */
+    VOS_UINT8                            ucRsv3;                /* 保留位 */
+}NVIM_GAS_AUTO_FR_CFG_STRU;
+typedef struct
+{
+    VOS_UINT8                           ucPrioReselDisableMask; /* 禁用基于优先级测量和重选准则的场景.以下各 bit 值1表示禁用.0表示不禁用 */
+                                                                /* 注: 配置为0时是否启用基于优先级的算法仍受协议和 NV 9003的约束 */
+                                                                /* bit0: LTE 模式不支持, 且没有3G优先级参数的场景 */
+                                                                /* bit1: LTE 模式被 Disable, 且没有3G优先级参数的场景 */
+                                                                /* bit2~bit8: 保留位 */
+
+    VOS_UINT8                           ucRsv1;                 /* 保留位 */
+    VOS_UINT8                           ucRsv2;                 /* 保留位 */
+    VOS_UINT8                           ucRsv3;                 /* 保留位 */
+    VOS_UINT16                          usRsv4;                 /* 保留位 */
+    VOS_UINT16                          usRsv5;                 /* 保留位 */
+}NVIM_GAS_INTER_RAT_RESEL_CFG_STRU;
+
 /*****************************************************************************
   6 UNION
 *****************************************************************************/

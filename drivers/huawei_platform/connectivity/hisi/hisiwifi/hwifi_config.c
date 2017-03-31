@@ -27,8 +27,7 @@ int32 g_host_init_params[256] = {0};
 int8  custom_country_code[COUNTRY_CODE_LEN+1];
 
 
-
-uint8 g_wifimac[MAC_LEN] = {0x00,0x00,0x00,0x00,0x00,0x00};
+uint8 g_wifimac_hisi[MAC_LEN] = {0x00,0x00,0x00,0x00,0x00,0x00};
 int8  puc_value[256] = {0};
 
 struct hwifi_config_cmd  hwifi_config_cmds[] = {
@@ -292,11 +291,10 @@ int32 hwifi_get_mac_addr(uint8 *buf)
     strncpy(info.nv_name, "MACWLAN", 7);
     info.valid_size = NV_WLAN_VALID_SIZE;
     info.nv_operation = NV_READ;
-
-    if (0 != g_wifimac[0] || 0 != g_wifimac[1] || 0 != g_wifimac[2] || 0 != g_wifimac[3]
-        || 0 != g_wifimac[4] || 0 != g_wifimac[5])
+    if (0 != g_wifimac_hisi[0] || 0 != g_wifimac_hisi[1] || 0 != g_wifimac_hisi[2] || 0 != g_wifimac_hisi[3]
+        || 0 != g_wifimac_hisi[4] || 0 != g_wifimac_hisi[5])
     {
-        memcpy(buf,g_wifimac,MAC_LEN);
+        memcpy(buf,g_wifimac_hisi,MAC_LEN);
         return SUCC;
     }
 
@@ -309,7 +307,7 @@ int32 hwifi_get_mac_addr(uint8 *buf)
         if (0 != sum)
         {
             HWIFI_DEBUG("get MAC from NV: mac="MACFMT"\n", MAC2STR(buf));
-            memcpy(g_wifimac,buf,MAC_LEN);
+            memcpy(g_wifimac_hisi,buf,MAC_LEN);
         }else{
             random_ether_addr(buf);
             buf[1] = 0x11;
@@ -320,7 +318,6 @@ int32 hwifi_get_mac_addr(uint8 *buf)
         buf[1] = 0x11;
         buf[2] = 0x01;
     }
-
     return SUCC;
 }
 

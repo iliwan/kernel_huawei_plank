@@ -599,8 +599,6 @@ static int bq25892_chip_init(void)
     /*08 IR compensation voatge clamp = 224mV ,IR compensation resistor setting = 80mohm */
     ret |= bq25892_set_bat_comp(g_bq25892_dev->param_dts.bat_comp);
     ret |= bq25892_set_vclamp(g_bq25892_dev->param_dts.vclamp);
-    /*09 FORCE_ICO 0,TMR2X_EN 1,BATFET_DIS 0,JEITA_VSET 0,BATFET_RST_EN 1 */
-    ret |= bq25892_write_byte(BQ25892_REG_09,0x44);
     /*boost mode current limit = 500mA,boostv 4.998v*/
     ret |= bq25892_write_byte(BQ25892_REG_0A,0x70);
     /*VINDPM Threshold Setting Method 1,Absolute VINDPM Threshold 4.4v*/
@@ -801,47 +799,39 @@ static int bq25892_set_otg_current(int value)
     u8 reg = 0;
     temp_currentmA = value;
 
-    if(temp_currentmA <= BOOST_LIM_MIN_500)
+    if (temp_currentmA < BOOST_LIM_MIN_500 || temp_currentmA > BOOST_LIM_MAX_2450)
+        hwlog_info("set otg current %dmA is out of range!",value);
+    if(temp_currentmA < BOOST_LIM_750)
     {
-        hwlog_info("set term current %dmA is out of range:%dmA!!",value,BOOST_LIM_MIN_500);
         reg = 0;
     }
-    else if (temp_currentmA > BOOST_LIM_MIN_500 && temp_currentmA <= BOOST_LIM_MIN_700)
+    else if (temp_currentmA >= BOOST_LIM_750 && temp_currentmA < BOOST_LIM_1200)
     {
         reg = 1;
     }
-    else if (temp_currentmA > BOOST_LIM_MIN_700 && temp_currentmA <= BOOST_LIM_MIN_1100)
+    else if (temp_currentmA >= BOOST_LIM_1200 && temp_currentmA < BOOST_LIM_1400)
     {
          reg = 2;
     }
-    else if (temp_currentmA > BOOST_LIM_MIN_1100 && temp_currentmA <=BOOST_LIM_MIN_1300)
+    else if (temp_currentmA >= BOOST_LIM_1400 && temp_currentmA < BOOST_LIM_1650)
     {
         reg = 3;
     }
-    else if (temp_currentmA > BOOST_LIM_MIN_1300 && temp_currentmA <= BOOST_LIM_MIN_1600)
+    else if (temp_currentmA >= BOOST_LIM_1650 && temp_currentmA < BOOST_LIM_1875)
     {
         reg = 4;
     }
-    else if (temp_currentmA > BOOST_LIM_MIN_1600 && temp_currentmA <=BOOST_LIM_MIN_1800)
+    else if (temp_currentmA >= BOOST_LIM_1875 && temp_currentmA < BOOST_LIM_2150)
     {
         reg = 5;
     }
-    else if (temp_currentmA > BOOST_LIM_MIN_1800 && temp_currentmA <= BOOST_LIM_MIN_2100)
+    else if (temp_currentmA >= BOOST_LIM_2150 && temp_currentmA < BOOST_LIM_MAX_2450)
     {
          reg = 6;
     }
-    else if (temp_currentmA > BOOST_LIM_MIN_2100 && temp_currentmA <= BOOST_LIM_MAX_2400)
-    {
-        reg = 7;
-    }
-    else if (temp_currentmA > BOOST_LIM_MAX_2400)
-    {
-        reg = 7;
-        hwlog_info("set term current %dmA is out of range:%dmA!!",value,BOOST_LIM_MAX_2400);
-    }
     else
     {
-        //do nothing
+        reg = 7;
     }
 
     hwlog_debug(" otg current is set %dmA\n",temp_currentmA);

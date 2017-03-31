@@ -216,7 +216,9 @@ static int alarm_set_rtc_alarm(long time_sec, bool enable_irq)
 		return 0;
 	}
 	getnstimeofday(&tmp_time);
+#if defined(CONFIG_RTC_DRV_HI3635_PMU) || defined(CONFIG_RTC_DRV_HI655X) 
 	hisi_pmu_rtc_readtime(&rtc_current_rtc_time);
+#endif
 	rtc_tm_to_time(&rtc_current_rtc_time, &rtc_current_time);
 	
 	/* get offset if system utc time does not equal rtc time */

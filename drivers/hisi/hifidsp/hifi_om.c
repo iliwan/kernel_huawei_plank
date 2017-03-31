@@ -15,10 +15,15 @@
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
 #include <linux/syscalls.h>
+#include <linux/vmalloc.h>
 
 #include <asm/memory.h>
 #include <asm/types.h>
 #include <asm/io.h>
+
+#include <linux/time.h>
+#include <linux/timex.h>
+#include <linux/rtc.h>
 
 #ifdef PLATFORM_HI6XXX
 #include <linux/hisi/util.h>
@@ -44,6 +49,7 @@ static struct proc_dir_entry *hifi_debug_dir = NULL;
 #ifdef PLATFORM_HI6XXX
 extern unsigned int himntn_hifi_resetlog;
 #endif
+#define MAX_LEVEL_STR_LEN 32
 
 #ifdef PLATFORM_HI3XXX
 #ifdef CONFIG_HISI_RDR
@@ -60,6 +66,27 @@ static struct hifi_dsp_dump_info s_dsp_dump_info[] = {
 	{DSP_PANIC,  DUMP_DSP_BIN, FILE_NAME_DUMP_DSP_TCM_BIN,	 UNCONFIRM_ADDR, HIFI_IMAGE_TCMBAK_SIZE},
 };
 
+static void hifi_get_time_stamp(char *timestamp_buf, unsigned int len)
+{
+	struct timeval tv = {0};
+	struct rtc_time tm = {0};
+
+	BUG_ON(NULL == timestamp_buf);
+
+	memset(&tv, 0, sizeof(struct timeval));
+	memset(&tm, 0, sizeof(struct rtc_time));
+
+	do_gettimeofday(&tv);
+	tv.tv_sec -= sys_tz.tz_minuteswest * 60;
+	rtc_time_to_tm(tv.tv_sec, &tm);
+
+	snprintf(timestamp_buf, len, "%04d%02d%02d%02d%02d%02d",
+		tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+		tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+	return;
+}
+
 static int hifi_create_dir(char *path)
 {
 	int fd = -1;
@@ -67,7 +94,7 @@ static int hifi_create_dir(char *path)
 	fd = sys_access(path, 0);
 	if (0 != fd) {
 		logi("need create dir %s.\n", path);
-		fd	= sys_mkdir(path, 0775);
+		fd	= sys_mkdir(path, 0770);
 		if (fd < 0) {
 			loge("create dir %s fail, ret: %d.\n", path, fd);
 			return fd;
@@ -143,6 +170,7 @@ static void hifi_dump_dsp(DUMP_DSP_INDEX index)
 	struct rtc_time cur_tm;
 	struct timespec now;
 
+	char  path_name[HIFI_DUMP_FILE_NAME_MAX_LEN] = {0};
 	char* file_name		= s_dsp_dump_info[index].file_name;
 	char* data_addr		= NULL;
 	unsigned int data_len = s_dsp_dump_info[index].data_len;
@@ -150,10 +178,13 @@ static void hifi_dump_dsp(DUMP_DSP_INDEX index)
 	char* is_panic		= "i'm panic.\n";
 	char* is_exception	= "i'm exception.\n";
 	char* not_panic		= "i'm ok.\n";
+
 	if ((index != NORMAL_LOG) && (index != PANIC_LOG) && g_om_data.is_watchdog_coming) {
 		logi("watchdog is coming,so don't dump %s\n", file_name);
 		return;
 	}
+
+	memset(path_name, 0, HIFI_DUMP_FILE_NAME_MAX_LEN);
 
 	if (rdr_nv_get_value(RDR_NV_HIFI) != 1) {
 		loge("do not save hifi log in nv config \n");
@@ -178,13 +209,13 @@ static void hifi_dump_dsp(DUMP_DSP_INDEX index)
 	s_dsp_dump_info[NORMAL_LOG].data_addr = g_om_data.dsp_log_addr + DRV_DSP_UART_TO_MEM_RESERVE_SIZE;
 	s_dsp_dump_info[PANIC_LOG].data_addr  = g_om_data.dsp_log_addr + DRV_DSP_UART_TO_MEM_RESERVE_SIZE;
 
-	if(index == OCRAM_BIN)
+	if (index == OCRAM_BIN)
 	{
-		s_dsp_dump_info[index].data_addr = (unsigned char*)ioremap_wc(HIFI_OCRAM_BASE_ADDR, HIFI_IMAGE_OCRAMBAK_SIZE);
+		s_dsp_dump_info[index].data_addr = g_om_data.dsp_ocram_bin_addr;
 	}
-	if(index == TCM_BIN)
+	if (index == TCM_BIN)
 	{
-		s_dsp_dump_info[index].data_addr = (unsigned char*)ioremap_wc(HIFI_TCM_BASE_ADDR, HIFI_IMAGE_TCMBAK_SIZE);
+		s_dsp_dump_info[index].data_addr = g_om_data.dsp_tcm_bin_addr;
 	}
 
 	if (NULL == s_dsp_dump_info[index].data_addr) {
@@ -207,15 +238,17 @@ static void hifi_dump_dsp(DUMP_DSP_INDEX index)
 		goto END;
 	}
 
-	ret = vfs_stat(file_name, &file_stat);
+	snprintf(path_name, HIFI_DUMP_FILE_NAME_MAX_LEN, "%s%s", HIFI_LOG_PATH, file_name);
+
+	ret = vfs_stat(path_name, &file_stat);
 	if (ret < 0) {
-		logi("there isn't a dsp log file:%s, and need to create.\n", file_name);
+		logi("there isn't a dsp log file:%s, and need to create.\n", path_name);
 		file_flag |= O_CREAT;
 	}
 
-	fp = filp_open(file_name, file_flag, 0664);
+	fp = filp_open(path_name, file_flag, 0660);
 	if (IS_ERR(fp)) {
-		loge("open file fail: %s.\n", file_name);
+		loge("open file fail: %s.\n", path_name);
 		fp = NULL;
 		goto END;
 	}
@@ -275,7 +308,6 @@ END:
 
 	if((index == OCRAM_BIN || index == TCM_BIN) && (NULL != s_dsp_dump_info[index].data_addr))
 	{
-		iounmap(s_dsp_dump_info[index].data_addr);
 		s_dsp_dump_info[index].data_addr = NULL;
 	}
 
@@ -348,40 +380,71 @@ static void hifi_set_dsp_debug_level(unsigned int level)
 {
 	*(unsigned int*)g_om_data.dsp_debug_level_addr = level;
 }
-
-static void hifi_kill_dsp(void)
+static void kill_hifi_dsp(void)
 {
-	*(unsigned int*)g_om_data.dsp_debug_kill_addr = DRV_DSP_KILLME_VALUE;
+	int ret = OK;
+	struct common_hifi_cmd cmd;
+	memset(&cmd, 0, sizeof(cmd));
+	if (hifi_is_loaded()) {
+		cmd.msg_id = ID_AP_AUDIO_OM_HIFI_RESET_CMD;
+		ret = hifi_misc_send_hifi_msg_async(&cmd);
+		if (OK != ret) {
+			loge("send OM_HIFI_RESET_CMD to hifi fail !\n");
+			return;
+		}
+		logi("go to kill hifi!\n");
+	}
+	return;
 }
 #endif
-static ssize_t hifi_debug_level_show(struct file *file, char *buf,
+static ssize_t hifi_debug_level_show(struct file *file, char __user *buf,
 		size_t size, loff_t *data)
 {
-	BUG_ON(NULL == buf);
+	char level_str[MAX_LEVEL_STR_LEN] = {0};
+
+	if(NULL == buf) {
+		loge("Input param buf is invalid\n");
+		return -EINVAL;
+	}
+
 	if(g_om_data.dsp_hifidebug_show_tag){
 		g_om_data.dsp_hifidebug_show_tag = false;
 		return 0;
 	}
 	g_om_data.dsp_hifidebug_show_tag = true;
-	return snprintf(buf, PAGE_SIZE, "debug level: %c.\n", hifi_get_debug_level_char(g_om_data.debug_level));
+
+	snprintf(level_str, MAX_LEVEL_STR_LEN, "debug level: %c.\n", hifi_get_debug_level_char(g_om_data.debug_level));
+
+	return simple_read_from_buffer(buf, size, data, level_str, strlen(level_str));
 }
 
-static ssize_t hifi_debug_level_store(struct file *file, const char *buf,
+static ssize_t hifi_debug_level_store(struct file *file, const char __user *buf,
 		size_t size, loff_t *data)
 {
-	BUG_ON(NULL == buf);
-	if ((!*buf) || (!strchr("diwe", *buf))) {
-		loge("Input param buf is error(valid: d,i,w,e): %s.\n", buf);
+	ssize_t ret = 0;
+	char level_str[MAX_LEVEL_STR_LEN] = {0};
+	loff_t pos = 0;
+
+	if (NULL == buf) {
+		loge("Input param buf is invalid\n");
+		return -EINVAL;
+	}
+	ret = simple_write_to_buffer(level_str, MAX_LEVEL_STR_LEN - 1 , &pos, buf, size);
+	if (ret != size) {
+		loge("Input param buf read error, return value: %zd\n", ret);
 		return -EINVAL;
 	}
 
-	if (*(buf + 1) != '\n') {
+	if (!strchr("diwe", level_str[0])) {
+		loge("Input param buf is error(valid: d,i,w,e): %s.\n", level_str);
+		return -EINVAL;
+	}
+	if (level_str[1] != '\n') {
 		loge("Input param buf is error, last char is not \\n .\n");
 		return -EINVAL;
 	}
 
-	g_om_data.debug_level = hifi_get_debug_level_num(*buf);
-
+	g_om_data.debug_level = hifi_get_debug_level_num(level_str[0]);
 	return size;
 }
 static const struct file_operations hifi_debug_proc_ops = {
@@ -391,37 +454,59 @@ static const struct file_operations hifi_debug_proc_ops = {
 };
 
 #ifdef PLATFORM_HI3XXX
-static ssize_t hifi_dsp_debug_level_show(struct file *file, char *buf,
+static ssize_t hifi_dsp_debug_level_show(struct file *file, char __user *buf,
 				size_t size, loff_t *data)
 {
-	BUG_ON(NULL == buf);
-	if(g_om_data.dsp_hifidebug_show_tag){
+	char level_str[MAX_LEVEL_STR_LEN] = {0};
+
+	if (NULL == buf) {
+		loge("Input param buf is invalid\n");
+		return -EINVAL;
+	}
+
+	if (g_om_data.dsp_hifidebug_show_tag) {
 		g_om_data.dsp_hifidebug_show_tag = false;
 		return 0;
 	}
 	g_om_data.dsp_hifidebug_show_tag = true;
-	return snprintf(buf, PAGE_SIZE, "dsp debug level: %c.\n", hifi_get_debug_level_char(g_om_data.dsp_debug_level));
+
+	snprintf(level_str, MAX_LEVEL_STR_LEN, "dsp debug level: %c.\n", hifi_get_debug_level_char(g_om_data.dsp_debug_level));
+
+	return simple_read_from_buffer(buf, size, data, level_str, strlen(level_str));
 }
-static ssize_t hifi_dsp_debug_level_store(struct file *file, const char *buf,
+static ssize_t hifi_dsp_debug_level_store(struct file *file, const char __user *buf,
 		size_t size, loff_t *data)
 {
-	BUG_ON(NULL == buf);
-	if ((!*buf) || (strchr("k", *buf))) {
-		loge("go to kill hifi.\n");
-		hifi_kill_dsp();
+	ssize_t ret = 0;
+	char level_str[MAX_LEVEL_STR_LEN] = {0};
+	loff_t pos = 0;
+
+	if (NULL == buf) {
+		loge("Input param buf is invalid\n");
 		return -EINVAL;
 	}
 
-	if ((!*buf) || (!strchr("diwe", *buf))) {
-		loge("Input param buf is error(valid: d,i,w,e): %s.\n", buf);
+	ret = simple_write_to_buffer(level_str, MAX_LEVEL_STR_LEN - 1 , &pos, buf, size);
+	if (ret != size) {
+		loge("Input param buf read error, return value: %zd\n", ret);
 		return -EINVAL;
 	}
-	if (*(buf + 1) != '\n') {
+
+	if (!strchr("kdiwe", level_str[0])) {
+		loge("Input param buf is error(valid: d,i,w,e): %s.\n", level_str);
+		return -EINVAL;
+	}
+	if (level_str[1] != '\n') {
 		loge("Input param buf is error, last char is not \\n .\n");
 		return -EINVAL;
 	}
 
-	g_om_data.dsp_debug_level = hifi_get_debug_level_num(*buf);
+	if (strchr("k", level_str[0])) {
+		kill_hifi_dsp();
+		return size;
+	}
+
+	g_om_data.dsp_debug_level = hifi_get_debug_level_num(level_str[0]);
 	hifi_set_dsp_debug_level(g_om_data.dsp_debug_level);
 
 	return size;
@@ -433,7 +518,7 @@ static const struct file_operations hifi_dspdebuglevel_proc_ops = {
 };
 #endif
 
-static ssize_t hifi_dsp_dump_log_show(struct file *file, char *buf,
+static ssize_t hifi_dsp_dump_log_show(struct file *file, char __user *buf,
 		size_t size, loff_t *data)
 {
 #ifdef PLATFORM_HI3XXX
@@ -486,23 +571,105 @@ static void remove_hifidebug_proc_file(void)
 
 static void hifi_create_procfs(void)
 {
+#ifdef ENABLE_HIFI_DEBUG
 	hifi_debug_dir = proc_mkdir(HIFIDEBUG_PATH, NULL);
 	if (hifi_debug_dir == NULL) {
 		loge("Unable to create /proc/hifidebug directory\n");
 		return ;
 	}
 	create_hifidebug_proc_file();
+
 	return ;
+#endif
 }
 
 static void hifi_remove_procfs(void)
 {
+#ifdef ENABLE_HIFI_DEBUG
 	remove_hifidebug_proc_file();
 	remove_proc_entry("hifidebug", 0);
 	return;
+#endif
 }
 
 #ifdef PLATFORM_HI3XXX
+
+static int hifi_request_ocram_tcm_source(void)
+{
+	int ret = OK;
+	unsigned int* hifi_ocram_addr = NULL;
+	unsigned int* hifi_tcm_addr = NULL;
+
+	g_om_data.dsp_ocram_bin_addr = vmalloc((size_t)(HIFI_IMAGE_OCRAMBAK_SIZE));
+	if (NULL == g_om_data.dsp_ocram_bin_addr) {
+		loge("alloc dsp_ocram_bin_addr fail \n");
+		ret = -ENOMEM;
+		goto err_free;
+	}
+
+	g_om_data.dsp_tcm_bin_addr = vmalloc((size_t)(HIFI_IMAGE_TCMBAK_SIZE));
+	if (NULL == g_om_data.dsp_tcm_bin_addr) {
+		loge("alloc dsp_tcm_bin_addr fail \n");
+		ret = -ENOMEM;
+		goto err_free;
+	}
+
+	hifi_ocram_addr = (unsigned char*)ioremap_wc(HIFI_OCRAM_BASE_ADDR, HIFI_IMAGE_OCRAMBAK_SIZE);
+	if (NULL == hifi_ocram_addr) {
+		loge("remap ocram_addr fail \n");
+		ret = -ENOMEM;
+		goto err_free;
+	}
+
+	hifi_tcm_addr = (unsigned char*)ioremap_wc(HIFI_TCM_BASE_ADDR, HIFI_IMAGE_TCMBAK_SIZE);
+	if (NULL == hifi_tcm_addr) {
+		loge("remap ocram_addr fail \n");
+		ret = -ENOMEM;
+		goto err_free;
+	}
+
+	memcpy(g_om_data.dsp_ocram_bin_addr, hifi_ocram_addr, HIFI_IMAGE_OCRAMBAK_SIZE);
+	memcpy(g_om_data.dsp_tcm_bin_addr, hifi_tcm_addr, HIFI_IMAGE_TCMBAK_SIZE);
+
+	goto end;
+
+err_free:
+	if (g_om_data.dsp_ocram_bin_addr) {
+		vfree(g_om_data.dsp_ocram_bin_addr);
+		g_om_data.dsp_ocram_bin_addr = NULL;
+	}
+
+	if (g_om_data.dsp_tcm_bin_addr) {
+		vfree(g_om_data.dsp_tcm_bin_addr);
+		g_om_data.dsp_tcm_bin_addr = NULL;
+	}
+
+end:
+	if (hifi_ocram_addr) {
+		iounmap(hifi_ocram_addr);
+		hifi_ocram_addr = NULL;
+	}
+
+	if (hifi_tcm_addr) {
+		iounmap(hifi_tcm_addr);
+		hifi_tcm_addr = NULL;
+	}
+
+	return ret;
+}
+
+static void hifi_release_ocram_tcm_source(void)
+{
+	if (g_om_data.dsp_ocram_bin_addr) {
+		vfree(g_om_data.dsp_ocram_bin_addr);
+		g_om_data.dsp_ocram_bin_addr = NULL;
+	}
+
+	if (g_om_data.dsp_tcm_bin_addr) {
+		vfree(g_om_data.dsp_tcm_bin_addr);
+		g_om_data.dsp_tcm_bin_addr = NULL;
+	}
+}
 
 bool hifi_is_power_on(void)
 {
@@ -535,7 +702,7 @@ static int hifi_dump_dsp_thread(void *p)
 	unsigned int time_now = 0;
 	unsigned int time_diff = 0;
 	unsigned int* hifi_info_addr = NULL;
-	unsigned int hifi_stack_addr = 0;
+    unsigned int hifi_stack_addr = 0;
 	int i;
 
 	IN_FUNCTION;
@@ -545,11 +712,11 @@ static int hifi_dump_dsp_thread(void *p)
 			loge("hifi_dump_dsp_thread wake up err.\n");
 		}
 		time_now = (unsigned int)readl(g_om_data.dsp_time_stamp);
-		time_diff = time_now - g_om_data.pre_dump_timestamp;
-		g_om_data.pre_dump_timestamp = time_now;
+		time_diff = time_now - g_om_data.pre_dsp_dump_timestamp;
+		g_om_data.pre_dsp_dump_timestamp = time_now;
 
 
-		hifi_info_addr = (unsigned char*)ioremap_wc(DRV_DSP_STACK_TO_MEM, DRV_DSP_STACK_TO_MEM_SIZE);
+		hifi_info_addr = (unsigned int*)ioremap_wc(DRV_DSP_STACK_TO_MEM, DRV_DSP_STACK_TO_MEM_SIZE);
 		if (NULL == hifi_info_addr) {
 			loge("dsp log ioremap_wc hifi_info_addr fail.\n");
 			continue;
@@ -558,6 +725,8 @@ static int hifi_dump_dsp_thread(void *p)
 		exception_no = *(unsigned int*)(hifi_info_addr + 3);
 		hifi_stack_addr = *(unsigned int*)(hifi_info_addr + 4);
 		logi("errno:%x pre_errno:%x is_first:%d is_force:%d time_diff:%d ms.\n", exception_no, g_om_data.pre_exception_no, g_om_data.first_dump_log, g_om_data.force_dump_log, (time_diff * 1000) / HIFI_TIME_STAMP_1S);
+
+		hifi_get_time_stamp(g_om_data.cur_dump_time, HIFI_DUMP_FILE_NAME_MAX_LEN);
 
 		if (exception_no < 40 && (exception_no != g_om_data.pre_exception_no)) {
 			logi("panic addr:0x%x, cur_pc:0x%x, pre_pc:0x%x, cause:0x%x\n", *(unsigned int*)(hifi_info_addr), *(unsigned int*)(hifi_info_addr+1), *(unsigned int*)(hifi_info_addr+2), *(unsigned int*)(hifi_info_addr+3));
@@ -569,20 +738,34 @@ static int hifi_dump_dsp_thread(void *p)
 			hifi_dump_dsp(PANIC_BIN);
 
 			g_om_data.pre_exception_no = exception_no;
-		} else if (g_om_data.first_dump_log || g_om_data.force_dump_log || time_diff > HIFI_DUMPLOG_TIMESPAN){
+		} else if (g_om_data.first_dump_log
+			|| g_om_data.force_dump_log
+			|| time_diff > HIFI_DUMPLOG_TIMESPAN) {
+
 			hifi_dump_dsp(NORMAL_LOG);
-			hifi_dump_dsp(NORMAL_BIN);
+			if (DSP_LOG_BUF_FULL != g_om_data.dsp_error_type) {/*needn't dump bin when hifi log buffer full*/
+				hifi_dump_dsp(NORMAL_BIN);
+			}
+
 			g_om_data.first_dump_log = false;
 		}
 
 		iounmap(hifi_info_addr);
 		hifi_info_addr = NULL;
 
-		if (hifi_is_power_on()) {
+		if (hifi_is_power_on()
+			&& (DSP_LOG_BUF_FULL != g_om_data.dsp_error_type)
+			&& (!g_om_data.force_dump_log)) {
 			logi("hifi is power on, now dump ocram and tcm \n");
-			hifi_dump_dsp(OCRAM_BIN);
-			hifi_dump_dsp(TCM_BIN);
+			if (OK == hifi_request_ocram_tcm_source()) {
+				logi("ocram and tcm have saved in buffer, now save file \n");
+				hifi_dump_dsp(OCRAM_BIN);
+				hifi_dump_dsp(TCM_BIN);
+				hifi_release_ocram_tcm_source();
+			}
 		}
+
+		g_om_data.force_dump_log = false;
 	}
 	OUT_FUNCTION;
 	return 0;
@@ -641,6 +824,7 @@ bool hifi_is_loaded(void)
 
 int hifi_dsp_dump_hifi(unsigned long arg)
 {
+	g_om_data.dsp_error_type = (unsigned int)arg;
 	return (int)hifi_dsp_dump_log_show(NULL, NULL, 0, NULL);
 }
 
@@ -676,9 +860,12 @@ void hifi_om_init(struct platform_device *dev, unsigned char* hifi_priv_base_vir
 
 	g_om_data.dsp_panic_mark = (unsigned int*)(hifi_priv_base_virt + (DRV_DSP_PANIC_MARK - HIFI_BASE_ADDR));
 	g_om_data.dsp_bin_addr = (char*)(hifi_priv_base_virt + (HIFI_RUN_LOCATION - HIFI_BASE_ADDR));
+	g_om_data.dsp_ocram_bin_addr = NULL;
+	g_om_data.dsp_tcm_bin_addr = NULL;
 	g_om_data.dsp_exception_no = (unsigned int*)(hifi_priv_base_virt + (DRV_DSP_EXCEPTION_NO - HIFI_BASE_ADDR));
 	g_om_data.dsp_log_cur_addr = (unsigned int*)(hifi_priv_base_virt + (DRV_DSP_UART_TO_MEM_CUR_ADDR - HIFI_BASE_ADDR));
 	g_om_data.dsp_log_addr = NULL;
+	*g_om_data.dsp_log_cur_addr = DRV_DSP_UART_TO_MEM + DRV_DSP_UART_TO_MEM_RESERVE_SIZE;
 
 	g_om_data.dsp_debug_level_addr = (unsigned int*)(hifi_priv_base_virt + (DRV_DSP_UART_LOG_LEVEL - HIFI_BASE_ADDR));
 	g_om_data.dsp_debug_kill_addr = (unsigned int*)(hifi_priv_base_virt + (DRV_DSP_KILLME_ADDR - HIFI_BASE_ADDR));

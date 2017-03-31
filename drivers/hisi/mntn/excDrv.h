@@ -210,6 +210,21 @@ extern "C" {
 
 #define HIMNTN_VALID_SIZE   (32)
 
+#define RESET_LOG_FILE_PATH_SIZE        (256)
+#define HIFI_RESET_LOG_PATH             ("/data/hisi_logs/hifi_log/coredump")
+#define HIFI_RESET_LOG_FILE             ("hifi_reset.log")
+#define HIFI_RESET_LOG_MAX_SIZE         (1024*1024)
+
+/* assign to UCOM_SET_SRAMSHARE session */
+#define EXCH_H_CORE_BASE_ADDR           0x05a3285c
+
+#define HIFI_RESET_KEY_NUM_ONE          0x58585858
+#define HIFI_RESET_KEY_NUM_TWO          0x55885588
+#define HIFI_RESET_KEY_NUM_THREE        0x85858585
+#define HIFI_RESET_KEY_NUM_FOUR         0x88558855
+
+
+
 struct dump_log
 {
     char root_info[EXCH_ROOT_SIZE];
@@ -277,11 +292,11 @@ typedef enum
     EXCH_S_WATCHPOINT,      /*for watchpoint 功能*/
     EXCH_S_GPIO,
     EXCH_S_MAILBOX,
-    EXCH_S_OTHERS,
-    EXCH_S_CSI,
+	EXCH_S_CSI0,
+	EXCH_S_CSI1,
+	EXCH_S_OTHERS,
     EXCH_S_MAX
 } EXCH_SOURCE;
-
 #ifdef EXCH_TEST_FUNCTION_ON
 enum exchErrType
 {
@@ -436,6 +451,42 @@ typedef int  (*exch_CBReg)(exch_cb_buf_t *);
 /*AP CP 解耦，该部分在该部分 include/drv/acore/mdrv_stub.h 中也定义了一份，需要同步修改 end*/
 
 typedef void  (*exch_mdm_panic_reg)(void);
+
+
+/* HIFI OM module ID */
+enum
+{
+	OM_MAIN_OBJ_ID_AUDIO_PCM             = 0,
+	OM_MAIN_OBJ_ID_CPU_VIEW,
+	OM_MAIN_OBJ_ID_INNER_LOG,
+	OM_MAIN_OBJ_ID_MAILBOX,
+	OM_MAIN_OBJ_ID_V_QUEUE,
+	OM_MAIN_OBJ_ID_AUDIO_PLAYER,
+	OM_MAIN_OBJ_ID_MEM_CTRL,
+	OM_MAIN_OBJ_ID_LAST_OM_LOG,
+	OM_MAIN_OBJ_ID_VOICE_MC,
+	OM_MAIN_OBJ_ID_MEM_DYN,
+	OM_MAIN_OBJ_ID_AUDIO_ENHANCE,
+	OM_MAIN_OBJ_ID_CPU_LOAD,
+	OM_MAIN_OBJ_ID_SJB,
+	OM_MAIN_OBJ_ID_DUMP_TRACES,
+	OM_MAIN_OBJ_ID_DUMP_TCM,
+	OM_MAIN_OBJ_ID_BUTT
+};
+
+struct hifi_om_info {
+	unsigned int protect_word_1;
+	unsigned int protect_word_2;
+	unsigned int obj_addr[OM_MAIN_OBJ_ID_BUTT];
+	unsigned int obj_size[OM_MAIN_OBJ_ID_BUTT];
+	unsigned int protect_word_3;
+	unsigned int protect_word_4;
+};
+
+/* virtual address struct of hifi main module, 32bit 64bit address compatible*/
+struct hifi_om_virtual_addr {
+	unsigned long virtual_addr[OM_MAIN_OBJ_ID_BUTT];
+};
 
 /*******************************************************************************
   7 UNION定义

@@ -21,13 +21,13 @@
 #include <linux/kthread.h>
 #include <huawei_platform/log/hw_log.h>
 #include <linux/of.h>
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 
 #define HWLOG_TAG DSM_EARLYBOOT_CLIENT
 HWLOG_REGIST();
 
 static struct dsm_dev public_client_devices[] = {
-    {
+    [0] = {
 		.name = "dsm_apcp",
 		.device_name = NULL,
 		.ic_name = NULL,
@@ -35,7 +35,7 @@ static struct dsm_dev public_client_devices[] = {
 		.fops = NULL,
 		.buff_size = 1024,
     },
-    {
+    [1] = {
 		.name = "dsm_spi",
 		.device_name = NULL,
 		.ic_name = NULL,
@@ -43,7 +43,7 @@ static struct dsm_dev public_client_devices[] = {
 		.fops = NULL,
 		.buff_size = 1024,
     },
-	{
+	[2] = {
 		.name = "smartpa",
 		.device_name = NULL,
 		.ic_name = NULL,
@@ -51,7 +51,7 @@ static struct dsm_dev public_client_devices[] = {
 		.fops = NULL,
 		.buff_size = 1024,
 	},
-	{
+	[3] = {
 		.name = "dsm_selinux",
 		.device_name = NULL,
 		.ic_name = NULL,
@@ -60,7 +60,7 @@ static struct dsm_dev public_client_devices[] = {
 		.buff_size = 1024,
     },
 #ifdef CONFIG_HUAWEI_SDCARD_VOLD
-	{
+	[4] = {
 		.name = "sdcard_vold",
 		.device_name = NULL,
 		.ic_name = NULL,
@@ -69,14 +69,6 @@ static struct dsm_dev public_client_devices[] = {
 		.buff_size = 1024,
 	},
 #endif
-	{
-		.name = "dsm_uart",
-		.device_name = NULL,
-		.ic_name = NULL,
-		.module_name = NULL,
-		.fops = NULL,
-		.buff_size = 1024,
-    },
 };
 
 int get_spi_client(struct dsm_client **dev)

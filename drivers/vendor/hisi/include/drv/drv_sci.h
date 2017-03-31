@@ -19,6 +19,7 @@ extern "C"
 
 #include "drv_comm.h"
 
+
 typedef enum tagSCI_CLK_STOP_TYPE_E
 {
     SCI_CLK_STATE_LOW = 0,        /* 协议侧指示停低*/
@@ -44,6 +45,7 @@ typedef enum
     SIM_CARD_IN  = 1,
 } SCI_DETECT_STATE;
 
+/* T=1 add Begin:*/
 /*for reset mode*/
 typedef enum
 {
@@ -401,6 +403,7 @@ void DRV_USIMMSCI_FUNC_REGISTER(OMSCIFUNCPTR omSciFuncPtr);
 *****************************************************************************/
 BSP_U32 DRV_USIMMSCI_RECORD_DATA_SAVE(SCI_LOG_MODE log_mode);  
 
+/* T=1 add Begin:*/
 /*****************************************************************************
 * 函 数 名  : DRV_USIMMSCI_SETBWT
 *

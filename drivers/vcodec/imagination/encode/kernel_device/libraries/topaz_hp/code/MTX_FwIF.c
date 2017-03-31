@@ -1745,6 +1745,9 @@ MTX_SaveState(
 			psMtxRegState++;
 		}
 
+                 /* interrupt enable register */
+                TALREG_ReadWord32 (psFwCtxt->ui32TopazMulticoreRegId, TOPAZHP_TOP_CR_MULTICORE_HOST_INT_ENAB, psMtxRegState);
+                psMtxRegState++;
 		
 	}
 }
@@ -1962,7 +1965,11 @@ MTX_RestoreState(
 			TALREG_WriteWord32 (psFwCtxt->aui32TopazRegMemSpceId[i], TOPAZHP_CR_TOPAZHP_MAN_CLOCK_GATING, *psMtxRegState);
 			psMtxRegState++;
 		}
-		
+
+                /* interrupt enable register */
+                TALREG_WriteWord32 (psFwCtxt->ui32TopazMulticoreRegId, TOPAZHP_TOP_CR_MULTICORE_HOST_INT_ENAB, *psMtxRegState);
+                psMtxRegState++;
+
 		TALPDUMP_Comment(psFwCtxt->ui32MtxRegMemSpceId, "MTX_RestoreState: Start the MTX");
 
 		// Turn On MTX

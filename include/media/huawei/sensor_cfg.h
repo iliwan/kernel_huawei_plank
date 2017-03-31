@@ -76,6 +76,7 @@ enum sensor_config_type
 	SEN_CONFIG_ENABLE_CSI,
 	SEN_CONFIG_DISABLE_CSI,
 	SEN_CONFIG_MATCH_ID,
+	SEN_CONFIG_READ_REG_OTP,
 	SEN_CONFIG_MAX_INDEX
 };
 
@@ -100,6 +101,9 @@ struct sensor_cfg_data {
 	int cfgtype;
 	int mode;
 	int data;
+	int addr_bit;
+	int val_bit;
+	uint32_t i2c_addr;
 
 	union {
 	char name[DEVICE_NAME_SIZE];

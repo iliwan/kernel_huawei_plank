@@ -1,1 +1,0 @@
-obj-$(CONFIG_IMAGE_LOAD)		+= loadm.o

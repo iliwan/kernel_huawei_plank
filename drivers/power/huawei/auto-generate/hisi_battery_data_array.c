@@ -18,10 +18,14 @@
 #include "hisi_battery_data_SUNWODA_2200_default.c"
 /*CherryMini*/
 #include "hisi_battery_data_SCUD_SDI_2550.c"
+#include "hisi_battery_data_SCUD_SDI_200_2550.c"
 #include "hisi_battery_data_GY_2550.c"
-#include "hisi_battery_data_SCUD_2550.c"
 #include "hisi_battery_data_SUNWODA_2550.c"
 #include "hisi_battery_data_SUNWODA_2550_default.c"
+/*Carmel*/
+#include "hisi_battery_data_CARMEL_ATL_3000.c"
+#include "hisi_battery_data_CARMEL_SONY_3000.c"
+#include "hisi_battery_data_CARMEL_Default_3000.c"
 #include "hisi_battery_data.h"
 #if 0
 static struct hisi_smartstar_coul_battery_data *bat_data_array_0[BAT_DATA_ARRAR_SIZE] = {
@@ -47,7 +51,7 @@ static struct hisi_smartstar_coul_battery_data *bat_data_array_0[BAT_DATA_ARRAR_
     &Default_3000_battery_data,// must start with default data
     &ATL_3000_battery_data,
     &GY_3000_battery_data,
-    &LG_3000_battery_data,      
+    &LG_3000_battery_data,
     NULL,    // must end with 0
 };
 
@@ -56,7 +60,7 @@ static struct hisi_smartstar_coul_battery_data *bat_data_array_1[BAT_DATA_ARRAR_
     &SUNWODA_2550_battery_data_default, // must start with default data
     &SUNWODA_2550_battery_data,
     &GY_2550_battery_data,
-    &SCUD_2550_battery_data,
+    &SCUD_SDI_200_2550_battery_data,
     &SCUD_SDI_2550_battery_data,
     NULL, // must end with 0
 };
@@ -69,9 +73,17 @@ static struct hisi_smartstar_coul_battery_data *bat_data_array_2[BAT_DATA_ARRAR_
     NULL, // must end with 0
 };
 
+/*Carmel*/
+static struct hisi_smartstar_coul_battery_data *bat_data_array_3[BAT_DATA_ARRAR_SIZE] = {
+    &CARMEL_Default_3000_battery_data, // must start with default data
+    &CARMEL_SONY_3000_battery_data,
+    &CARMEL_ATL_3000_battery_data,
+    NULL, // must end with 0
+};
 static p_bat_data_array bat_data_array_all[] = {
     &bat_data_array_0, // SS_PRODUCT_INDEX_0  
     &bat_data_array_1, // SS_PRODUCT_INDEX_1
     &bat_data_array_2, // SS_PRODUCT_INDEX_2
+    &bat_data_array_3, // SS_PRODUCT_INDEX_3
 };
 

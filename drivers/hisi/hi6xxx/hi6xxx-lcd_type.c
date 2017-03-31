@@ -83,7 +83,7 @@ int get_lcd_type(void)
 }
 EXPORT_SYMBOL_GPL(get_lcd_type);
 
-static int __init early_parse_lcd_type_cmdline(char *p)
+static int __init early_parse_lcd_type_cmdline(const char *p)
 {
     unsigned int len = 0;
     memset(lcd_type_buf, 0, sizeof(lcd_type_buf));
@@ -107,7 +107,7 @@ early_param("LCD_TYPE", early_parse_lcd_type_cmdline);
 
 #define FULLHD_STRING_MAX   1
 static int isfullhd = 0;
-static int __init isfullhd_setup(char *val)
+static int __init isfullhd_setup(const char *val)
 {
     char fullhd[FULLHD_STRING_MAX + 1];
     char *endptr = NULL;

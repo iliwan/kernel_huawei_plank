@@ -733,6 +733,7 @@ VOS_VOID QosFc_RabCreate(CONST MsgBlock  *pstMsg)
         return;
     }
 
+    /* modify by jiqiang 2014.03.19 pclint begin */
     /*lint -e960*/
     if(QosFc_IsInValidRabId(pstRabCreate->ucRabId)
         || QosFc_IsInValidRabId(pstRabCreate->ucLinkRabId)
@@ -744,6 +745,7 @@ VOS_VOID QosFc_RabCreate(CONST MsgBlock  *pstMsg)
         return;
     }
     /*lint +e960*/
+    /* modify by jiqiang 2014.03.19 pclint end */
 
     /* 流控都按拼接处理 */
     enModemId = VOS_GetModemIDFromPid(TTF_GET_MSG_SENDER_PID(pstRabCreate));

@@ -26,6 +26,9 @@
 #include <linux/mfd/hi6401_irq.h>
 
 #include <linux/pinctrl/consumer.h>
+#include <dsm/dsm_pub.h>
+
+#include <asm/mach/irq.h>
 #include <linux/irq.h>
 #ifndef NO_IRQ
 #define NO_IRQ 0
@@ -46,6 +49,23 @@
 #define HI6401_PLL_STATUS_BIT		0
 #define HI6401_PLL_EN_REG	(HI6401_BASE_ADDR_PAGE_1 + 0x1E1)
 #define HI6401_PLL_EN_BIT		7
+
+#define HI6401_PAGE_0_START	(HI6401_BASE_ADDR_PAGE_0 + 0x1b0)
+#define HI6401_PAGE_0_END	(HI6401_BASE_ADDR_PAGE_0 + 0x1ff)
+#define HI6401_PAGE_1_START	(HI6401_BASE_ADDR_PAGE_1 + 0x1b0)
+#define HI6401_PAGE_1_END	(HI6401_BASE_ADDR_PAGE_1 + 0x1ff)
+#define Hi6401_SIZE_MAX 				4096
+
+static struct dsm_dev dsm_hi6401 = {
+    .name = "dsm_hi6401",
+    .fops = NULL,
+    .buff_size = Hi6401_SIZE_MAX,
+};
+
+static int pll_unlock_flag = 0;
+static char *g_dump_buf = NULL;
+
+struct dsm_client *hi6401_client = NULL;
 
 static struct of_device_id of_hi6401_irq_child_match_tbl[] = {
 	/* codec */
@@ -113,7 +133,29 @@ void hi6401_irq_write(struct hi6401_irq *irq, int reg, u32 val)
 }
 EXPORT_SYMBOL(hi6401_irq_write);
 
-#if 0
+static void hi6401_codec_dump(struct hi6401_irq *irq)
+{
+	unsigned int reg = 0;
+	if (!g_dump_buf || (pll_unlock_flag > 1))
+	{
+		return;
+	}
+	for (reg = HI6401_PAGE_0_START; reg <= HI6401_PAGE_0_END; reg++)
+	{
+		hi6401_select_reg_page(irq, reg);
+		snprintf(g_dump_buf, Hi6401_SIZE_MAX, "%s%#04x-%#04x\n", g_dump_buf,
+											reg, readl(irq->reg_base_addr + ((reg & HI6401_PAGE_OFFSET_MASK) << 2)));
+	}
+	snprintf(g_dump_buf, Hi6401_SIZE_MAX, "%s\n", g_dump_buf);
+	for (reg = HI6401_PAGE_1_START; reg <= HI6401_PAGE_1_END; reg++)
+	{
+		hi6401_select_reg_page(irq, reg);
+		snprintf(g_dump_buf, Hi6401_SIZE_MAX, "%s%#04x-%#04x\n", g_dump_buf,
+											reg, readl(irq->reg_base_addr + ((reg & HI6401_PAGE_OFFSET_MASK) << 2)));
+	}
+	snprintf(g_dump_buf, Hi6401_SIZE_MAX, "%s\n--second--\n", g_dump_buf);
+}
+
 static void hi6401_check_pll(struct hi6401_irq *irq)
 {
 	unsigned long flags = 0;
@@ -137,24 +179,36 @@ static void hi6401_check_pll(struct hi6401_irq *irq)
 			if (0 == (ret & (1 << HI6401_PLL_STATUS_BIT))) {
 				pr_err("%s,line:%d reset pll.\n", __FUNCTION__, __LINE__);
 				/* pll unlocked */
+				hi6401_codec_dump(irq);
+				if ((1 == pll_unlock_flag) && !dsm_client_ocuppy(hi6401_client)) {
+					dsm_client_record(hi6401_client, "DSM_HI6401_PLL_UNLOCK ret=%d,codec=%s\n", ret, (g_dump_buf ? g_dump_buf : "null"));
+					dsm_client_notify(hi6401_client, DSM_HI6401_PLL_UNLOCK);
+				}
+				pll_unlock_flag++;
 				val &= ~(1 << HI6401_PLL_EN_BIT);
 				writel(val, irq->reg_base_addr + ((HI6401_PLL_EN_REG & HI6401_PAGE_OFFSET_MASK) << 2));
 				udelay(2);
 				val |= (1 << HI6401_PLL_EN_BIT);
 				writel(val, irq->reg_base_addr + ((HI6401_PLL_EN_REG & HI6401_PAGE_OFFSET_MASK) << 2));
 				udelay(1);
+			} else {
+				pll_unlock_flag = 0;
+				if(g_dump_buf)
+					memset(g_dump_buf, 0, Hi6401_SIZE_MAX);
 			}
+		}
+	} else {
+		if (!dsm_client_ocuppy(hi6401_client)) {
+			dsm_client_record(hi6401_client, "HI6401_PLL_PD_REG ret=%d\n", ret);
+			dsm_client_notify(hi6401_client, DSM_HI6401_PLL_PD);
 		}
 	}
 	spin_unlock_irqrestore(&irq->rw_lock, flags);
 	mutex_unlock(&irq->sr_mutex);
 }
-#endif
+
 static void hi6401_pll_work_func(struct work_struct *work)
 {
-#if 1
-	return;
-#else
 	struct hi6401_irq *irq =
 		container_of(work, struct hi6401_irq, pll_delay_work.work);
 
@@ -163,6 +217,9 @@ static void hi6401_pll_work_func(struct work_struct *work)
 		return;
 	}
 
+	pll_unlock_flag = 0;
+	if(g_dump_buf)
+		memset(g_dump_buf, 0, Hi6401_SIZE_MAX);
 	while(1) {
 		mutex_lock(&irq->pll_mutex);
 		if (irq->pll_check_enable) {
@@ -174,14 +231,10 @@ static void hi6401_pll_work_func(struct work_struct *work)
 			break;
 		}
 	}
-#endif
 }
 
 void hi6401_pll_check_enable(struct hi6401_irq *irq, bool enable)
 {
-#if 1
-	return;
-#else
 	if (!irq) {
 		pr_err("hi6401_irq is null\n");
 		return;
@@ -199,7 +252,6 @@ void hi6401_pll_check_enable(struct hi6401_irq *irq, bool enable)
 	}
 
 	mutex_unlock(&irq->pll_mutex);
-#endif
 }
 EXPORT_SYMBOL(hi6401_pll_check_enable);
 
@@ -376,7 +428,7 @@ static int hi6401_irq_probe(struct platform_device *pdev)
 		goto ioremap_err;
 	}
 
-#if 0
+
 	/* get pinctrl */
 	irq->pctrl = devm_pinctrl_get(dev);
 	if (IS_ERR(irq->pctrl)) {
@@ -411,21 +463,6 @@ static int hi6401_irq_probe(struct platform_device *pdev)
 	if (0 != ret) {
 		pr_err("pmu_audio_clk :clk prepare enable failed !\n");
 		goto pmu_audio_clk_enable_err;
-	}
-#endif
-
-	/* check chip id */
-	ret = hi6401_irq_read(irq, HI6401_REG_VERSION);
-	if (0xFF == ret || 0 == ret) {
-		/*
-		 * 0xFF : means ssi err, or chip no ack
-		 * 0    : means no chip
-		 */
-		pr_err("no codec chip connected(%#x)!", ret);
-		ret = -ENODEV;
-		goto get_gpio_err;
-	} else {
-		pr_info("codec chip version is %#x", ret);
 	}
 
 	spin_lock_init(&irq->lock);
@@ -506,11 +543,28 @@ static int hi6401_irq_probe(struct platform_device *pdev)
 	}
 	INIT_DELAYED_WORK(&irq->pll_delay_work, hi6401_pll_work_func);
 
+	g_dump_buf = (char*)kmalloc(sizeof(char)*Hi6401_SIZE_MAX, GFP_KERNEL);
+	if (!g_dump_buf)
+	{
+		pr_err("%s : couldn't malloc buffer.\n",__FUNCTION__);
+		ret = -ENOMEM;
+		goto g_dump_buf_kmalloc_err;
+	}
+	memset(g_dump_buf, 0, Hi6401_SIZE_MAX);
 	/* populate sub nodes */
 	of_platform_populate(np, of_hi6401_irq_child_match_tbl, NULL, dev);
 
+	if (!hi6401_client) {
+		hi6401_client = dsm_register_client(&dsm_hi6401);
+	}
 	return 0;
 
+g_dump_buf_kmalloc_err:
+	if(irq->pll_delay_wq) {
+		cancel_delayed_work(&irq->pll_delay_work);
+		flush_workqueue(irq->pll_delay_wq);
+		destroy_workqueue(irq->pll_delay_wq);
+	}
 pll_delay_wq_err:
 	if(irq->hi6401_irq_delay_wq) {
 		cancel_delayed_work(&irq->hi6401_irq_delay_work);
@@ -522,7 +576,7 @@ irq_delay_wq_err:
 gpio_err:
 	gpio_free(irq->gpio);
 get_gpio_err:
-#if 0
+
 	clk_disable_unprepare(irq->pmu_audio_clk);
 pmu_audio_clk_enable_err:
 	devm_clk_put(dev, irq->pmu_audio_clk);
@@ -535,7 +589,7 @@ codec_ssi_clk_err:
 codec_ssi_iomux_err:
 	pinctrl_put(irq->pctrl);
 codec_ssi_get_err:
-#endif
+
 	devm_iounmap(dev, irq->reg_base_addr);
 ioremap_err:
 	devm_release_mem_region(dev, irq->res->start,
@@ -563,19 +617,24 @@ static int hi6401_irq_remove(struct platform_device *pdev)
 	}
 	free_irq(irq->irq, irq);
 	gpio_free(irq->gpio);
-#if 0
+
 	clk_disable_unprepare(irq->pmu_audio_clk);
 	devm_clk_put(dev, irq->pmu_audio_clk);
 	clk_disable_unprepare(irq->codec_ssi_clk);
 	devm_clk_put(dev, irq->codec_ssi_clk);
 	codec_ssi_iomux_idle(irq->pctrl);
 	pinctrl_put(irq->pctrl);
-#endif
+
 	devm_iounmap(dev, irq->reg_base_addr);
 	devm_release_mem_region(dev, irq->res->start,
 				resource_size(irq->res));
 	devm_kfree(dev, irq);
 	platform_set_drvdata(pdev, NULL);
+	if (g_dump_buf)
+	{
+		kfree(g_dump_buf);
+		g_dump_buf = NULL;
+	}
 
 	return 0;
 }
@@ -584,14 +643,14 @@ static int hi6401_irq_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct device *dev = &pdev->dev;
 	struct hi6401_irq *irq = dev_get_drvdata(dev);
-	int ret = 0; 
+	int ret = -1;
 
 	BUG_ON(NULL == irq);
 
 	dev_info(dev, "%s+", __FUNCTION__);
 
 	mutex_lock(&irq->sr_mutex);
-#if 0
+
 	clk_disable_unprepare(irq->pmu_audio_clk);
 
 	clk_disable_unprepare(irq->codec_ssi_clk);
@@ -599,7 +658,7 @@ static int hi6401_irq_suspend(struct platform_device *pdev, pm_message_t state)
 	ret = codec_ssi_iomux_idle(irq->pctrl);
 	if (0 != ret)
 		dev_err(dev, "codec ssi set iomux idle err\n");
-#endif
+
 	dev_info(dev, "%s-", __FUNCTION__);
 
 	return ret;
@@ -609,13 +668,13 @@ static int hi6401_irq_resume(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct hi6401_irq *irq = dev_get_drvdata(dev);
-	int ret = 0;
+	int ret = -1;
 
 	BUG_ON(NULL == irq);
 
 	dev_info(dev, "%s+", __FUNCTION__);
 
-#if 0
+
 	ret = codec_ssi_iomux_default(irq->pctrl);
 	if (0 != ret)
 		goto err_exit;
@@ -633,7 +692,7 @@ static int hi6401_irq_resume(struct platform_device *pdev)
 	}
 
 err_exit:
-#endif
+
 	dev_info(dev, "%s-", __FUNCTION__);
 
 	mutex_unlock(&irq->sr_mutex);

@@ -141,6 +141,7 @@ struct hisi_hi6421v300_coul_device
 };
 
 /*************************************static variable definitipn area*************************/
+static int pre_pc = 0;
 static int hisi_saved_abs_cc_mah = 0;
 static int disable_temperature_debounce = 1;
 static int do_save_offset_ret;
@@ -981,6 +982,7 @@ static int calculate_remaining_charge_uah(struct hisi_hi6421v300_coul_device *di
 
     ocv = di->batt_ocv;
     pc = calculate_pc(di, ocv, temp, chargecycles);
+    pre_pc = pc;
 
     return fcc_mah * pc;
 }
@@ -1583,9 +1585,49 @@ int hisi_hi6421v300_battery_temperature_tenth_degree(void)
     return DEFAULT_TEMP*10;
 }
 
+ #define ABNORMAL_BATT_TEMPERATURE_POWEROFF 670
+ #define DELTA_TEMP 150
+ #define LOW_BATT_TEMP_CHECK_THRESHOLD -100
+/**********************************************************
+*  Function:    get_temperature_stably
+*  Discription:    the fun for adc get some err,we can avoid
+*  Parameters:
+*               di info
+*  return value:
+*               battery temperature
+**********************************************************/
+static int get_temperature_stably(struct hisi_hi6421v300_coul_device *di)
+{
+    int retry_times = 5;
+    int cnt = 0;
+    int temperature;
+    int delta = 0;
+
+    if (NULL == di)
+    {
+        HISI_HI6421V300_COUL_ERR("error, di is NULL, return default temp\n");
+        return DEFAULT_TEMP*10;
+    }
+
+    while(cnt++ < retry_times)
+    {
+        temperature = hisi_hi6421v300_battery_temperature_tenth_degree();
+        delta = abs(di->batt_temp - temperature);
+        /* Due to the adc unstability, re-read it when temp is over 67 or -10 degree */
+        if(delta > DELTA_TEMP
+        ||temperature > ABNORMAL_BATT_TEMPERATURE_POWEROFF
+        || temperature <= LOW_BATT_TEMP_CHECK_THRESHOLD)
+        {
+            continue;
+        }
+        HISI_HI6421V300_COUL_INF("stably temp!,old_temp =%d,cnt =%d, temp = %d\n",di->batt_temp,cnt,temperature);
+        return temperature;
+    }
+    return temperature;
+}
 static void update_battery_temperature(struct hisi_hi6421v300_coul_device *di, int status)
 {
-    int temp = hisi_hi6421v300_battery_temperature_tenth_degree();
+    int temp = get_temperature_stably(di);
     if (TEMPERATURE_INIT_STATUS == status)
     {
         HISI_HI6421V300_COUL_INF("init temp = %d\n", temp);
@@ -2574,6 +2616,8 @@ static void calculate_soc_params(struct hisi_hi6421v300_coul_device *di,
     int chargecycles = di->batt_chargecycles/100;
     int delt_rc;
     static int first_in = 1;
+    static int pre_batt_ruc = 0;
+    static int dmd_notify_enable = 1;
 
     *fcc_uah = calculate_fcc_uah(di, batt_temp, chargecycles);
 
@@ -2590,7 +2634,35 @@ static void calculate_soc_params(struct hisi_hi6421v300_coul_device *di,
     *cc_uah = di->cc_end_value - di->cc_start_value;
 
     di->batt_ruc = *remaining_charge_uah - *cc_uah;
+    if (first_in)
+    {
+        HISI_HI6421V300_COUL_INF("first batt_ruc = %d\n", di->batt_ruc);
+    }
+    else
+    {
+        if (abs(pre_batt_ruc - di->batt_ruc) >= (*fcc_uah / 5))
+        {
+            HISI_HI6421V300_COUL_ERR("pre_batt_ruc = %d, cur_batt_ruc = %d\n", pre_batt_ruc, di->batt_ruc);
+            HISI_HI6421V300_COUL_ERR("remaining_charge_uah= %d, cc_uah= %d, cc_start = %d, cc_end = %d\n", *remaining_charge_uah, *cc_uah, di->cc_start_value, di->cc_end_value);
+            HISI_HI6421V300_COUL_ERR("batt_ocv = %d, batt_ocv_temp = %d, pre_pc = %d\n", di->batt_ocv, di->batt_ocv_temp, pre_pc);
+            if (dmd_notify_enable && !dsm_client_ocuppy(pmu_coul_dclient))
+            {
+                dsm_client_record(pmu_coul_dclient, "ruc error, pre_batt_ruc = %d, cur_batt_ruc = %d, remaining_charge_uah= %d, cc_uah= %d, cc_start = %d, cc_end = %d, batt_ocv = %d, batt_ocv_temp = %d, pre_pc = %d!\n", pre_batt_ruc, di->batt_ruc, *remaining_charge_uah, *cc_uah, di->cc_start_value, di->cc_end_value, di->batt_ocv, di->batt_ocv_temp, pre_pc);
+                dsm_client_notify(pmu_coul_dclient, DSM_PMU_COUL_ERROR_NO + DSM_COUL_RUC_ERR_OFFSET);
+                dmd_notify_enable = 0;
+            }
 
+            if(pre_batt_ruc - di->batt_ruc > 0)
+            {
+                di->batt_ruc = pre_batt_ruc - *fcc_uah / 5;
+            }
+            else
+            {
+                di->batt_ruc = pre_batt_ruc + *fcc_uah / 5;
+            }
+        }
+    }
+    pre_batt_ruc = di->batt_ruc;
     di->get_cc_end_time = get_coul_time();
 
     di->batt_soc_real = DIV_ROUND_CLOSEST((*remaining_charge_uah - *cc_uah), *fcc_uah/1000);
@@ -2662,10 +2734,10 @@ static void get_rm(struct hisi_hi6421v300_coul_device *di, int *rm)
 }
 static int calculate_state_of_charge(struct hisi_hi6421v300_coul_device *di)
 {
-    int remaining_usable_charge_uah, fcc_uah, unusable_charge_uah, delta_rc_uah;
-    int remaining_charge_uah, soc;
-    int cc_uah;
-    int rbatt;
+    int remaining_usable_charge_uah = 0, fcc_uah = 0, unusable_charge_uah = 0, delta_rc_uah = 0;
+    int remaining_charge_uah = 0, soc = 0;
+    int cc_uah = 0;
+    int rbatt = 0;
 
     if (!di->batt_exist){
         return 0;
@@ -2679,12 +2751,12 @@ static int calculate_state_of_charge(struct hisi_hi6421v300_coul_device *di)
                                     &delta_rc_uah,
                                     &rbatt);
 
-    HISI_HI6421V300_COUL_DEBUG("FCC=%duAh, UUC=%duAh, RC=%duAh, CC=%duAh, delta_RC=%duAh, Rbatt=%dmOhm\n",
+    HISI_HI6421V300_COUL_INF("FCC=%duAh, UUC=%duAh, RC=%duAh, CC=%duAh, delta_RC=%duAh, Rbatt=%dmOhm\n",
                        fcc_uah, unusable_charge_uah, remaining_charge_uah, cc_uah, delta_rc_uah, rbatt);
 
     di->rbatt = rbatt;
 
-    if (di->batt_limit_fcc && di->batt_limit_fcc < fcc_uah)
+    if (di->batt_limit_fcc && (di->batt_limit_fcc > 0) && (di->batt_limit_fcc < fcc_uah))
     {
         fcc_uah = di->batt_limit_fcc;
         hwlog_info("use limit_FCC! %duAh\n", fcc_uah);
@@ -2705,14 +2777,20 @@ static int calculate_state_of_charge(struct hisi_hi6421v300_coul_device *di)
     if (soc > 100)
     soc = 100;
 
-    HISI_HI6421V300_COUL_DEBUG("SOC before adjust = %d\n", soc);
+    if (soc <= 2)
+    {
+        HISI_HI6421V300_COUL_INF("SOC before adjust = %d\n", soc);
+        if (hisi_hi6421v300_battery_voltage() > 3500)
+            return di->batt_soc;
+    }
+    HISI_HI6421V300_COUL_INF("SOC before adjust = %d\n", soc);
     soc= adjust_soc(di, soc, di->batt_temp, di->batt_chargecycles/100, rbatt, fcc_uah, unusable_charge_uah, cc_uah);
 
-    HISI_HI6421V300_COUL_DEBUG("SOC before limit = %d\n", soc);
+    HISI_HI6421V300_COUL_INF("SOC before limit = %d\n", soc);
     glog->soc_before_limit = soc;
 
     soc = limit_soc(di, soc);
-    HISI_HI6421V300_COUL_DEBUG("SOC_NEW = %d\n", soc);
+    HISI_HI6421V300_COUL_INF("SOC_NEW = %d\n", soc);
 
     di->batt_soc = soc;
 
@@ -3009,8 +3087,8 @@ static void hisi_hi6421v300_charging_stop (struct hisi_hi6421v300_coul_device *d
     // we should not update chargecycle
     if (di->charging_stop_time - di->charging_start_time < 5)
     {
-        di->charging_state = CHARGING_STATE_CHARGE_STOP;
         HISI_HI6421V300_COUL_INF("hisi_hi6421v300_charging_stop return by charge less than 5 seconds\n");
+        di->charging_state = CHARGING_STATE_CHARGE_STOP;
         return;
     }
     di->batt_soc = calculate_state_of_charge(di);
@@ -3884,7 +3962,7 @@ static int hisi_hi6421v300_coul_probe(struct platform_device *pdev)
     di->sr_resume_time = get_coul_time();
     sr_cur_state = SR_DEVICE_WAKEUP;
 
-    update_battery_temperature(di, TEMPERATURE_INIT_STATUS);
+    di->batt_temp = hisi_hi6421v300_battery_temperature_tenth_degree();
     /*check battery is exist*/
     if (!is_hi6421v300_battery_exist()) {
         HISI_HI6421V300_COUL_ERR("%s: no battery, just registe callback\n",__FUNCTION__);

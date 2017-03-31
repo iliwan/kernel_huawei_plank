@@ -4,7 +4,7 @@
 #include <bsp_memmap.h>
 #include <hi_timer.h>
 #include <hi_syscrg.h>
-#include <hi_bbp_systime.h>
+#include <hi_bbp_systime.h>/*lint !e322*/
 
 #ifdef CONFIG_USE_TIMER_STAMP
 #define TIMER_STAMP_ADDR        (HI_TIMER_05_REGBASE_ADDR_VIRT+HI_TIMER_CURRENTVALUE_OFFSET)

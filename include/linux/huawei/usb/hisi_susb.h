@@ -1,7 +1,7 @@
 #ifndef __HISI_SUSB_H__
 #define __HISI_SUSB_H__
 
-#ifndef CONFIG_HI3635_USB
+#ifdef CONFIG_ARCH_HI6XXX
 
 #include <linux/clk.h>
 #include <linux/notifier.h>

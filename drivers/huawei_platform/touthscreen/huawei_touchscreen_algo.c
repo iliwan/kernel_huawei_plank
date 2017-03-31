@@ -1,7 +1,7 @@
 #include "huawei_touchscreen_algo.h"
 #include <linux/ktime.h>
 
-
+extern struct ts_data g_ts_data;
 static struct timespec curr_time[FILTER_GLOVE_NUMBER] = {{0,0}};
 
 static struct timespec pre_finger_time[FILTER_GLOVE_NUMBER] = {{0,0}};
@@ -19,7 +19,7 @@ static int filter_illegal_glove(u8 n_finger, struct ts_fingers *in_info)
 	int y = in_info->fingers[n_finger].y;
 	new_mode = in_info->fingers[n_finger].status;
 
-	if (new_mode == TP_FINGER) { /*the new interrupt is a finger signal*/
+	if (new_mode == TP_FINGER || g_ts_data.feature_info.holster_info.holster_switch) { /*the new interrupt is a finger signal*/
 		touch_state = FINGER_STATE;
 		report_flag = 1;
 	} else if ((new_mode == TP_GLOVE) || (new_mode == TP_STYLUS)) { /*the new interrupt is a glove signal.*/

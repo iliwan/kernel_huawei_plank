@@ -273,14 +273,14 @@ imx179_front_config(
 		case SEN_CONFIG_READ_REG_SETTINGS:
 			break;
 		case SEN_CONFIG_ENABLE_CSI:
-			if(!csi_enable)
+			if(imx179f_power_on && !csi_enable)
 			{
 				ret = si->vtbl->csi_enable(si);
 				csi_enable = true;
 			}
 			break;
 		case SEN_CONFIG_DISABLE_CSI:
-			if(csi_enable)
+			if(imx179f_power_on && csi_enable)
 			{
 				ret = si->vtbl->csi_disable(si);
 				csi_enable = false;

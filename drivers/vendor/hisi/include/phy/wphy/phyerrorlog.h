@@ -90,6 +90,7 @@ enum PHY_ERR_LOG_ALM_ID_ENUM
     PHY_ERR_LOG_ALM_RING_BUFFER_OVERFLOW        = 0x07,                         /* 环形buffer溢出记录 */
     PHY_ERR_LOG_ALM_TAS_GSM_INFO                = 0x08,                         /* GSM_TAS关键信息 */
     PHY_ERR_LOG_ALM_TAS_WCDMA_INFO              = 0x09,                         /* WCDMA_TAS关键信息 */
+    PHY_ERR_LOG_ALM_GSM_CS_MR_ERROR             = 0x0a,                         /* CS测量报告错误 */
 
     /* 语音类故障告警 */
     PHY_ERR_LOG_ALM_CS_RLB                      = 0x1001,                       /* CS 链路质量差 */
@@ -99,6 +100,7 @@ enum PHY_ERR_LOG_ALM_ID_ENUM
     /* 业务类故障告警 */
     PHY_ERR_LOG_ALM_WCDMA_TX_POWER_DROP_DETECT  = 0x2001,                       /* 检测到发射功率太低 */
     PHY_ERR_LOG_ALM_WCDMA_PILOT_BER_RISE_DETECT = 0x2002,                       /* 检测到pilotber陡升 */
+    PHY_ERR_LOG_ALM_WCDMA_RA_INFO_DETECT        = 0x2003,                       /* 检测到随机接入上报信息 */
 
     PHY_ERR_LOG_ALM_ID_BUTT
 };
@@ -421,6 +423,38 @@ typedef struct
 }PHY_MNTN_WCDMA_PILOT_BER_RISE_EVENT_STRU;
 
 
+
+typedef struct
+{
+    OM_ERR_LOG_HEADER_STRU                  stHeader;
+    PHY_INT16                               shwRscp;                            /* 随机接入失败时的RSCP 1dBm */
+    PHY_INT16                               shwEcn0;                            /* 随机接入失败是的ECN0 1dB */
+}PHY_MNTN_WCDMA_FACH_RA_FAIL_EVENT_STRU;
+
+
+
+typedef struct
+{
+    UPHY_BOOL_ENUM_UINT16                   enGoodSnrNoAckFlag;                 /* 是否出现好信号随机接入失败的标记 */
+    PHY_INT16                               shwRscp;                            /* 随机接入失败时的RSCP 1dBm */
+    PHY_INT16                               shwEcn0;                            /* 随机接入失败是的ECN0 1dB */
+    PHY_UINT16                              uhwReserved;
+}PHY_MNTN_GOOD_SNR_NOACK_INFO_STRU;
+typedef struct
+{
+    OM_ERR_LOG_HEADER_STRU                  stHeader;
+    PHY_UINT16                              uhwFreq;
+    PHY_UINT16                              uhwPriScramCode;
+    PHY_UINT16                              uhwAckNum;
+    PHY_UINT16                              uhwNAckNum;
+    PHY_UINT16                              uhwNoAckNum;
+    PHY_INT16                               shwPrachInitialTxPower;             /* Preamble初始功率控制,单位dBm */
+    PHY_UINT16                              uhwPowerRampStep;                   /* 相邻两个Preamble的功率差值,单位dB */
+    PHY_UINT16                              uhwPreambleRetryMax;                /* 一次随机过程发送Preamble的最大允许次数 */
+    PHY_INT16                               shwRscp;                            /* 随机接入失败时的RSCP 1dBm */
+    PHY_INT16                               shwEcn0;                            /* 随机接入失败是的ECN0 1dB */
+    PHY_MNTN_GOOD_SNR_NOACK_INFO_STRU       stGoodSnrNoAck;
+}PHY_MNTN_WCDMA_FACH_RA_INFO_EVENT_STRU;
 typedef struct
 {
     OM_ERR_LOG_HEADER_STRU                  stHeader;
@@ -452,6 +486,12 @@ typedef struct
     OM_ERR_LOG_HEADER_STRU                  stHeader;
     VOS_UINT32                              ulOverflowCnt;                      /* 环形buffer溢出次数 */
 }PHY_ERRLOG_RING_BUFFER_OVERFLOW_EVENT_STRU;
+typedef struct
+{
+    OM_ERR_LOG_HEADER_STRU              stHeader;
+    VOS_UINT16                          usStrongNcellBsicUnknown;               /* 未同步上的强邻区 */
+    VOS_UINT16                          usStrongNcellRxlev;                     /* 未同步上的强邻区的测量值 */
+}PHY_ERRLOG_GSM_MEASUREMENT_REPORT_ERROR_STRU;
 
 
 

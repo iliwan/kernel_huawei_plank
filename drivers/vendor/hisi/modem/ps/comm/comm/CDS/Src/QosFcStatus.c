@@ -108,9 +108,11 @@ VOS_VOID QosFc_FlowCtrl(VOS_VOID)
         /* 启动流控检查定时器 */
         (VOS_VOID)QosFc_RestartCheckTmr();
     }
+    /* modify by jiqiang 2014.03.19 pclint begin */
     else
     {
     }
+    /* modify by jiqiang 2014.03.19 pclint end */
 
     return;
 }
@@ -155,9 +157,11 @@ VOS_VOID QosFc_FlowCtrlProc(VOS_UINT32 ulMemRemain, VOS_UINT32 *pRestoreCnt)
             }
         }
     }
+    /* modify by jiqiang 2014.03.19 pclint begin */
     else
     {
     }
+    /* modify by jiqiang 2014.03.19 pclint end */
     return;
 }
 VOS_VOID QosFcCtrlInit(VOS_VOID)

@@ -2448,6 +2448,17 @@ int get_console_index(void)
 	return -1;
 }
 
+/*get console uart name*/
+int get_console_name(char *name, int name_buf_len)
+{
+	if ((selected_console != -1) && (selected_console < MAX_CMDLINECONSOLES)) {
+		strncpy(name, console_cmdline[selected_console].name, min(sizeof(console_cmdline[selected_console].name), name_buf_len));
+		return 0;
+	}
+
+	return -1;
+}
+
 static int __add_preferred_console(char *name, int idx, char *options,
 				   char *brl_options)
 {

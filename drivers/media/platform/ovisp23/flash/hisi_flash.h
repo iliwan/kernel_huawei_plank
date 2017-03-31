@@ -81,6 +81,14 @@ typedef enum {
 	XEON_FLASH,
 } flash_type;
 
+/* check flash led open or short */
+typedef enum {
+	FLASH_LED_NORMAL = 0,
+	FLASH_LED_FAULT,
+	FLASH_LED_UNSUPPORTED,
+	FLASH_LED_ERROR
+} flash_fault_t;
+
 struct hisi_flash_info {
 	const char *name;
 	flash_type type;
@@ -104,6 +112,8 @@ struct hisi_flash_fn_t {
 	int (*flash_exit) (struct hisi_flash_ctrl_t *);
 	int (*flash_match) (struct hisi_flash_ctrl_t *);
 	int (*flash_get_dt_data) (struct hisi_flash_ctrl_t *);
+	/* add check flash short & open by zwx211899 */
+	int (*flash_check) (struct hisi_flash_ctrl_t *);
 	int (*flash_register_attribute)(struct hisi_flash_ctrl_t *, struct device *);
 };
 
@@ -151,7 +161,11 @@ struct flash_cfg_data {
 	} cfg;
 };
 
-
+struct flash_cmd_state {
+	volatile bool flash_to_turn_on;
+	struct flash_cfg_data cdata;
+	struct hisi_flash_ctrl_t *flash_ctrl;
+};
 
 /***************extern function declare******************/
 int32_t hisi_flash_platform_probe(struct platform_device *pdev, void *data);
@@ -162,5 +176,8 @@ int hisi_flash_get_dt_data(struct hisi_flash_ctrl_t *flash_ctrl);
 
 void hisi_flash_enable_thermal_protect(void);
 void hisi_flash_disable_thermal_protect(void);
+
+bool hisi_flash_get_turn_on(void);
+void hisi_flash_actual_turn_on(void);
 
 #endif

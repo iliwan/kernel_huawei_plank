@@ -1,4 +1,4 @@
-/* MD5: 065f2138dffbaf263209539724e5c3b9*/
+/* MD5: a98a7a5dfd283b722c7e55a91f497334*/
 #if !defined(__PRODUCT_CONFIG_H__)
 #define __PRODUCT_CONFIG_H__
 
@@ -27,7 +27,7 @@
 #endif 
 
 #ifndef PRODUCT_FULL_VERSION_STR
-#define PRODUCT_FULL_VERSION_STR "Seattle V100R001C10B310" 
+#define PRODUCT_FULL_VERSION_STR "Seattle V100R001C10B600SPC027" 
 #endif 
 
 #ifndef PRODUCT_FILE_VERSION_STR
@@ -35,7 +35,7 @@
 #endif 
 
 #ifndef PRODUCT_DLOAD_SOFTWARE_VER		
-#define PRODUCT_DLOAD_SOFTWARE_VER		 "21.310.13.00.010" 
+#define PRODUCT_DLOAD_SOFTWARE_VER		 "21.600.27.00.010" 
 #endif 
 
 #ifndef FEATURE_OBJ_CMP 				
@@ -188,7 +188,7 @@
 #endif 
 
 #ifndef LPHY_PRV_ITCM_BASE		
-#define LPHY_PRV_ITCM_BASE		 0xe283e000 
+#define LPHY_PRV_ITCM_BASE		 0xe283e800 
 #endif 
 
 #ifndef LPHY_UNI_DTCM_SIZE		
@@ -204,7 +204,7 @@
 #endif 
 
 #ifndef LPHY_PUB_ITCM_SIZE		
-#define LPHY_PUB_ITCM_SIZE		 0x3e000 
+#define LPHY_PUB_ITCM_SIZE		 0x3e800 
 #endif 
 
 #ifndef LPHY_PRV_DTCM_SIZE		
@@ -212,7 +212,7 @@
 #endif 
 
 #ifndef LPHY_PRV_ITCM_SIZE		
-#define LPHY_PRV_ITCM_SIZE		 0x42000 
+#define LPHY_PRV_ITCM_SIZE		 0x41800 
 #endif 
 
 #ifndef TL_PHY_LALG_PATH
@@ -502,7 +502,7 @@
 #endif 
 
 #ifndef CCORE_COMPONENTS
-#define CCORE_COMPONENTS bsp_ccore.o gumsp_mcore.o nas_ccore.o rabm_ccore.o gas_ccore.o was_ccore.o ttf_ccore.o ascomm_ccore.o pscomm_ccore.o taf_ccore.o tlas_ccore.o tlnas_ccore.o lmsp_ccore.o gudsp_mcore.o gudsp_comm_RT.o gudsp_mcore_RT.o os_ccore.o 
+#define CCORE_COMPONENTS bsp_ccore.o gumsp_mcore.o nas_ccore.o rabm_ccore.o gas_ccore.o was_ccore.o ttf_ccore.o ascomm_ccore.o pscomm_ccore.o taf_ccore.o tlphy_ccore.o tlas_ccore.o tlnas_ccore.o lmsp_ccore.o gudsp_mcore.o gudsp_comm_RT.o gudsp_mcore_RT.o os_ccore.o 
 #endif 
 
 #ifndef CCORE_MODEM1_COMPONENTS
@@ -626,6 +626,7 @@
 
 #ifndef CONFIG_IOS_MBB_BALONG
 #endif 
+
 #ifndef CONFIG_MODEM_PINTRL
 #define CONFIG_MODEM_PINTRL 
 #endif 

@@ -842,6 +842,7 @@ struct max98925_reg_ops{
 #define M98925_POWER_OFF				_IO('M', 0x02)
 
 #define M98925_GET_VERSION				_IOR('M', 0xFF, __u32)
+#define M98925_R_GET_VERSION            _IOR('M', 0xFE, __u32)
 
 /*Get M98925 related settings, nr from 0x10 to 0x3f*/
 #define M98925_GET_VOLUME				_IOR('M', 0x10, __u32)
@@ -852,6 +853,17 @@ struct max98925_reg_ops{
 #define M98925_GET_FILTERS				_IOR('M', 0x15, __u32)
 #define M98925_GET_GAINRAMP				_IOR('M', 0x16, __u32)
 #define M98925_GET_REG_VAL				_IOR('M', 0x17, struct max98925_reg_ops)
+
+/*Get M98925_r related settings, nr from 0x10 to 0x3f*/
+#define M98925_R_GET_VOLUME				_IOR('M', 0x20, __u32)
+#define M98925_R_GET_DAIFORMAT			_IOR('M', 0x21, __u32)
+#define M98925_R_GET_DAICLOCK			_IOR('M', 0x22, __u32)
+#define M98925_R_GET_BOOSTVOLT			_IOR('M', 0x23, __u32)
+#define M98925_R_GET_ALCTHRESHOLD		_IOR('M', 0x24, __u32)
+#define M98925_R_GET_FILTERS			_IOR('M', 0x25, __u32)
+#define M98925_R_GET_GAINRAMP			_IOR('M', 0x26, __u32)
+#define M98925_R_GET_REG_VAL			_IOR('M', 0x27, struct max98925_reg_ops)
+
 
 /*Change M98925 related settings, nr from 0x40 to 0x7f*/
 #define M98925_SET_VOLUME				_IOW('M', 0x40, __u32)
@@ -878,12 +890,14 @@ struct max98925_priv {
 	struct snd_soc_codec *codec;
 	enum max98925_type devtype;
 	void *control_data;
+    void *control_data_r;
 	//struct max98925_pdata *pdata;
 	unsigned int spk_gain;
 	unsigned int sysclk;
 	unsigned int iv_status;
 	//unsigned int irq_gpio;
 	struct max98925_cdata dai[1];
+	struct mutex  lock;
 };
 
 #endif

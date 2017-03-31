@@ -53,7 +53,6 @@
 
 static struct kmem_cache *sigqueue_cachep;
 
-
 int print_fatal_signals __read_mostly;
 
 static void __user *sig_handler(struct task_struct *t, int sig)

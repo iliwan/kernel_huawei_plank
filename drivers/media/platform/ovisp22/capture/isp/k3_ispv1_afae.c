@@ -566,6 +566,11 @@ static void ispv1_focus_vcm_go_infinite(u8 delay_flag)
 	int val_vcm = get_focus_code();
 	bool divide_mode = false;
 
+    if(NULL == vcm){
+        print_error("%s vcm is null",__func__);
+        return;
+    }
+
 	print_debug("%s, val_vcm 0x%x, infiniteDistance 0x%x, vcm_id 0x%x, Addr 0x%x, 0x%x",
 		__func__, val_vcm, vcm->infiniteDistance, vcm->vcm_id,
 		vcm->moveLensAddr[0], vcm->moveLensAddr[1]);
@@ -805,8 +810,8 @@ int ispv1_focus_init(void)
 	if (afae_ctrl->stat_data == NULL) {
 		print_error("malloc is failed in %s function at line#%d\n", __func__, __LINE__);
 		kfree(afae_ctrl->map_table);
-		kfree(afae_ctrl);
 		afae_ctrl->map_table = NULL;
+		kfree(afae_ctrl);
 		afae_ctrl = NULL;
 		return -ENOMEM;
 	}
@@ -1726,6 +1731,11 @@ int ispv1_set_vcm_parameters(camera_focus focus_mode)
 	u32 fastshotDistance = 0;
 	vcm_info_s *vcm = get_vcm_ptr();
 
+    if(NULL== vcm) {
+        print_error("%s vcm is NULL",__func__);
+        return 0;
+    }
+
 	print_debug("enter %s, focus_mode:%d", __func__, focus_mode);
 
 	/*
@@ -1951,7 +1961,7 @@ int ispv1_set_focus_area(focus_area_s *area, u32 zoom)
 	}
 
 	memcpy(&afae_ctrl->af_area, area, sizeof(focus_area_s));
-
+	afae_ctrl->zoom = zoom;
 	return 0;
 }
 
@@ -2553,6 +2563,10 @@ int ispv1_set_focus_range(camera_focus focus_mode)
 	int val_vcm = 0;
 	vcm_info_s *vcm = get_vcm_ptr();
 
+    if(NULL == vcm){
+        return 0;
+    }
+
 	if(!this_ispdata->sensor->af_enable)
 		return 0;
 	print_debug("enter %s, focus_mode:%d", __func__, focus_mode);
@@ -2613,10 +2627,14 @@ static void ispv1_assistant_af(bool action)
 {
 	camera_flashlight *flashlight = get_camera_flash();
 	effect_params *effect = get_effect_ptr();
-	flash_lum_level lum_level1 = effect->flash.assistant_af.flash_level;
+	flash_lum_level lum_level1 = 0;
+
 	print_debug("enter %s,action:%d", __func__, action);
-	if (flashlight == NULL)
+
+	if ((flashlight == NULL)||(NULL == effect))
 		return;
+
+    lum_level1 = effect->flash.assistant_af.flash_level;
 
 	if (true == action) {
 		ispv1_config_aecawb_step(true, &isp_hw_data.aecawb_step);
@@ -4134,7 +4152,7 @@ af_end_out:
 				set_focus_stage(VCAF_RUN_STAGE_STARTUP);
 
 				/* set this frame is first frame, next frame need skip for stable */
-				frame_count = 0;				
+				frame_count = 0;
 			#endif
 			    break;
 
@@ -5149,6 +5167,11 @@ u32 ispv1_get_af_range_min(void)
      u32 af_min = 0;
 
      vcm_info_s *vcm = get_vcm_ptr();
+
+     if(NULL == vcm){
+        print_error("%s vcm is null",__func__);
+        return 0;
+     }
      af_min = vcm->infiniteDistance;
 
      if(0 == af_min){
@@ -5174,6 +5197,12 @@ u32 ispv1_get_af_range_max(void)
      u32 af_max = 0;
 
      vcm_info_s *vcm = get_vcm_ptr();
+
+     if(NULL == vcm){
+        print_error("%s vcm is null",__func__);
+        return 0;
+     }
+
      af_max = vcm->normalDistanceEnd;
 
      if(0 == af_max){

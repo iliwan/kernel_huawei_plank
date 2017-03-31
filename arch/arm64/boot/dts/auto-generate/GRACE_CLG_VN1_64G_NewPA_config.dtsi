@@ -1,0 +1,16 @@
+
+/**
+ * Huawei Ltd.
+ * PhosphorV660
+ */
+
+
+/include/ "GRACE_CLG_VN1_NewPA_config.dtsi"
+
+/ {
+	hisi,boardid = <1 4 4 3 >;
+	hisi,boardname = "GRACE_CLG_VN1_64G_NewPA";
+	hisi,config_profile = "high";
+
+};
+

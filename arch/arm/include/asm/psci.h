@@ -21,6 +21,8 @@
 #define PSCI_POWER_STATE_AFFINITY_LEVEL2	2
 #define PSCI_POWER_STATE_AFFINITY_LEVEL3	3
 
+#define HISI_BS_POWER_STATE_AFFINITY_LEVEL	0x10
+
 struct psci_power_state {
 	u16	id;
 	u8	type;

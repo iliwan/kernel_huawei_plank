@@ -1,0 +1,22 @@
+
+/**
+ * Huawei Ltd.
+ * PhosphorV660
+ */
+
+
+/include/ "GRACE_UL_V4_config.dtsi"
+
+/ {
+	hisi,boardid = <1 4 3 4 >;
+	hisi,boardname = "GRACE_UL_VN1";
+	hisi,modem_id = <0x3EB07000>;
+	hisi,config_profile = "normal";
+
+	/*ois device*/
+	hisi,lc8981 {
+		hisi,ois-support = <1>;
+		status = "ok";
+	};
+};
+

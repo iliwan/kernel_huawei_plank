@@ -43,6 +43,15 @@ typedef struct jpudrv_buffer_t {
     unsigned long virt_addr;                /* virtual user space address */
 } jpudrv_buffer_t;
 
+#ifdef CONFIG_COMPAT
+typedef struct compat_jpudrv_buffer_t {
+	unsigned int size;
+	unsigned long long phys_addr;
+	unsigned long long base;	     /*kernel logical address in use kernel*/
+	compat_ulong_t virt_addr; /* virtual user space address */
+} compat_jpudrv_buffer_t;
+#endif
+
 #define JPU_BASE_ADDR 0xE8960000
 #define JPU_REG_SIZE 0x7FFF
 

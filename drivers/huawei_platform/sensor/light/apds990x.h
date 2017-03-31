@@ -16,6 +16,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/wakelock.h>
 #include "rpr0521_driver.h"
+#include	<linux/sensors.h>
 #define APDS990x_DRV_NAME    "apds990x"
 #define DRIVER_VERSION        "1.0.4"
 
@@ -77,6 +78,8 @@ struct apds990x_data {
 	struct delayed_work    power_work;
 	struct input_dev *input_dev_als;
 	struct input_dev *input_dev_ps;
+       struct sensors_classdev als_cdev;
+       struct sensors_classdev ps_cdev;
 	unsigned int enable;
 	unsigned int atime;
 	unsigned int ptime;
@@ -115,6 +118,8 @@ struct apds990x_data {
 	struct regulator *apds990x_vdd;
 	struct regulator *apds990x_io_vdd;
 	struct wake_lock wake_lock;
+	struct hrtimer timer;
+	int irq_count;
 #if defined(CONFIG_FB)
 	struct notifier_block fb_notify;
 #endif

@@ -505,7 +505,16 @@ void hi110x_pm_feed_wdg(struct hi110x_pm_info *pm_info)
     if (IS_STA(cfg) && IS_CONNECTED(cfg) && IS_GET_IPADDR(pm_info))
     {
         HWIFI_DEBUG("WiFi Feed Watchdog");
-        mod_timer(&pm_info->watchdog_timer, jiffies + g_watchdog_timeout * HZ);
+        if (cfg->hi110x_dev->pm_info->in_suspend)
+        {
+            int watchdog_timeout = g_watchdog_timeout * HZ / 1000;
+            watchdog_timeout = (watchdog_timeout > 0) ?
+                watchdog_timeout : (DEFAULT_WATCHDOG_TIMEOUT * HZ / 1000);
+            HWIFI_DEBUG("suspend enter powersave after watchdog_timeout:%d", watchdog_timeout);
+            mod_timer(&pm_info->watchdog_timer, jiffies + watchdog_timeout);
+        } else {
+            mod_timer(&pm_info->watchdog_timer, jiffies + DEFAULT_WATCHDOG_TIMEOUT * HZ / 1000);
+        }
     }
     else if (TRUE == IS_AP(cfg))
     {
@@ -1082,12 +1091,6 @@ int32 hi110x_set_suspend(struct hi110x_pm_info *pm_info, int32 value)
      * 1、判断低功耗的总开关是否打开
      * 2、判断Android上层是否有选择始终保持关联和正在充电时保持关联
      */
-    if (!g_powermgmt_switch)
-    {
-        HWIFI_INFO("low powermgmt switch is off, please check...");
-        return SUCC;
-    }
-
     cfg = pm_info->hi110x_dev->cfg;
 
 #ifdef __ROAM__

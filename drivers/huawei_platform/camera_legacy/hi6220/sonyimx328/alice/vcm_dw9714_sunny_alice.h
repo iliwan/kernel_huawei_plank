@@ -17,7 +17,7 @@ VCM_DW9714_Sunny,
 /*infiniteDistance*/
 0x50,              /* should be calibrated */
 /*normalDistanceEnd*/
-0x2b0,
+0x240,
 /*normalStep*/
 0x0c,              /* coarse step */
 /*normalStrideRatio*/

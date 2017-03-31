@@ -21,7 +21,6 @@ CFLAGS_trace_events_filter.o := -I$(src)
 
 obj-$(CONFIG_TRACE_CLOCK) += trace_clock.o
 
-obj-$(CONFIG_TRACE_KERNEL) += trace_kernel.o
 obj-$(CONFIG_FUNCTION_TRACER) += libftrace.o
 obj-$(CONFIG_RING_BUFFER) += ring_buffer.o
 obj-$(CONFIG_RING_BUFFER_BENCHMARK) += ring_buffer_benchmark.o

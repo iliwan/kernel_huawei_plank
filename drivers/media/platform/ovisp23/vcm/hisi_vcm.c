@@ -203,6 +203,11 @@ static int hisi_vcm_init(struct hisi_vcm_ctrl_t *vcm_ctrl )
 
 int hisi_vcm_config(struct hisi_vcm_ctrl_t *vcm_ctrl, void *arg)
 {
+    if (NULL == arg) {
+        cam_err("%s: arg is NULL", __func__);
+        return -EFAULT;
+    }
+
 	struct vcm_cfg_data *cdata = (struct vcm_cfg_data *)arg;
 	long   rc = 0;
 
@@ -218,6 +223,7 @@ int hisi_vcm_config(struct hisi_vcm_ctrl_t *vcm_ctrl, void *arg)
 		rc = vcm_ctrl->vcm->func_tbl->vcm_i2c_write(vcm_ctrl, arg);
 		break;
 	case CFG_VCM_GET_VCM_NAME:
+        memset(cdata->cfg.name, 0, sizeof(cdata->cfg.name));
 		strncpy(cdata->cfg.name, vcm_ctrl->vcm->vcm_info->name,
 			sizeof(cdata->cfg.name) - 1);
 		break;

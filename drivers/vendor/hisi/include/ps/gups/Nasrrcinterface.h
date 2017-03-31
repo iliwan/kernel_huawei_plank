@@ -141,6 +141,8 @@ enum NAS_RRC_MSG_TYPE_ENUM
     RRRABM_VOICEPREFER_START_REQ       = 0x007E,   /* _H2ASN_MsgChoice RRRABM_VOICEPREFER_START_REQ_STRU */
     RRRABM_VOICEPREFER_STOP_REQ        = 0x0080,   /* _H2ASN_MsgChoice RRRABM_VOICEPREFER_STOP_REQ_STRU */
 
+    RRMM_TRANSACTION_STATUS_NOTIFY     = 0x0088,   /* _H2ASN_MsgChoice RRMM_TRANSACTION_STATUS_NOTIFY_STRU */
+
     /* AS发给MM的原语 */
     RRMM_PLMN_SEARCH_CNF                = 0x0001,   /* _H2ASN_MsgChoice RRMM_PLMN_SEARCH_CNF_STRU */
     RRMM_PLMN_LIST_IND                  = 0x0003,   /* _H2ASN_MsgChoice RRMM_PLMN_LIST_IND_STRU */
@@ -1593,6 +1595,42 @@ enum NAS_GAS_MS_CAP_TYPE_ENUM
     NAS_GAS_MS_CAP_TYPE_BUTT
 };
 typedef VOS_UINT8 NAS_GAS_MS_CAP_TYPE_ENUM_UINT8;
+enum NAS_LAU_TYPE_ENUM
+{
+    NAS_LAU_TYPE_NORMAL_LAU             = 0,
+    NAS_LAU_TYPE_PERIOD_LAU,
+    NAS_LAU_TYPE_IMSI_ATTACH,
+
+    NAS_LAU_TYPE_BUTT
+
+};
+typedef VOS_UINT8 NAS_LAU_TYPE_ENUM_UINT8;
+
+
+enum NAS_ADDITION_UPDATE_PARA_ENUM
+{
+    NAS_ADDITION_UPDATE_PARA_NONE       = 0,
+    NAS_ADDITION_UPDATE_PARA_MO,
+    NAS_ADDITION_UPDATE_PARA_MT,
+    NAS_ADDITION_UPDATE_PARA_MO_MT,
+
+    NAS_ADDITION_UPDATE_PARA_BUTT
+
+};
+typedef VOS_UINT8 NAS_ADDITION_UPDATE_PARA_ENUM_UINT8;
+
+
+enum RRMM_TRANSACTION_STATUS_ENUM
+{
+    RRMM_TRANSACTION_CONNECTION_EST_SUCC       = 0,
+    RRMM_TRANSACTION_FAIL,
+
+    RRMM_TRANSACTION_BUTT
+
+};
+typedef VOS_UINT8 RRMM_TRANSACTION_STATUS_ENUM_UINT8;
+
+
 
 /*****************************************************************************
   4 全局变量声明
@@ -2470,6 +2508,7 @@ typedef struct
 
 
 
+/* BEGIN: Added by liuyang id:48197, 2006/6/5   PN:A32D04222*/
 /***********************新增接口MMC－>WAS***************************/
 /* 7.2.16 消息 RRMM_SET_WCDMA_BAND_REQ 结构体 */
 /* 说明：该消息是MMC发给WAS层设置频段原语，*/
@@ -2492,6 +2531,7 @@ typedef struct
 }RRMM_SET_WCDMA_BAND_CNF_ST;
 
 
+/* END:   Added by liuyang id:48197, 2006/6/5   PN:A32D04222*/
 /***********************************END************************************/
 
 
@@ -3533,6 +3573,15 @@ typedef struct
     VOS_UINT8                           aucReserve1[4]; /* 保留 */
 }RRRABM_VOICEPREFER_STOP_REQ_STRU;
 
+
+typedef struct
+{
+    MSG_HEADER_STRU                     stMsgHeader;                            /* 消息头  */    /*_H2ASN_Skip*/
+    RRMM_TRANSACTION_STATUS_ENUM_UINT8  enTransActionStatus;
+    VOS_UINT8                           aucRsv[3];                              /* 保留 */
+}RRMM_TRANSACTION_STATUS_NOTIFY_STRU;
+
+
 /*****************************************************************************
   8 UNION定义
 *****************************************************************************/
@@ -3791,6 +3840,16 @@ extern VOS_UINT32 GASGCOM_GetMsCapability(RRC_PLMN_ID_STRU *pstPlmn,
 #endif
 
 extern VOS_UINT32  TAF_IsNormalSrvStatus(VOS_VOID);
+
+
+extern VOS_UINT32 NAS_MM_GetLauRequestInfo(
+    NAS_MSG_STRU                           *pstLauReqMsg,
+    NAS_LAU_TYPE_ENUM_UINT8                *penLauType,
+    VOS_UINT8                              *pucFollowOnFlg,
+    NAS_ADDITION_UPDATE_PARA_ENUM_UINT8    *penAdditionUpdatePara
+);
+
+
 #if ((VOS_OS_VER == VOS_WIN32) || (VOS_OS_VER == VOS_NUCLEUS))
 #pragma pack()
 #else

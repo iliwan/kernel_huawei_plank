@@ -73,7 +73,7 @@ extern "C" {
 #define USIMM_TRANS_PRIMID              0x5001
 
 /* 定义USIM初始化列表长度 */
-#define USIMM_INIT_USIM_CARD_NUM        (11)
+#define USIMM_INIT_USIM_CARD_NUM        (12)
 
 /* 定义SIM初始化列表长度 */
 #define USIMM_INIT_SIM_CARD_NUM         (9)

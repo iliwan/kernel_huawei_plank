@@ -730,7 +730,9 @@ struct v4l2_event32 {
 		struct v4l2_event_vsync		vsync;
 		struct v4l2_event_ctrl		ctrl;
 		struct v4l2_event_frame_sync	frame_sync;
-		__u8			data[128];
+	    struct v4l2_event_src_change src_change;
+        struct v4l2_event_motion_det motion_det;
+        __u8			data[128];
 	} u;
 	__u32				pending;
 	__u32				sequence;

@@ -87,7 +87,7 @@
 #define balongfb_logw(fmt, ...) \
 	pr_warn("[balongfb]%s:"fmt, __func__, ##__VA_ARGS__)
 #define balongfb_loge(fmt, ...) \
-	pr_err("[balongfb]%s: "fmt, __func__, ##__VA_ARGS__)
+	pr_err("[balongfb]%s: %d"fmt, __func__, __LINE__, ##__VA_ARGS__)
 
 /*--------------------------------------------------------------------------*/
 #ifdef PC_UT_TEST_ON

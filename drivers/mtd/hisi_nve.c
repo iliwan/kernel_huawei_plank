@@ -28,7 +28,7 @@
 static struct semaphore nv_sem;
 static struct class *nve_class;
 static struct NVE_struct *my_nve;
-static int hisi_nv_init_ok;
+int hisi_nv_init_ok;
 #ifdef CONFIG_ARCH_HI6XXX
 static char nv_info[NV_INFO_LEN];
 static char temp_nv_info[NV_INFO_LEN];

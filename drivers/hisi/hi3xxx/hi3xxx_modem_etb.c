@@ -18,11 +18,17 @@
 
 #define BVAL(val, n)			(((val) & BIT((n))) >> (n))
 
+#if defined(CONFIG_ARCH_HI3630)
+#define TOP_ETB_REG_BASE		(0xFFE36000)
+#define TOP_FUNNEL_REG_BASE		(0xFFE31000)
+#elif defined(CONFIG_HISI_3635)
 #define TOP_ETB_REG_BASE		(0xEC036000)
 #define TOP_FUNNEL_REG_BASE		(0xEC031000)
+#else
+#warning Unknown platform of modem ETB driver!
+#endif
 
-
-#define REG_UNLOCK				(0xc5acce55)
+#define REG_UNLOCK			(0xc5acce55)
 #define ETB_DATA_SIZE			(0x4000)
 
 #define coresight_writel(val, reg)	__raw_writel(val, reg)
@@ -36,10 +42,11 @@ struct hisi_etb_drvdata {
 };
 
 static struct hisi_etb_drvdata *g_drvdata;
-static char ETB_DATA_BUFFER[ETB_DATA_SIZE] = {0};
 
+#ifdef CONFIG_HI3XXX_MODEM_ETB
 static void __iomem *g_top_etb_base;
 static void __iomem *g_top_funnel_base;
+static char ETB_DATA_BUFFER[ETB_DATA_SIZE] = {0};
 
 char *etb_file_path;
 #define MAX_ETB_FILE_LEN (128)
@@ -105,10 +112,8 @@ static int debug_coresight_poweroff(void)
 void debug_coresight_init(void)
 {
 	printk("%s: ++\n", __func__);
-
 	g_top_etb_base = ioremap(TOP_ETB_REG_BASE, 0x1000);
 	g_top_funnel_base = ioremap(TOP_FUNNEL_REG_BASE, 0x1000);
-
 	printk("%s: --\n", __func__);
 	return;
 }
@@ -119,11 +124,9 @@ void debug_coresight_deinit(void)
 
 	iounmap(g_top_etb_base);
 	iounmap(g_top_funnel_base);
-
 	printk("%s: --\n", __func__);
 	return;
 }
-
 
 void debug_coresight_regdump(void)
 {
@@ -138,6 +141,7 @@ void debug_coresight_regdump(void)
 	printk("TOP_FUNNEL: off: 0x%x, val: 0x%x\n", 0x04, coresight_readl(g_top_funnel_base + 0x04));
 	spin_unlock_irqrestore(&g_drvdata->spinlock, flags);
 }
+#endif
 
 #ifdef CONFIG_HI3XXX_MODEM_ETB
 void top_tmc_enable(void)
@@ -188,7 +192,7 @@ void top_tmc_enable(void){}
 
 EXPORT_SYMBOL_GPL(top_tmc_enable);
 
-
+#ifdef CONFIG_HI3XXX_MODEM_ETB
 void debug_coresight_disable(void)
 {
 	int count, i;
@@ -255,7 +259,6 @@ void debug_coresight_disable(void)
 	printk("%s: --\n", __func__);
 }
 
-#ifdef CONFIG_HI3XXX_MODEM_ETB
 void top_tmc_disable(char *pdir)
 {
 	if (MAX_ETB_FILE_LEN < strlen(pdir) + 1) {
@@ -281,11 +284,13 @@ void top_tmc_disable(char *pdir){}
 
 EXPORT_SYMBOL_GPL(top_tmc_disable);
 
+#ifdef CONFIG_HI3XXX_MODEM_ETB
 static int hisi_etb_init_map(void)
 {
 	debug_coresight_init();
 	return 0;
 }
+#endif
 
 static int hisi_etb_probe(struct platform_device *pdev)
 {
@@ -303,18 +308,21 @@ static int hisi_etb_probe(struct platform_device *pdev)
 	drvdata->dev = &pdev->dev;
 	platform_set_drvdata(pdev, drvdata);
 
+#ifdef CONFIG_HI3XXX_MODEM_ETB
 	drvdata->top_cssys_regu.supply = "top_cssys";
 	ret = devm_regulator_bulk_get(dev, 1, &(drvdata->top_cssys_regu));
 	if (ret) {
 		printk("couldn't get regulators %d\n",ret);
 		return -1;
 	}
-
+#endif
 	spin_lock_init(&drvdata->spinlock);
 
 	g_drvdata = drvdata;
 
+#ifdef CONFIG_HI3XXX_MODEM_ETB
 	hisi_etb_init_map();
+#endif
 
 	printk("%s: --\n", __func__);
 	return ret;
@@ -350,7 +358,9 @@ static int  hisi_etb_resume(struct platform_device *pdev)
 
 static int  hisi_etb_remove(struct platform_device *pdev)
 {
+#ifdef CONFIG_HI3XXX_MODEM_ETB
 	debug_coresight_deinit();
+#endif
 	return 0;
 }
 
@@ -384,5 +394,5 @@ void __exit hisi_etb_exit(void)
 }
 module_exit(hisi_etb_exit);
 
-MODULE_DESCRIPTION("Seattle etb feature for modem.");
+MODULE_DESCRIPTION("ETB feature for modem.");
 MODULE_LICENSE("GPL");

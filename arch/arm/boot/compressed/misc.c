@@ -21,9 +21,6 @@ unsigned int __machine_arch_type;
 #include <linux/compiler.h>	/* for inline */
 #include <linux/types.h>
 #include <linux/linkage.h>
-#include "soc_baseaddr_interface.h"
-#include "soc_ao_sctrl_interface.h"
-
 
 #ifdef CONFIG_SRECORDER
 
@@ -168,10 +165,6 @@ static void icedcc_putc(int ch)
 static void putstr(const char *ptr)
 {
 	char c;
-
-    if ('A' != *(volatile int *)SOC_AO_SCTRL_SC_RESERVED31_ADDR(SOC_AO_SCTRL_BASE_ADDR)){
-        return;
-    }
 
 	while ((c = *ptr++) != '\0') {
 		if (c == '\n')

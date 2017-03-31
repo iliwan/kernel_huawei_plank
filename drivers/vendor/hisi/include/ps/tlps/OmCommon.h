@@ -735,6 +735,7 @@ enum APP_PS_MSG_TYPE_ENUM
 };
 typedef VOS_UINT32   APP_PS_MSG_TYPE_ENUM_UINT32;
 
+/*added by hujianbo for TDS L2 OM, 20131230*/
 /*****************************************************************************
  枚举名    : TDS_L2_UP_EVENT_ENUM
  协议表格  :
@@ -1443,6 +1444,8 @@ typedef struct
 /* gaojishan */
 typedef DT_CMD_ENUM_UINT8       APP_CMD_ENUM_UINT8;
 typedef DT_RESULT_ENUM_UINT32   APP_RESULT_ENUM_UINT32;
+
+/*added by hujianbo for TL L2 OM, 20140106*/
 
 /*****************************************************************************
  结构名    :TL_OM_COMM_HEAD_STRU

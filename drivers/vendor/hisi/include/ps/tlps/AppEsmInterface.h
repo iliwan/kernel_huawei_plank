@@ -334,6 +334,7 @@ enum APP_ESM_PDN_TYPE_ENUM
 };
 typedef VOS_UINT32 APP_ESM_PDN_TYPE_ENUM_UINT32;
 
+/*Modify by sunbing 49683 for CL multimode 2014-01-09 begin*/
 /*****************************************************************************
  枚举名    : APP_ESM_PDN_REQUEST_TYPE_ENUM
  枚举说明  : PDN请求类型取值 24008 10.5.6.17
@@ -345,6 +346,7 @@ enum APP_ESM_PDN_REQUEST_TYPE_ENUM
     APP_ESM_PDN_REQUEST_TYPE_BUTT
 };
 typedef VOS_UINT32 APP_ESM_PDN_REQUEST_TYPE_ENUM_UINT32;
+/*Modify by sunbing 49683 for CL multimode 2014-01-09 end*/
 
 
 /*****************************************************************************

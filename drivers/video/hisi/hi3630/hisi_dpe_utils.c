@@ -31,6 +31,9 @@ static unsigned int g_led_rg_csc_value[9];
 static unsigned int g_is_led_rg_csc_set;
 static unsigned  int g_comform_value = 0;
 static unsigned  int g_starlight_value = 0;
+static unsigned  int g_acm_State = 1;
+
+extern bool g_enable_extra_data;
 
 struct dss_clk_rate * get_dss_clk_rate(struct hisi_fb_data_type *hisifd)
 {
@@ -142,8 +145,11 @@ void init_dpp(struct hisi_fb_data_type *hisifd)
 	}
 
 	set_reg(dpp_base + DPP_IMG_HRZ, DSS_WIDTH(hisifd->panel_info.xres), 13, 0);
-	set_reg(dpp_base + DPP_IMG_VRT, DSS_HEIGHT(hisifd->panel_info.yres), 13, 0);
-
+	if (true == g_enable_extra_data) {
+		set_reg(dpp_base + DPP_IMG_VRT, DSS_HEIGHT(hisifd->panel_info.yres+EXTRA_NUM), 13, 0);
+	} else {
+		set_reg(dpp_base + DPP_IMG_VRT, DSS_HEIGHT(hisifd->panel_info.yres), 13, 0);
+	}
 	if (is_mipi_cmd_panel(hisifd)) {
 		outp32(dpp_base + DPP_CLK_GT, 0xA);
 	}
@@ -171,14 +177,18 @@ void init_sbl(struct hisi_fb_data_type *hisifd)
 		outp32(sbl_base + SBL_CONFIG_BUFFER_MODE, 0x0);
 	}
 
-	outp32(sbl_base + SBL_AUTOMATIC_START_CALC_STRENGTH_DRC_BACKLIGHT_SEL, 0x80);
+	outp32(sbl_base + SBL_AUTOMATIC_START_CALC_STRENGTH_DRC_BACKLIGHT_SEL, 0x81);
 	tmp = hisifd->panel_info.xres;
 	outp32(sbl_base + SBL_FRAME_WIDTH_L, (tmp & 0xff));
 	outp32(sbl_base + SBL_FRAME_WIDTH_H, ((tmp >> 8) & 0xff));
-	tmp = hisifd->panel_info.yres;
+	if (true == g_enable_extra_data) {
+		tmp = hisifd->panel_info.yres+EXTRA_NUM;
+	} else {
+		tmp = hisifd->panel_info.yres;
+	}
 	outp32(sbl_base + SBL_FRAME_HEIGHT_L, (tmp & 0xff));
 	outp32(sbl_base + SBL_FRAME_HEIGHT_H, ((tmp >> 8) & 0xff));
-	outp32(sbl_base + SBL_APICAL_DITHER, 0x0);
+	outp32(sbl_base + SBL_APICAL_DITHER, 0x5);
 	tmp = hisifd->bl_level;
 	outp32(sbl_base + SBL_BACKLIGHT_L, (tmp & 0xff));
 	outp32(sbl_base + SBL_BACKLIGHT_H, ((tmp >> 8) & 0xff));
@@ -305,6 +315,28 @@ void init_acm(struct hisi_fb_data_type *hisifd)
 
 	set_reg(acm_base + ACM_EN, 0x1, 1, 0);
 	set_reg(acm_base + ACM_EN, pinfo->acm_valid_num & 0x7, 3, 4);
+	g_acm_State = 1;
+}
+
+void dpe_set_acm_state(struct hisi_fb_data_type *hisifd)
+{
+	char __iomem *acm_base = NULL;
+	struct hisi_panel_info *pinfo = NULL;
+
+	BUG_ON(hisifd == NULL);
+
+	pinfo = &(hisifd->panel_info);
+	if(pinfo->acm_support != 1){
+		HISI_FB_DEBUG("fb%d, not support acm!\n", hisifd->index);
+		return;
+	}
+       
+	acm_base = hisifd->dss_base + DSS_DPP_ACM_OFFSET;
+	if(0 == g_acm_State){
+		set_reg(acm_base + ACM_EN, 0x0, 1, 0);
+	}else{
+		set_reg(acm_base + ACM_EN, 0x1, 1, 0);		
+	}
 }
 
 void init_xcc_and_gama(struct hisi_fb_data_type *hisifd)
@@ -354,9 +386,16 @@ void init_ifbc(struct hisi_fb_data_type *hisifd)
 		return ;
 	}
 
-	set_reg(ifbc_base + IFBC_SIZE,
-		((DSS_WIDTH(hisifd->panel_info.xres) << 16) |
-		DSS_HEIGHT(hisifd->panel_info.yres)), 32, 0);
+	if (true == g_enable_extra_data) {
+		set_reg(ifbc_base + IFBC_SIZE,
+			((DSS_WIDTH(hisifd->panel_info.xres) << 16) |
+			DSS_HEIGHT(hisifd->panel_info.yres + EXTRA_NUM)), 32, 0);
+	} else {
+		set_reg(ifbc_base + IFBC_SIZE,
+			((DSS_WIDTH(hisifd->panel_info.xres) << 16) |
+			DSS_HEIGHT(hisifd->panel_info.yres)), 32, 0);
+	}
+
 	set_reg(ifbc_base + IFBC_CTRL, hisifd->panel_info.ifbc_type, 10, 0);
 	if (hisifd->panel_info.ifbc_type != IFBC_TYPE_NON) {
 		set_reg(ifbc_base + IFBC_EN, 0x3, 2, 0);
@@ -515,7 +554,11 @@ void init_dbuf(struct hisi_fb_data_type *hisifd)
 		return ;
 	}
 
-	outp32(dbuf_base + DFS_FRM_SIZE, pinfo->xres * pinfo->yres);
+	if (true == g_enable_extra_data) {
+		outp32(dbuf_base + DFS_FRM_SIZE, pinfo->xres * (pinfo->yres+EXTRA_NUM));
+	} else {
+		outp32(dbuf_base + DFS_FRM_SIZE, pinfo->xres * pinfo->yres);
+	}
 	outp32(dbuf_base + DFS_FRM_HSIZE, DSS_WIDTH(pinfo->xres));
 	outp32(dbuf_base + DFS_SRAM_VALID_NUM, sram_valid_num);
 
@@ -571,8 +614,13 @@ void init_ldi(struct hisi_fb_data_type *hisifd)
 		}
 		outp32(dss_base + PDP_LDI_VRT_CTRL0,
 			pinfo->ldi.v_front_porch | (pinfo->ldi.v_back_porch << 16));
-		outp32(dss_base + PDP_LDI_VRT_CTRL1,
-			DSS_HEIGHT(pinfo->yres) | (DSS_HEIGHT(pinfo->ldi.v_pulse_width) << 16));
+		if (true == g_enable_extra_data) {
+			outp32(dss_base + PDP_LDI_VRT_CTRL1,
+				DSS_HEIGHT(pinfo->yres+EXTRA_NUM) | (DSS_HEIGHT(pinfo->ldi.v_pulse_width) << 16));
+		} else {
+			outp32(dss_base + PDP_LDI_VRT_CTRL1,
+				DSS_HEIGHT(pinfo->yres) | (DSS_HEIGHT(pinfo->ldi.v_pulse_width) << 16));
+		}
 		outp32(dss_base + PDP_LDI_PLR_CTRL,
 			pinfo->ldi.vsync_plr | (pinfo->ldi.hsync_plr << 1) |
 			(pinfo->ldi.pixelclk_plr << 2) | (pinfo->ldi.data_en_plr << 3));
@@ -1203,6 +1251,12 @@ void dpe_update_g_comform_discount(unsigned int value)
     HISI_FB_INFO(" g_comform_value = %d" , g_comform_value);       
 }
 
+void dpe_update_g_acm_state(unsigned int value)
+{
+    g_acm_State = value;
+    HISI_FB_INFO(" g_acm_State = %d" , g_acm_State);       
+}
+
 int dpe_set_ct_cscValue(struct hisi_fb_data_type *hisifd)
 {
 	char __iomem *dss_base = 0;
@@ -1368,4 +1422,9 @@ ssize_t dpe_show_starlight_ct_cscValue(char *buf)
 							g_csc_value [3], g_csc_value [4], g_csc_value [5],
 							g_csc_value [6], g_csc_value [7], g_csc_value [8],
 							g_starlight_value);
+}
+
+ssize_t dpe_show_acm_state(char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "g_acm_State = %d\n",g_acm_State);
 }

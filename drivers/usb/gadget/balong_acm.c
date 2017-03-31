@@ -1934,6 +1934,38 @@ fail_out:
 	return status;
 }
 
+void acm_cdev_dump_write_stat(int port_num)
+{
+	struct gs_acm_cdev_port *port;
+
+	if (!gs_cdev_driver || port_num >= gs_acm_cdev_n_ports) {
+		pr_emerg("gacm_dump fail drv:%p, port_num:%d, n_ports:%d\n",
+		         gs_cdev_driver, port_num, gs_acm_cdev_n_ports);
+		return;
+	}
+
+	port = gs_acm_cdev_ports[port_num].port;
+
+	printk(KERN_DEBUG "port_usb                  %p\n", port->port_usb);
+	printk(KERN_DEBUG "dev name                  %s\n", ACM_CDEV_GET_NAME(port_num));
+
+	printk(KERN_DEBUG "write_started             %d\n", port->write_started);
+	printk(KERN_DEBUG "write_completed           %d\n", port->write_completed);
+
+	printk(KERN_DEBUG "stat_write_async_call     %d\n", port->stat_write_async_call);
+	printk(KERN_DEBUG "stat_tx_submit            %d\n", port->stat_tx_submit);
+	printk(KERN_DEBUG "stat_tx_submit_fail       %d\n", port->stat_tx_submit_fail);
+	printk(KERN_DEBUG "stat_tx_submit_bytes      %d\n", port->stat_tx_submit_bytes);
+	printk(KERN_DEBUG "stat_tx_done              %d\n", port->stat_tx_done);
+	printk(KERN_DEBUG "stat_tx_done_fail         %d\n", port->stat_tx_done_fail);
+	printk(KERN_DEBUG "stat_tx_done_bytes        %d\n", port->stat_tx_done_bytes);
+	printk(KERN_DEBUG "stat_tx_done_schdule      %d\n", port->stat_tx_done_schdule);
+	printk(KERN_DEBUG "stat_tx_done_disconnect   %d\n", port->stat_tx_done_disconnect);
+	printk(KERN_DEBUG "stat_tx_callback          %d\n", port->stat_tx_callback);
+	printk(KERN_DEBUG "stat_tx_no_req            %d\n", port->stat_tx_no_req);
+	printk(KERN_DEBUG "stat_tx_disconnect        %d\n", port->stat_tx_disconnect);
+}
+
 /**
  * gacm_cdev_disconnect - notify TTY I/O glue that USB link is inactive
  * @gser: the function, on which gserial_connect() was called
@@ -1975,6 +2007,11 @@ D("+\n");
 	gs_acm_cdev_free_requests(gser->in, &port->write_queue, NULL);
 	port->read_allocated = 0;
 	port->write_allocated = 0;
+
+	/* dump wirte status when disconnect */
+	if ((port->port_num == 1) || (port->port_num == 5) || (port->port_num == 6)) {
+		acm_cdev_dump_write_stat(port->port_num);
+	}
 
 	spin_unlock_irqrestore(&port->port_lock, flags);
 

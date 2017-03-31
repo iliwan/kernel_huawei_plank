@@ -2012,8 +2012,8 @@ void tcp_set_state(struct sock *sk, int state)
 
 #ifdef CONFIG_HW_WIFIPRO
 		if(is_wifipro_on && is_mcc_china && wifipro_is_not_local_or_lan_sock(dest_addr)){
-            wifipro_google_sock_del(dest_addr);
-        }
+			wifipro_google_sock_del(dest_addr);
+		}
 #endif
 	default:
 		if (oldstate == TCP_ESTABLISHED)
@@ -2026,13 +2026,13 @@ void tcp_set_state(struct sock *sk, int state)
 	sk->sk_state = state;
 
 #ifdef CONFIG_HW_WIFIPRO
-	if(state == TCP_SYN_SENT){
-		if(is_wifipro_on && is_mcc_china && wifipro_is_not_local_or_lan_sock(dest_addr)){
+    if(state == TCP_SYN_SENT){
+        if(is_wifipro_on && is_mcc_china && wifipro_is_not_local_or_lan_sock(dest_addr)){
             if(wifipro_is_google_sock(current, dest_addr)){
                 WIFIPRO_DEBUG("add a google sock:%s", wifipro_ntoa(dest_addr));
             }
-		}
-	}
+        }
+    }
 #endif
 
 #ifdef STATE_TRACE
@@ -2698,6 +2698,11 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		else
 			tp->tsoffset = val - tcp_time_stamp;
 		break;
+#ifdef CONFIG_HUAWEI_BASTET
+	case TCP_RECONN:
+		bastet_reconn_config(sk, val);
+		break;
+#endif
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -3606,14 +3611,20 @@ restart:
 			sock_hold(sk);
 			spin_unlock_bh(lock);
 
+			lock_sock(sk);
 			local_bh_disable();
 			bh_lock_sock(sk);
-			sk->sk_err = ETIMEDOUT;
-			sk->sk_error_report(sk);
 
-			tcp_done(sk);
+			if (!sock_flag(sk, SOCK_DEAD)) {
+				smp_wmb();  /* be consistent with tcp_reset */
+				sk->sk_err = ETIMEDOUT;
+				sk->sk_error_report(sk);
+				tcp_done(sk);
+			}
+
 			bh_unlock_sock(sk);
 			local_bh_enable();
+			release_sock(sk);
 			sock_put(sk);
 
 			goto restart;

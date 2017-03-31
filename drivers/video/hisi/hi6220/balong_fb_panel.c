@@ -25,6 +25,8 @@
 #include "balong_fb.h"
 
 u32 three_lane_flag = 0;
+u32 colortemp_adjust_flag = 0;
+u32 not_use_scharger = 0;
 
 void set_value(u32* addr, u32 val, u8 bw, u8 bs)
 {
@@ -124,7 +126,10 @@ int panel_next_set_backlight(struct platform_device *pdev)
     struct balong_fb_panel_data *next_pdata = NULL;
     struct platform_device *next_pdev = NULL;
 
-    BUG_ON(pdev == NULL);
+    if (NULL == pdev) {
+        balongfb_loge("NULL Pointer\n");
+        return -EINVAL;
+    }
 
     pdata = (struct balong_fb_panel_data *)pdev->dev.platform_data;
     if (pdata) {
@@ -199,7 +204,10 @@ int panel_next_check_esd(struct platform_device *pdev)
     struct balong_fb_panel_data *next_pdata = NULL;
     struct platform_device *next_pdev = NULL;
 
-    BUG_ON(pdev == NULL);
+    if (NULL == pdev) {
+        balongfb_loge("NULL Pointer\n");
+        return -EINVAL;
+    }
 
     pdata = (struct balong_fb_panel_data *)pdev->dev.platform_data;
     if (pdata) {
@@ -601,6 +609,18 @@ int get_resource_from_dts(struct platform_device *pdev, struct balong_panel_info
     if (ret) {
         balongfb_loge("get three_lane_flag is fail \n");
         three_lane_flag = 0;
+    }
+
+    ret = of_property_read_u32(np, "ct_adjust_flag", &colortemp_adjust_flag);
+    if (ret) {
+        balongfb_loge("Failed to get the flag of color temperature! \n");
+        colortemp_adjust_flag = 0;
+    }
+
+    ret = of_property_read_u32(np, "not_use_scharger", &not_use_scharger);
+    if (ret) {
+        balongfb_loge("get not_use_scharger failed!\n");
+        not_use_scharger = 0;
     }
 
     balongfb_logi("pinfo->dsi_bit_clk_rate = %d \n", pinfo->mipi.dphy_freq);

@@ -1,3 +1,28 @@
+/*****************************************************************************/
+/*                                                                           */
+/*                Copyright 1999 - 2003, Huawei Tech. Co., Ltd.              */
+/*                           ALL RIGHTS RESERVED                             */
+/*                                                                           */
+/* FileName: v_sprintf.c                                                     */
+/*                                                                           */
+/* Author:                                                                   */
+/*                                                                           */
+/* Version: 1.0                                                              */
+/*                                                                           */
+/* Date:                                                                     */
+/*                                                                           */
+/* Description: copy this file from Dopra                                    */
+/*                                                                           */
+/*                                                                           */
+/* Others:                                                                   */
+/*                                                                           */
+/* History:                                                                  */
+/* 1. Date:                                                                  */
+/*    Author:                                                                */
+/*    Modification:                                                          */
+/*                                                                           */
+/*****************************************************************************/
+/*lint --e{958,813,64,732,740,440,443,734,722,445,616,48,744,530,830,525,801,539,585,578}*/
 #ifdef __cplusplus
 #if __cplusplus
 extern "C"{
@@ -119,8 +144,8 @@ VOS_INT32 _C_formatter(const VOS_CHAR *format,
     VOS_CHAR               *ptr, *hex;
     VOS_CHAR                zeropad;
     VOS_CHAR                buf[FRMWRI_BUFSIZE];    
-    VOS_UINT32              ulDate = 0;
-    VOS_UINT32              ulTime = 0;
+    VOS_UINT32              ulDate = 0;/* added by wuxiaoqian 2k/09/20 for "%t"*/
+    VOS_UINT32              ulTime = 0;/* added by wuxiaoqian 2k/09/20 for "%t"*/     
     
     for (;;)    /* Until full format string read */
     {
@@ -428,6 +453,7 @@ VOS_INT32 _C_formatter(const VOS_CHAR *format,
 #endif
                     break;
                     /******************************************************************
+                    * added by wuxiaoqian 2k/09/20                  *
                     * output Datetime, the input is a VOS_UINT32 (sec from 1970/1/1)*
                     ******************************************************************/
                     case 'T':
@@ -608,6 +634,7 @@ VOS_VOID comio(VOS_UINT8 output, VOS_VOID *number,VOS_CHAR * strbuf)
 {
     /* (*((VOS_INT32 *) number))++;*/
 
+    /* Modified by Zym 2000/8/4 */
     /*if (output == '\n')
     {
         *(strbuf+*((VOS_INT32 *)number))=('\r');
@@ -977,8 +1004,8 @@ VOS_INT32 ANSI_vsprintf(VOS_CHAR *out_buf, const VOS_CHAR *fmt0, va_list argp)
 
     VOS_CHAR               *buf_pointer;
     
-    VOS_UINT32              ulDate = 0;
-    VOS_UINT32              ulTime = 0;
+    VOS_UINT32              ulDate = 0;				/* added by wuxiaoqian 2k/09/20 for "%t"*/
+    VOS_UINT32              ulTime = 0;				/* added by wuxiaoqian 2k/09/20 for "%t"*/     
 
     pucFmt = (VOS_UCHAR *)fmt0;
     pucDigs = "0123456789abcdef";

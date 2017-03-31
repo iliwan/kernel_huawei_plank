@@ -1,0 +1,15 @@
+
+/**
+ * Huawei Ltd.
+ * PhosphorV660
+ */
+
+
+/include/ "GRACE_TUGL_VN1_config.dtsi"
+
+/ {
+	hisi,boardid = <1 4 3 8 >;
+	hisi,boardname = "GRACE_TUGL_VN1_64G";
+	hisi,config_profile = "high";
+};
+

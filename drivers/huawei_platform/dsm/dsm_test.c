@@ -3,7 +3,7 @@
 #include <linux/sched/rt.h>
 #include <linux/random.h>
 #include <linux/hw_log.h>
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 
 #define HWLOG_TAG	DSM_TEST
 HWLOG_REGIST();

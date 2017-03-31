@@ -1,13 +1,8 @@
-
-
-
 #ifndef __SOC_INTERRUPTS_H__
-#define __SOC_INTERRUPTS_H__
-
+#define __SOC_INTERRUPTS_H__ 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 #include "product_config.h"
 #ifdef __KERNEL__
 #include <soc_interrupts_app.h>
@@ -18,10 +13,7 @@ extern "C" {
 #elif defined(__CMSIS_RTOS)
 #include <soc_interrupts_m3.h>
 #endif
-
 #ifdef __cplusplus
 }
 #endif
-
-#endif    /* __SOC_INTERRUPTS_H__ */
-
+#endif

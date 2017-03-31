@@ -16,7 +16,7 @@
  *
  */
 
-#include "k3_fb.h"
+#include "../hi3630/hisi_fb.h"
 
 #include "k3_edid.h"
 #include "k3_hdmi.h"

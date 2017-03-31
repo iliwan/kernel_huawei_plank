@@ -882,6 +882,9 @@ retry:
 		sd_err(("bcmsdh_sdmmc: retry for read error. left time: %d\n", retry_times));
 		retry_times--;
 		err_ret = 0;
+#if defined(MMC_SDIO_ABORT)
+		sdio_abort_retry = MMC_SDIO_ABORT_RETRY_LIMIT;
+#endif
 		goto retry;
 	}
 #ifdef HW_WIFI_DMD_LOG
@@ -919,11 +922,13 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
 
 	DHD_PM_RESUME_WAIT(sdioh_request_word_wait);
 	DHD_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
-	/* Claim host controller */
-	sdio_claim_host(sd->func[func]);
+
 #ifdef HW_SDIO_RW_RETRY
 retry:
 #endif
+	/* Claim host controller */
+	sdio_claim_host(sd->func[func]);
+
 	if(rw) { /* CMD52 Write */
 		if (nbytes == 4) {
 			sdio_writel(sd->func[func], *word, addr, &err_ret);
@@ -976,6 +981,9 @@ retry:
 		sd_err(("bcmsdh_sdmmc: retry for read error. left time: %d\n", retry_times));
 		retry_times--;
 		err_ret = 0;
+#if defined(MMC_SDIO_ABORT)
+		sdio_abort_retry = MMC_SDIO_ABORT_RETRY_LIMIT;
+#endif
 		goto retry;
 	}
 

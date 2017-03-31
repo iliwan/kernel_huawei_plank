@@ -145,7 +145,10 @@ STATIC int balong_ade_overlay_res_set(struct ade_compose_data_type    *ade_pri_d
     balongfb_logi_top_info("res_info.compose_ch_res[5] = 0x%x\n", res_info.compose_ch_res[5].ul32);
 
     balongfd = (struct balong_fb_data_type *)platform_get_drvdata(ade_pri_data->parent);
-    BUG_ON(balongfd == NULL);
+    if (NULL == balongfd) {
+        balongfb_loge("NULL Pointer \n");
+        return -EINVAL;
+    }
 
     down(&balong_fb_blank_sem);
     if (!balongfd->ade_core_power_on) {
@@ -198,7 +201,10 @@ STATIC int balong_ade_overlay_region_set(struct ade_compose_data_type    *ade_pr
     }
 
     balongfd = (struct balong_fb_data_type *)platform_get_drvdata(ade_pri_data->parent);
-    BUG_ON(balongfd == NULL);
+    if (NULL == balongfd) {
+        balongfb_loge("NULL Pointer \n");
+        return -EINVAL;
+    }
 
     down(&balong_fb_blank_sem);
     if (!balongfd->ade_core_power_on) {
@@ -273,7 +279,10 @@ STATIC int balong_ade_overlay_commit(struct ade_compose_data_type    *ade_pri_da
     }
 
     balongfd = (struct balong_fb_data_type *)platform_get_drvdata(ade_pri_data->parent);
-    BUG_ON(balongfd == NULL);
+    if (NULL == balongfd) {
+        balongfb_loge("NULL Pointer \n");
+        return -EINVAL;
+    }
     if ((!balongfd->frame_updated) && lcd_pwr_status.panel_power_on)
     {
 
@@ -442,7 +451,10 @@ STATIC int balong_ade_overlay_refresh(struct ade_compose_data_type    *ade_pri_d
     }
 
     balongfd = (struct balong_fb_data_type *)platform_get_drvdata(ade_pri_data->parent);
-    BUG_ON(balongfd == NULL);
+    if (NULL == balongfd) {
+        balongfb_loge("NULL Pointer \n");
+        return -EINVAL;
+    }
 
     down(&balong_fb_blank_sem);
     if (!balongfd->ade_core_power_on) {
@@ -479,7 +491,10 @@ STATIC int balong_ade_overlay_layer_set(struct ade_compose_data_type    *ade_pri
     }
 
     balongfd = (struct balong_fb_data_type *)platform_get_drvdata(ade_pri_data->parent);
-    BUG_ON(balongfd == NULL);
+    if (NULL == balongfd) {
+        balongfb_loge("NULL Pointer \n");
+        return -EINVAL;
+    }
 
     down(&balong_fb_blank_sem);
     if (!balongfd->ade_core_power_on) {
@@ -508,7 +523,10 @@ int balong_ade_open(struct inode* inode, struct file* file)
 {
     struct balong_fb_data_type *pfb_data;
 
-    BUG_ON(file == NULL);
+    if (NULL == file) {
+        balongfb_loge("NULL Pointer \n");
+        return -EINVAL;
+    }
 
     balongfb_logi("enter succ ! \n");
 
@@ -524,7 +542,10 @@ int balong_ade_open(struct inode* inode, struct file* file)
     }
 
     pfb_data = (struct balong_fb_data_type *)platform_get_drvdata(g_ade_pri_data->parent);
-    BUG_ON(pfb_data == NULL);
+    if (NULL == pfb_data) {
+        balongfb_loge("NULL Pointer \n");
+        return -EINVAL;
+    }
 
     atomic_inc(&g_ade_pri_data->ref_cnt);
 
@@ -545,12 +566,18 @@ int balong_ade_release(struct inode* inode, struct file* file)
 {
     struct ade_compose_data_type    *ade_pri_data = NULL;
 
-    BUG_ON(file == NULL);
+    if (NULL == file) {
+        balongfb_loge("NULL Pointer \n");
+        return -EINVAL;
+    }
 
     balongfb_logi("enter succ ! \n");
 
     ade_pri_data = file->private_data;
-    BUG_ON(ade_pri_data == NULL);
+    if (NULL == ade_pri_data) {
+        balongfb_loge("NULL Pointer \n");
+        return -EINVAL;
+    }
     // ade_pri_data->frame_count = 0;
 
     if (atomic_read(&ade_pri_data->ref_cnt) == 0) {
@@ -583,7 +610,10 @@ int balong_ade_clock_rate_set(struct ade_compose_data_type *ade_pri_data, void _
     }
 
     balongfd = (struct balong_fb_data_type *)platform_get_drvdata(ade_pri_data->parent);
-    BUG_ON(balongfd == NULL);
+    if (NULL == balongfd) {
+        balongfb_loge("NULL Pointer \n");
+        return -EINVAL;
+    }
 
     balongfd->ade_set_core_rate = info.clock_rate;
 
@@ -666,10 +696,16 @@ long balong_ade_ioctl(struct file* file, unsigned int ioctlCode,  unsigned long 
     sigaddset(&setmask, SIGSTOP);
     sigaddset(&setmask, SIGCONT);
 
-    BUG_ON(file == NULL);
+    if (NULL == file) {
+        balongfb_loge("NULL Pointer \n");
+        return -EINVAL;
+    }
 
     ade_pri_data = file->private_data;
-    BUG_ON(ade_pri_data == NULL);
+    if (NULL == ade_pri_data) {
+        balongfb_loge("NULL Pointer \n");
+        return -EINVAL;
+    }
 
 #if ADE_DEBUG_LOG_ENABLE
     if (g_debug_diable_ade) {
@@ -695,10 +731,12 @@ long balong_ade_ioctl(struct file* file, unsigned int ioctlCode,  unsigned long 
         case ADE_OVERLAY_LAYER_SET:
             ret = balong_ade_overlay_layer_set(ade_pri_data, argp);
             break;
+#if 0
 #if ADE_MEM_SHARE_EN
         case ADE_MEM_SHARE_CODEC_PROC:
             ret = balong_ade_mem_share_test(ade_pri_data, argp);
             break;
+#endif
 #endif
         case ADE_CLOCK_RATE_SET:
             ret = balong_ade_clock_rate_set(ade_pri_data, argp);
@@ -709,7 +747,7 @@ long balong_ade_ioctl(struct file* file, unsigned int ioctlCode,  unsigned long 
             break;
     }
     up(&balong_fb_overlay_sem);
-    //sigprocmask(SIG_SETMASK, &oldmask, NULL);
+    sigprocmask(SIG_SETMASK, &oldmask, NULL);
     return ret;
 }
 
@@ -1042,7 +1080,10 @@ int balong_ade_mem_share_test(struct ade_compose_data_type *ade_pri_data, void _
     }
 
     balongfd = (struct balong_fb_data_type *)platform_get_drvdata(ade_pri_data->parent);
-    BUG_ON(balongfd == NULL);
+    if (NULL == balongfd) {
+        balongfb_loge("NULL Pointer \n");
+        return -EINVAL;
+    }
 
     down(&balong_fb_blank_sem);
     if (!balongfd->panel_power_on) {

@@ -121,14 +121,14 @@ static ssize_t ina231_show_value(struct device *dev,
 
 	printk("[client addr=0x%x]shunt_lsb=%d(nV/bit), bus_voltage_lsb=%d(uV/bit),power_lsb=%d(uW/bit),current_lsb=%d(uA/bit)\n",
 				client->addr, shunt_lsb, bus_voltage_lsb, power_lsb, current_lsb);
-	printk("Shunt_voltage:%ld(nV), Bus_voltage:%ld(uV), Power:%ld(uW), Current:%ld(uA), Mask_en:0x%0x\n",
+	printk("Shunt_voltage:%d(nV), Bus_voltage:%d(uV), Power:%d(uW), Current:%d(uA), Mask_en:0x%0x\n",
 				(s16)idata->regs[INA231_SHUNT_VOLTAGE]*shunt_lsb,
 				(s16)idata->regs[INA231_BUS_VOLTAGE]*bus_voltage_lsb,
 				(s16)idata->regs[INA231_POWER]*power_lsb,
 				(s16)idata->regs[INA231_CURRENT]*current_lsb,
 				(u16)idata->regs[INA231_MASK_ENABLE]);
 
-	return snprintf(buf, PAGE_SIZE, "Bus_voltage:%ld, Power:%ld, Current:%ld\n",
+	return snprintf(buf, PAGE_SIZE, "Bus_voltage:%d, Power:%d, Current:%d\n",
 				(s16)idata->regs[INA231_BUS_VOLTAGE]*bus_voltage_lsb,
 				(s16)idata->regs[INA231_POWER]*power_lsb,
 				(s16)idata->regs[INA231_CURRENT]*current_lsb);
@@ -145,8 +145,8 @@ static ssize_t ina231_store_debug(struct device *dev, struct device_attribute *a
 	u16 mask_en = 0;
 	u16 alert_limit = 0;
 
-	ret = sscanf(buf, "config=0x%x, calibration=0x%x, mask_en=0x%x, alert_limit=0x%x", 
-				&config, &calibration, &mask_en, &alert_limit);
+	ret = sscanf(buf, "config=0x%x, calibration=0x%x, mask_en=0x%x, alert_limit=0x%x",
+				(u32*)&config, (u32*)&calibration, (u32*)&mask_en, (u32*)&alert_limit);
 	if (ret < 0) {
 		printk("check your input!!!\n");
 		return count;
@@ -189,7 +189,7 @@ static ssize_t ina231_store_set(struct device *dev, struct device_attribute *att
 {
 	struct i2c_client *client = NULL;
 	struct ina231_data *idata = NULL;
-	u8 cmd;
+	int cmd;
 	int ret = 0;
 
 	if (!dev)

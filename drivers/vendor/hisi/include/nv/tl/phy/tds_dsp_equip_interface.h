@@ -24,7 +24,7 @@ typedef struct
 }TDS_RF_AGC_PARA_STRU;
 
 
-typedef struct 
+typedef struct
 {
     TDS_RF_AGC_PARA_STRU stRfAgcCodePara; /*AGC控制字*/
     TDS_RF_AGC_PARA_STRU stRfAgcUpThrGain; /*AGC升档门限*/
@@ -34,14 +34,14 @@ typedef struct
 
 
 
-typedef struct 
+typedef struct
 {
     UINT16 usCompDCI[32];
     UINT16 usCompDCQ[32];
 }TDS_DCOC_CAL_STRU;
 
 
-typedef struct 
+typedef struct
 {
     INT16  sAmplitude;
     INT16  sPhase;
@@ -50,46 +50,46 @@ typedef struct
 }TDS_RF_TXIQ_CAL_STRU;
 
 
-typedef struct 
+typedef struct
 {
     INT16 sFreqComp[TDS_RF_TX_FREQ_NUM];
 }TDS_TX_RF_FREQ_COMP_STRU;
-typedef struct 
+typedef struct
 {
     INT16 sPaTempComp[3][32];
 }TDS_TX_PA_TEMP_COMP;
-typedef struct 
+typedef struct
 {
     UINT16 usAttenTable[60];
 }TDS_TX_ATTEN_TABLE;
-typedef struct 
+typedef struct
 {
     UINT16 usPowerVoltage[3];
 }TDS_TX_POWERDET_VOLTAGE;
 
-typedef struct 
+typedef struct
 {
     UINT16      usFreqList[TDS_RF_RX_FREQ_NUM];            /*Rx频率校准表*/
     UINT16      rsd;
     UINT16      usFreqNum;
 }TDS_RX_CAL_FREQ_STRU;
-    
-typedef struct 
+
+typedef struct
 {
     INT16 asRxFreqComp[TDS_RX_LEVEL_NUM][TDS_RF_RX_FREQ_NUM];
 }TDS_AGC_FREQ_COMP_UNIT_STRU;
-typedef struct 
+typedef struct
 {
     TDS_AGC_FREQ_COMP_UNIT_STRU stNoBlk;
     TDS_AGC_FREQ_COMP_UNIT_STRU stBlk;
 }TDS_AGC_FREQ_COMP_STRU;
-    
-typedef struct 
+
+typedef struct
 {
     INT16 asRxTempCmpVal[TDS_EQUIP_TEMP_NUM];
 }TDS_AGC_TEMP_COMP_STRU;
 
-    
+
 typedef struct
 {
     TDS_RX_CAL_FREQ_STRU stRxFreq;
@@ -98,7 +98,7 @@ typedef struct
     TDS_AGC_BAND_PARA_STRU   stAgcTable;        /*agc NV项 */
     TDS_DCOC_CAL_STRU stDcoc;
 }TDS_BAND_RXPATH_PARA_STRU;
-typedef struct 
+typedef struct
 {
     UINT16 usFreqList[TDS_RF_TX_FREQ_NUM];
     UINT16 rsd;
@@ -114,18 +114,18 @@ typedef struct
 {
 	INT16 sMaxAtt[TDS_TX_LEVEL_NUM];
 }TDS_TX_RF_BB_MAX_ATT_STRU;
-	
 
-typedef struct 
+
+typedef struct
 {
     INT16 sGainStatus[TDS_TX_LEVEL_NUM];
 }TDS_TX_APC_GAIN_ITEM_STRU;
-typedef struct 
+typedef struct
 {
 	TDS_TX_APC_GAIN_ITEM_STRU astGainITem[3];
 }TDS_TX_APC_GAIN_STRU;
 
-typedef struct 
+typedef struct
 {
     UINT16 usBB0DBAllowedFlg;
     INT16 sMaxBBAttVal;
@@ -134,12 +134,12 @@ typedef struct
 }TDS_TX_RF_BB_ATT_STRU;
 
 
-typedef struct 
+typedef struct
 {
     UINT16 usBias[TDS_TX_LEVEL_NUM];
 }TDS_TX_RF_BIAS_STRU;
 
-typedef struct 
+typedef struct
 {
     INT16 sFreqComp[TDS_RF_TX_FREQ_NUM];
 }TDS_TX_FREQ_COMP_STRU;
@@ -175,6 +175,11 @@ typedef struct
 {
 	TDS_TX_CAL_PA_STRU astTxCalPa[TDS_PA_LEVEL_NUM];
 }TDS_TX_CAL_PA_GAIN_BB_STRU;
+typedef struct
+{
+    INT16  ssPhyHkadcCh;
+    INT16  ssRsv;
+}TDS_PA_TEMP_DET_CHANNEL_STRU;
 
 typedef struct
 {
@@ -194,8 +199,9 @@ typedef struct
 	TDS_TX_CAL_FREQ_STRU stPaTxFreq;
 	TDS_TX_FREQ_COMP_STRU stPaMidFreqComp;
 	TDS_TX_FREQ_COMP_STRU stPaLowFreqComp;
+	TDS_PA_TEMP_DET_CHANNEL_STRU stPaTempDetCh;
 }TDS_BAND_TXPATH_PARA_STRU;
-typedef struct 
+typedef struct
 {
     UINT16 ausTempSensor[TDS_RF_COMMON_TEMP_NUM];
     UINT16 rsd;

@@ -322,7 +322,7 @@ VOS_UINT32 VOS_SuspendTask( VOS_UINT32 ulTaskID )
     }
 
     if ( NU_SUCCESS != NU_Suspend_Task( &(vos_TaskCtrlBlk[ulTaskID].NuTid) ) )
-    {
+    {
         Print("# Nucleus taskSuspend error.\r\n");
         return(VOS_ERR);
     }
@@ -344,7 +344,7 @@ VOS_UINT32 VOS_ResumeTask( VOS_UINT32 ulTaskID )
     }
 
     if ( NU_SUCCESS != NU_Resume_Task( &(vos_TaskCtrlBlk[ulTaskID].NuTid) ) )
-    {
+    {
         Print("# Nucleus taskResume error.\r\n");
         return(VOS_ERR);
     }

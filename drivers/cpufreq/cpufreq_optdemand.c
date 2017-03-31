@@ -356,11 +356,13 @@ static void optdemand_dbs_timer(struct work_struct *work)
 {
 	struct cpufreq_optdemand_cpuinfo *optdemand_cpuinfo =
 		container_of(work, struct cpufreq_optdemand_cpuinfo, cdbs.work.work);
-	unsigned int cpu = optdemand_cpuinfo->cdbs.cur_policy->cpu;
+	struct cpufreq_policy *policy = optdemand_cpuinfo->cdbs.cur_policy;
+	if(!policy || !policy->governor_enabled)
+		return;
+	unsigned int cpu = policy->cpu;
 	cur_cpu = optdemand_cpuinfo->cdbs.cpu;
 	struct cpufreq_optdemand_cpuinfo *pcpu = &per_cpu(cpuinfo, cpu);
-	struct cpufreq_policy *policy = optdemand_cpuinfo->cdbs.cur_policy;
-	struct dbs_data *dbs_data = optdemand_cpuinfo->cdbs.cur_policy->governor_data;
+	struct dbs_data *dbs_data = policy->governor_data;
 	struct cpufreq_optdemand_tunables *tunables = dbs_data->tuners;
 	unsigned int freq_cur;
 	int delay = 1;
@@ -1333,6 +1335,11 @@ static int cpufreq_governor_optdemand(struct cpufreq_policy *policy,
 		break;
 
 	case CPUFREQ_GOV_LIMITS:
+		mutex_lock(&dbs_data->mutex);
+		if (!cpu_cdbs->cur_policy) {
+			mutex_unlock(&dbs_data->mutex);
+			break;
+		}
 		mutex_lock(&cpu_cdbs->timer_mutex);
 		if (policy->max < cpu_cdbs->cur_policy->cur)
 			__cpufreq_driver_target(cpu_cdbs->cur_policy,
@@ -1342,6 +1349,7 @@ static int cpufreq_governor_optdemand(struct cpufreq_policy *policy,
 					policy->min, CPUFREQ_RELATION_L);
 		optdemand_dbs_check_cpu(dbs_data, cpu);
 		mutex_unlock(&cpu_cdbs->timer_mutex);
+		mutex_unlock(&dbs_data->mutex);
 		break;
 	}
 	return 0;

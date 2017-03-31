@@ -55,7 +55,7 @@ sreset_mgr_LLI  *g_pmgr_hifireset_data = NULL;
 #define RESET_CBFUN_IGNORE_NAME           "NONAME"
 #define RESET_CBFUNC_PRIO_LEVEL_HIGH      49
 /*用于协助完成复位过程*/
-static sreset_mgr_assistant_hifi   g_reset_assistant_hifi;
+sreset_mgr_assistant_hifi g_reset_assistant_hifi;
 /*ms, time of wating mail msg reply from hifi/mcu*/
 #define RESET_WAIT_TIMEOUT_MAILMSG        5000
 
@@ -69,6 +69,8 @@ static int ccorereset_enable_wdt_irq(void);
 extern void check_doreset_for_noc(void);
 #endif
 extern void BSP_CPU_StateSet(unsigned int iOff,unsigned int offset);
+extern void do_hifi_runstall(void);
+
 /*****************************************************************************
  函 数 名  : mailbox_recfun_mcu_hifireset
  功能描述  : 用于接收来自于MCU的MAILBOX消息
@@ -181,7 +183,7 @@ static void get_local_time(char *pbuf, int buf_len)
    memset(&tv, 0, sizeof(struct timeval));
    memset(&tm, 0, sizeof(struct rtc_time));
    do_gettimeofday(&tv);
-   tv.tv_sec -= sys_tz.tz_minuteswest * 60; 
+   tv.tv_sec -= sys_tz.tz_minuteswest * 60;
    rtc_time_to_tm(tv.tv_sec, &tm);
    snprintf(pbuf,buf_len,"%d-%d-%d-%d-%d-%d",tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 }
@@ -192,7 +194,7 @@ static void get_local_time(char *pbuf, int buf_len)
  输出参数  : 无
  返 回 值  : void
 *****************************************************************************/
-void apr_upload_hificrash()
+void apr_upload_hificrash(void)
 {
 	char apr_cmd[MAX_APR_CMD_LEN]={0};
 	int ret = 0;
@@ -208,6 +210,200 @@ void apr_upload_hificrash()
 	}
 }
 /*caixi 7*/
+
+static int reset_log_fsave(char *dir, char *name, void *data, int length)
+{
+	int ret = 0;
+	int fd = 0;
+	unsigned long fs = 0;
+	char *file_name = NULL;
+	BUG_ON(dir == NULL);
+	BUG_ON(name == NULL);
+	BUG_ON(data == NULL);
+	BUG_ON(0 == length);
+
+	if ((strlen(dir) + strlen("/") + strlen(name)) >= RESET_LOG_FILE_PATH_SIZE) {
+		printk(KERN_ERR "pathname too long dir %s, name %s.\n", dir, name);
+		return -EIO;
+	}
+
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	fd = sys_open(dir, O_DIRECTORY, 0);
+	if (fd < 0) { /* if dir is not exist,then create new dir */
+		fd = sys_mkdir(dir, 0774);
+		if (fd < 0) {
+			printk(KERN_ERR "mkdir fd is 0x%x\n", fd);
+			set_fs(fs);
+			return fd;
+		}
+	}
+
+	sys_close((unsigned int)fd);
+
+	file_name = (char *)kmalloc(RESET_LOG_FILE_PATH_SIZE, GFP_KERNEL);
+	if(NULL == file_name) {
+		printk(KERN_ERR "kmalloc file_name failed.\n");
+		return -ENOMEM;
+	}
+	memset(file_name, 0, RESET_LOG_FILE_PATH_SIZE);
+
+	snprintf(file_name, RESET_LOG_FILE_PATH_SIZE, "%s", dir);
+	strncat(file_name, "/", strlen("/"));
+	strncat(file_name, name, strlen(name));
+
+	fd = sys_open((const char __user *)file_name, (O_RDWR | O_CREAT | O_CLOEXEC), S_IRWXU);
+	if (fd < 0) {
+		printk(KERN_ERR "sys_open  fail, file_name:%s, fd is %x \n", file_name, fd);
+		set_fs(fs);
+		kfree(file_name);
+		return fd;
+	}
+
+	ret = sys_write(fd, data, length);
+	if (ret > 0) {
+		ret = sys_fsync(fd);
+		if (ret < 0) {
+			printk(KERN_ERR "sys_fsync fail,the ret is %x\n", ret);
+			goto out;
+		}
+	} else {
+		printk(KERN_ERR "sys_write	fail,the ret is %x\n", ret);
+		goto out;
+	}
+
+out:
+	if(file_name) {
+		kfree(file_name);
+	}
+
+	ret = sys_close(fd);
+	if (ret < 0) {
+		printk(KERN_ERR "sys_close	fail, the ret is %x\n",ret);
+	}
+	set_fs(fs);
+	return ret;
+}
+
+
+/* save hifi debug info when hifi NOC,It's 90+ kbytes,
+   can keep in commercial version and upload to APR.  */
+void save_hifi_reset_info(void)
+{
+	int dump_size = 0;
+	int ret = 0;
+	int i = 0;
+	int off_size = 0;
+	struct hifi_om_info  *hifi_info = NULL;
+	void *dump_info = NULL;
+
+	struct hifi_om_virtual_addr  obj_virtual_addr;
+
+	memset(&obj_virtual_addr, 0, sizeof(struct hifi_om_virtual_addr));
+
+	hifi_info = (struct hifi_om_info *)ioremap_wc(EXCH_H_CORE_BASE_ADDR, sizeof(struct hifi_om_info));
+	if (NULL == hifi_info) {
+		printk(KERN_ERR "%s: hifi_info ioremap fail.\n", __FUNCTION__);
+		return;
+	}
+
+	if (hifi_info->protect_word_1 != HIFI_RESET_KEY_NUM_ONE
+		|| hifi_info->protect_word_2 != HIFI_RESET_KEY_NUM_TWO
+		|| hifi_info->protect_word_3 != HIFI_RESET_KEY_NUM_THREE
+		|| hifi_info->protect_word_4 != HIFI_RESET_KEY_NUM_FOUR) {
+		printk(KERN_ERR "%s: check protection key fail.\n", __FUNCTION__);
+		goto error_remap;
+	}
+
+	for (i = 0; i < OM_MAIN_OBJ_ID_BUTT; i++) {
+		dump_size += hifi_info->obj_size[i];
+	}
+
+	dump_size += sizeof(struct hifi_om_info);
+	if(dump_size >= HIFI_RESET_LOG_MAX_SIZE) {
+		printk(KERN_ERR "%s: hifi noc dump_size %d overflow.\n", __FUNCTION__,dump_size);
+		goto error_remap;
+	}
+
+	dump_info = (void *)kmalloc(dump_size, GFP_KERNEL);
+	if (NULL == dump_info) {
+		printk(KERN_ERR "%s: hifi_dump_vir_addr kmalloc fail.\n", __FUNCTION__);
+		goto error_remap;
+	}
+	memset(dump_info, 0, dump_size);
+
+	memcpy(dump_info, (void *)hifi_info, sizeof(struct hifi_om_info));
+	off_size += sizeof(struct hifi_om_info);
+
+	for (i = 0; i < OM_MAIN_OBJ_ID_BUTT; i++) {
+		hifi_info->obj_addr[i] = (hifi_info->obj_addr[i] & 0x0fffffff);
+
+		printk(KERN_INFO "%s: hifi object id %d Info_addr = 0x%x size = %d.\n",
+				__FUNCTION__, i, hifi_info->obj_addr[i], hifi_info->obj_size[i]);
+
+		if (hifi_info->obj_addr[i] == 0) {
+			printk(KERN_INFO "%s: this addr is NULL, not need map.\n", __FUNCTION__);
+		}else {
+
+			obj_virtual_addr.virtual_addr[i] = (unsigned long)ioremap_wc(hifi_info->obj_addr[i], hifi_info->obj_size[i]);
+
+			if (0 == obj_virtual_addr.virtual_addr[i]) {
+				printk(KERN_ERR "%s: hifi object id %d ioremap fail.\n", __FUNCTION__,i);
+				goto error_remap;
+			}
+
+			memcpy(dump_info + off_size, (void *)obj_virtual_addr.virtual_addr[i], hifi_info->obj_size[i]);
+
+			off_size += hifi_info->obj_size[i];
+		}
+	}
+
+	/* save as file , limited size 1M*/
+	ret = reset_log_fsave(HIFI_RESET_LOG_PATH, HIFI_RESET_LOG_FILE, dump_info, ((off_size < HIFI_RESET_LOG_MAX_SIZE) ? off_size : HIFI_RESET_LOG_MAX_SIZE));
+
+	if(ret < 0) {
+		printk(KERN_ERR "%s: reset_log_fsave, ret is %x \n", __FUNCTION__, ret);
+	}
+
+error_remap:
+
+	if (NULL != hifi_info) {
+		iounmap(hifi_info);
+	}
+
+	if (NULL != dump_info) {
+		kfree(dump_info);
+	}
+
+	for (i = 0; i < OM_MAIN_OBJ_ID_BUTT; i++) {
+		if (0 != obj_virtual_addr.virtual_addr[i]) {
+			iounmap(obj_virtual_addr.virtual_addr[i]);
+		}
+	}
+
+}
+
+/* save hifi debug info and reset AP when hifi cause noc */
+int hifisave_task(void *arg)
+{
+	for ( ; ; ) {
+		down(&(g_reset_assistant_hifi.sem_wait_hifisave));
+
+		printk(KERN_INFO "%s: enter hifisave_task.\n", __FUNCTION__);
+
+		save_hifi_reset_info();
+
+		/*runstall hifi*/
+		do_hifi_runstall();
+
+		printk(KERN_INFO "%s: after hifisave_task and reset Acore...\n", __FUNCTION__);
+
+		/*reset Acore*/
+		systemError((int)BSP_MODU_MNTN, EXCH_S_NOC, 0, 0, 0);
+	}
+}
+
 /*****************************************************************************
  函 数 名  : hifireset_task
  功能描述  : 用于处理HIFI复位。
@@ -295,7 +491,7 @@ int hifireset_task(void *arg)
 #endif
 		if(himntn_hifi_resetlog==1)
 		{
-			apr_upload_hificrash();	
+			apr_upload_hificrash();
 		}
     }
 }
@@ -511,7 +707,7 @@ int hifireset_tonotify(DRV_RESET_CB_MOMENT_E eparam, ereset_module emodule)
             iret = ipc_msg_send(OBJ_LPM3, &msg, ASYNC_MODE);
 	     if (-1 == iret)
             {
-                printk(KERN_ERR "%s: fail to send msg to mcu before resetting hifi\n", __FUNCTION__);  
+                printk(KERN_ERR "%s: fail to send msg to mcu before resetting hifi\n", __FUNCTION__);
             }
         }
         else
@@ -532,7 +728,7 @@ int hifireset_tonotify(DRV_RESET_CB_MOMENT_E eparam, ereset_module emodule)
             iret = ipc_msg_send(OBJ_LPM3, &msg, ASYNC_MODE);
 	     if (-1 == iret)
             {
-                printk(KERN_ERR "%s: fail to send msg to mcu after resetting hifi\n", __FUNCTION__);  
+                printk(KERN_ERR "%s: fail to send msg to mcu after resetting hifi\n", __FUNCTION__);
             }
 
         }
@@ -851,34 +1047,39 @@ void test_clean_mgr_hifi_link(void)
 #ifdef BSP_C_HIFI_RESET_ALONE_FEATURE
 static int __init reset_sub_mgr_init_hifi(void)
 {
-    struct task_struct    *pHifiTask = NULL;
-    int     iret = BSP_RESET_OK;
+	struct task_struct *pHifiTask = NULL;
+	struct task_struct *pHifiSaveTask = NULL;
+	int iret = BSP_RESET_OK;
 
-    /*默认HIFI使能*/
-    reset_set_cpu_status(0, RESET_CPU_HIFI_STATUS_OFF);
+	/*默认HIFI使能*/
+	reset_set_cpu_status(0, RESET_CPU_HIFI_STATUS_OFF);
 
-
-
-    /*创建需要的信号量*/
-    printk(KERN_INFO "%s: enter\n", __FUNCTION__);
-    hisi_io_memset(&g_reset_assistant_hifi, 0, sizeof(g_reset_assistant_hifi));
-    sema_init(&(g_reset_assistant_hifi.sem_wait_hifireset), SEM_EMPTY);
-    sema_init(&(g_reset_assistant_hifi.sem_wait_mcu_msg_hifireset), SEM_EMPTY);
-
-    /*创建hifi复位处理线程*/
-    pHifiTask = kthread_run(hifireset_task,  NULL, "hifireset_task");
-    printk(KERN_INFO "%s: create hifireset_task, return %p\n", __FUNCTION__, pHifiTask);
-
-    ccorereset_enable_wdt_irq();
+	/*创建需要的信号量*/
+	printk(KERN_INFO "%s: enter\n", __FUNCTION__);
+	hisi_io_memset(&g_reset_assistant_hifi, 0, sizeof(g_reset_assistant_hifi));
+	sema_init(&(g_reset_assistant_hifi.sem_wait_hifireset), SEM_EMPTY);
+	sema_init(&(g_reset_assistant_hifi.sem_wait_mcu_msg_hifireset), SEM_EMPTY);
+	sema_init(&(g_reset_assistant_hifi.sem_wait_hifisave), SEM_EMPTY);
 
 
-    /*注册HIFI复位回调函数*//*hifi复位，底软不注册*/
-    hifireset_regcbfunc("CODEC", drv_hifireset_cbfun, 0, BSP_DRV_CBFUN_PRIOLEVEL);
+	/*创建hifi复位处理线程*/
+	pHifiTask = kthread_run(hifireset_task,  NULL, "hifireset_task");
+	printk(KERN_INFO "%s: create hifireset_task, return %p\n", __FUNCTION__, pHifiTask);
 
-    iret = ipc_msg_req_callback(OBJ_HIFI, CMD_NOTIFY, mailbox_recfun_mcu_hifireset);
-    printk(KERN_INFO"RESET LOG: LEAVE reset_sub_mgr_init0! iret = %d\n", iret);
+	/*create hifi noc thread*/
+	pHifiSaveTask = kthread_run(hifisave_task,	NULL, "hifisave_task");
+	printk(KERN_INFO "%s: create hifisave_task, return %p\n", __FUNCTION__, pHifiSaveTask);
 
-    return BSP_RESET_OK;
+	ccorereset_enable_wdt_irq();
+
+
+	/*注册HIFI复位回调函数*//*hifi复位，底软不注册*/
+	hifireset_regcbfunc("CODEC", drv_hifireset_cbfun, 0, BSP_DRV_CBFUN_PRIOLEVEL);
+
+	iret = ipc_msg_req_callback(OBJ_HIFI, CMD_NOTIFY, mailbox_recfun_mcu_hifireset);
+	printk(KERN_INFO"RESET LOG: LEAVE reset_sub_mgr_init0! iret = %d\n", iret);
+
+	return BSP_RESET_OK;
 }
 
 extern void hifi_freeze_give_semaphone(void);

@@ -63,14 +63,14 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_IMS_SIP_CONFIG                         = 0xD202,
     EN_NV_ID_IMS_CONFIG                             = 0xD203,
     EN_NV_ID_UE_NET_CAPABILITY                      = 0xD204,
-    EN_NV_ID_UE_CENTER                              = 0xD205,/* cs+ps1 */
+    EN_NV_ID_UE_CENTER                              = 0xD205,/* modified by lihong00150010 2012-07-31 cs+ps1 */
     EN_NV_ID_NAS_RELEASE                            = 0xD206,
-    EN_NV_ID_IMS_RAT_SUPPORT                        = 0xD207,/* VoLTE*/
+    EN_NV_ID_IMS_RAT_SUPPORT                        = 0xD207,/*modified by sunbing 49683 2013-06-27 VoLTE*/
     EN_NV_ID_SEC_CONTEXT                            = 0xD208,
-    EN_NV_ID_IMSA_CONFIG                            = 0xD209,/* VoLTE*/
+    EN_NV_ID_IMSA_CONFIG                            = 0xD209,/*modified by sunbing 49683 2013-06-27 VoLTE*/
     EN_NV_ID_EPS_LOC                                = 0xD20a,
-    EN_NV_ID_IMS_CAPABILITY                         = 0xD20b,/* VoLTE*/
-    EN_NV_ID_SIP_PORT_CONFIG                        = 0xD20c,/* VoLTE*/
+    EN_NV_ID_IMS_CAPABILITY                         = 0xD20b,/*modified by sunbing 49683 2013-06-27 VoLTE*/
+    EN_NV_ID_SIP_PORT_CONFIG                        = 0xD20c,/*modified by sunbing 49683 2013-06-27 VoLTE*/
     EN_NV_ID_IMSI                                   = 0xD20d,
     EN_NV_ID_UE_VOICE_DOMAIN                        = 0xD20e,
     EN_NV_ID_IMS_VOIP_CONFIG                        = 0xD20f,
@@ -84,7 +84,7 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_PS_BEARER_CNTXT_PARA4                  = 0xD217,
     EN_NV_ID_PS_BEARER_CNTXT_PARA5                  = 0xD218,
     EN_NV_ID_PS_BEARER_CNTXT_PARA6                  = 0xD219,
-    EN_NV_ID_CONFIG_NWCAUSE                         = 0xD21a,/* for self-adaption NW cause*/
+    EN_NV_ID_CONFIG_NWCAUSE                         = 0xD21a,/* modify by leili 2014-02-15 for self-adaption NW cause*/
     EN_NV_ID_DAM_CONFIG_PARA                        = 0xD21b,
     EN_NV_ID_LNAS_COMM_CONFIG_PARA                  = 0xD21c,
     EN_NV_ID_PCSCF_DISCOVERY_POLICY                 = 0xD21d,
@@ -101,9 +101,13 @@ enum NV_ITEM_ID_ENUM
     /* CMCC-BEGIN */
     EN_NV_ID_IRAT_REDIR_SWITCH                      = 0xD226,
     /* CMCC-END */
+    /* MTC add by k0228722 begin */
     EN_NV_ID_LTE_SPAC_BAND_INFO                     = 0xD227,
     EN_NV_ID_LTE_ABANDON_BAND_INFO                  = 0xD228,
+    /* MTC add by k0228722 end */
+    /* MTC NOTCH add by begin */
     EN_NV_ID_LTE_MTC_NOTCH_FEATURE_INFO             = 0xD229,
+    /* MTC NOTCH add by end */
     /* adapt filter begin */
     EN_NV_ID_RRC_THRESHOLD                          = 0XD22b,
     /* adapt filter end */
@@ -125,10 +129,10 @@ enum NV_ITEM_ID_ENUM
 
     EN_NV_ID_RF_HW                                  = 0xD242,
     EN_NV_ID_USIM_BEGIN                             = 0xD250,
-    EN_NV_ID_UST_FILE                               = 0xD251,
+    EN_NV_ID_VOLTE_CARD_LOCK                        = 0xD251,
     EN_NV_ID_MNC_LEN_FILE                           = 0xD252,
-    EN_NV_ID_FORBIDDEN_PLMN_LIST_FILE               = 0xD253,
-    EN_NV_ID_UPLMN_SEL_FILE                         = 0xD254,
+    EN_NV_ID_IMSA_COMM_PARA_CONFIG                  = 0xD253,
+    EN_NV_ID_IMS_PARM_UE_CAPABILITY                 = 0xD254,
     EN_NV_ID_OPLMN_SEL_FILE                         = 0xD255,
     EN_NV_ID_HPLMN_PERI_FILE                        = 0xD256,
     EN_NV_ID_SEC_CONTEXT_FILE                       = 0xD257,
@@ -149,7 +153,9 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_USIM_END                               = 0xD269,
 
     EN_NV_ID_CAND_CELL                              = 0xD26a,
+    /* modify by lishangfeng begin */
     EN_NV_CSQ_RPT_INFO                              = 0xD26b,
+    /* modify by lishangfeng end */
     EN_NV_ID_TPS_SWITCH_PARA                        = 0xD26c,
     EN_NV_ID_TDS_CERSSI_REPROT_PARA                 = 0xD301,
     EN_NV_ID_SWITCH_PARA                            = 0xD275,
@@ -337,7 +343,11 @@ enum NV_ITEM_ID_ENUM
     /* TRRC CHANGE FOR BA begin */
     EN_NV_ID_TDS_BA_LIST                           = 0xD30c,
     /* TRRC CHANGE FOR BA end */
+    /*dongyuxi nv modify begin
+ */
     EN_NV_ID_TDS_CUSTOMIZE_CS_SERVICE               = 0xD30d,
+    /*dongyuxi nv modify end
+ */
     /*TDS end*/
 
     /* gaojishan-fast-dorm-cfg-3 */
@@ -346,6 +356,8 @@ enum NV_ITEM_ID_ENUM
 /* filter the serve cell begin*/
     EN_NV_ID_TDS_ALFA_FILTER                        = 0xD30f,
 /* filter the serve cell end*/
+    /*dongyuxi nv modify end
+ */
     /*TDS end*/
 
 
@@ -401,7 +413,7 @@ enum NV_ITEM_ID_ENUM
     /* TL L2 Begin */
     EN_NV_ID_TL_L2_PARA                     = 0xD334,
     /* TL L2 End */
-	
+
     EN_NV_ID_BSIC_FRAME_PARA                     = 0xD335,
     EN_NV_ID_CHR_ERROR_LOG_INFO                    = 0xD337,
 
@@ -417,6 +429,10 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_UE_CAP_MCC_CA_INFO_4                      = 0xD384,
     EN_NV_ID_UE_CAP_MCC_CA_INFO_5                      = 0xD385,
     EN_NV_ID_UE_CAP_MCC_CA_INFO_6                      = 0xD386,
+
+    /* Begin: add for DTS20150401 Report Ue Capability By MCC */
+    EN_NV_ID_UE_CAP_MCC_BAND_INFO                      = 0xD388,
+    /* End: add for DTS20150401 Report Ue Capability By MCC */
 
     EN_NV_ID_BG_LTE_LIMIT_THREHHOLD                 = 0xD38d,
     EN_NV_ID_BG_LTE_LIMIT_THREHHOLD_TYPE            = 0xD38e,
@@ -462,11 +478,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B19             = 0xD928,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B19             = 0xD929,
     EN_NV_ID_LTE_TX_MPR_B19                         = 0xD92a,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B19                     = 0xD92b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B19                        = 0xD92c,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B19         = 0xD92d,
@@ -511,11 +527,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B21             = 0xD968,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B21             = 0xD969,
     EN_NV_ID_LTE_TX_MPR_B21                         = 0xD96a,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B21                     = 0xD96b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B21                        = 0xD96c,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B21         = 0xD96d,
@@ -559,11 +575,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B2              = 0xD9a8,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B2              = 0xD9a9,
     EN_NV_ID_LTE_TX_MPR_B2                          = 0xD9aa,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B2                      = 0xD9ab,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B2                         = 0xD9ac,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B2         = 0xD9ad,
@@ -608,11 +624,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B4              = 0xD9e8,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B4              = 0xD9e9,
     EN_NV_ID_LTE_TX_MPR_B4                          = 0xD9ea,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B4                      = 0xD9eb,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B4                         = 0xD9ec,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B4         = 0xD9ed,
@@ -657,11 +673,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B6              = 0xDa28,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B6              = 0xDa29,
     EN_NV_ID_LTE_TX_MPR_B6                          = 0xDa2a,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B6                      = 0xDa2b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B6                         = 0xDa2c,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B6         = 0xDa2d,
@@ -706,11 +722,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B9              = 0xDa68,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B9              = 0xDa69,
     EN_NV_ID_LTE_TX_MPR_B9                          = 0xDa6a,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B9                      = 0xDa6b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B9                         = 0xDa6c,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B9         = 0xDa6d,
@@ -755,11 +771,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B10             = 0xDaa8,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B10             = 0xDaa9,
     EN_NV_ID_LTE_TX_MPR_B10                         = 0xDaaa,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B10                     = 0xDaab,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B10                        = 0xDaac,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B10         = 0xDaad,
@@ -804,11 +820,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B11             = 0xDae8,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B11             = 0xDae9,
     EN_NV_ID_LTE_TX_MPR_B11                         = 0xDaea,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B11                     = 0xDaeb,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B11                        = 0xDaec,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B11         = 0xDaed,
@@ -853,11 +869,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B12             = 0xDb28,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B12             = 0xDb29,
     EN_NV_ID_LTE_TX_MPR_B12                         = 0xDb2a,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B12                     = 0xDb2b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B12                        = 0xDb2c,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B12         = 0xDb2d,
@@ -902,11 +918,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B13             = 0xDb68,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B13             = 0xDb69,
     EN_NV_ID_LTE_TX_MPR_B13                         = 0xDb6a,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B13                     = 0xDb6b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B13                        = 0xDb6c,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B13         = 0xDb6d,
@@ -951,11 +967,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B14             = 0xDba8,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B14             = 0xDba9,
     EN_NV_ID_LTE_TX_MPR_B14                         = 0xDbaa,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B14                     = 0xDbab,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B14                        = 0xDbac,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B14         = 0xDbad,
@@ -1000,11 +1016,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B17             = 0xDbe8,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B17             = 0xDbe9,
     EN_NV_ID_LTE_TX_MPR_B17                         = 0xDbea,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B17                     = 0xDbeb,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B17                        = 0xDbec,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B17         = 0xDbed,
@@ -1049,11 +1065,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B18             = 0xDc28,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B18             = 0xDc29,
     EN_NV_ID_LTE_TX_MPR_B18                         = 0xDc2a,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B18                     = 0xDc2b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B18                        = 0xDc2c,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B18         = 0xDc2d,
@@ -1098,11 +1114,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B22             = 0xDc68,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B22             = 0xDc69,
     EN_NV_ID_LTE_TX_MPR_B22                         = 0xDc6a,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B22                     = 0xDc6b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B22                        = 0xDc6c,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B22         = 0xDc6d,
@@ -1147,11 +1163,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B23             = 0xDca8,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B23             = 0xDca9,
     EN_NV_ID_LTE_TX_MPR_B23                         = 0xDcaa,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B23                     = 0xDcab,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B23                        = 0xDcac,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B23         = 0xDcad,
@@ -1196,11 +1212,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B24             = 0xDce8,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B24             = 0xDce9,
     EN_NV_ID_LTE_TX_MPR_B24                         = 0xDcea,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B24                     = 0xDceb,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B24                        = 0xDcec,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B24         = 0xDced,
@@ -1245,11 +1261,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B25             = 0xDd28,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B25             = 0xDd29,
     EN_NV_ID_LTE_TX_MPR_B25                         = 0xDd2a,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B25                     = 0xDd2b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B25                        = 0xDd2c,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B25         = 0xDd2d,
@@ -1294,11 +1310,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B33             = 0xDd68,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B33             = 0xDd69,
     EN_NV_ID_LTE_TX_MPR_B33                         = 0xDd6a,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B33                     = 0xDd6b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B33                        = 0xDd6c,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B33         = 0xDd6d,
@@ -1343,11 +1359,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B34             = 0xDda8,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B34             = 0xDda9,
     EN_NV_ID_LTE_TX_MPR_B34                         = 0xDdaa,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B34                     = 0xDdab,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B34                        = 0xDdac,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B34         = 0xDdad,
@@ -1392,11 +1408,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B35             = 0xDde8,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B35             = 0xDde9,
     EN_NV_ID_LTE_TX_MPR_B35                         = 0xDdea,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B35                     = 0xDdeb,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B35                        = 0xDdec,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B35         = 0xDded,
@@ -1441,11 +1457,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B36             = 0xDe28,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B36             = 0xDe29,
     EN_NV_ID_LTE_TX_MPR_B36                         = 0xDe2a,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B36                     = 0xDe2b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B36                        = 0xDe2c,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B36         = 0xDe2d,
@@ -1490,11 +1506,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B37             = 0xDe68,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B37             = 0xDe69,
     EN_NV_ID_LTE_TX_MPR_B37                         = 0xDe6a,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B37                     = 0xDe6b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B37                        = 0xDe6c,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B37         = 0xDe6d,
@@ -1539,11 +1555,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B42             = 0xDea8,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B42             = 0xDea9,
     EN_NV_ID_LTE_TX_MPR_B42                         = 0xDeaa,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B42                     = 0xDeab,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B42                        = 0xDeac,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B42         = 0xDead,
@@ -1588,11 +1604,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B43             = 0xDee8,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B43             = 0xDee9,
     EN_NV_ID_LTE_TX_MPR_B43                         = 0xDeea,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B43                     = 0xDeeb,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B43                        = 0xDeec,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B43         = 0xDeed,
@@ -1637,11 +1653,11 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B39             = 0xDf28,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B39             = 0xDf29,
     EN_NV_ID_LTE_TX_MPR_B39                         = 0xDf2a,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B39                     = 0xDf2b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B39                        = 0xDf2c,
 
@@ -1686,13 +1702,13 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B20             = 0xD628,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B20             = 0xD629,
 
-    /* mpr begin */
+    /* modify by lishangfneg mpr begin */
     EN_NV_ID_LTE_TX_MPR_B20                         = 0xD62a,
-    /* mpr end */
+    /* modify by lishangfneg mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B20                     = 0xD62b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B20                        = 0xD62c,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B20         = 0xD62d,
@@ -1735,13 +1751,13 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B40             = 0xD668,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B40             = 0xD669,
 
-    /* mpr begin */
+    /* modify by lishangfneg mpr begin */
     EN_NV_ID_LTE_TX_MPR_B40                         = 0xD66a,
-    /* mpr end */
+    /* modify by lishangfneg mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B40                     = 0xD66b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B40                        = 0xD66c,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B40         = 0xD66d,
@@ -1784,13 +1800,13 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B38             = 0xD6a8,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B38             = 0xD6a9,
 
-    /* mpr begin */
+    /* modify by lishangfneg mpr begin */
     EN_NV_ID_LTE_TX_MPR_B38                         = 0xD6aa,
-    /* mpr end */
+    /* modify by lishangfneg mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B38                     = 0xD6ab,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B38                        = 0xD6ac,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B38         = 0xD6ad,
@@ -1834,13 +1850,13 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B41             = 0xD6E8,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B41             = 0xD6E9,
 
-    /* mpr begin */
+    /* modify by lishangfneg mpr begin */
     EN_NV_ID_LTE_TX_MPR_B41                         = 0xD6ea,
-    /* mpr end */
+    /* modify by lishangfneg mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B41                     = 0xD6eb,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B41                        = 0xD6ec,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B41         = 0xD6ed,
@@ -1883,13 +1899,13 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B7              = 0xD728,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B7              = 0xD729,
 
-    /* mpr begin */
+    /* modify by lishangfneg mpr begin */
     EN_NV_ID_LTE_TX_MPR_B7                          = 0xD72a,
-    /* mpr end */
+    /* modify by lishangfneg mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B7                      = 0xD72b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B7                         = 0xD72c,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B7         = 0xD72d,
@@ -1932,13 +1948,13 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B3              = 0xD828,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B3              = 0xD829,
 
-    /* mpr begin */
+    /* modify by lishangfneg mpr begin */
     EN_NV_ID_LTE_TX_MPR_B3                          = 0xD82a,
-    /* mpr end */
+    /* modify by lishangfneg mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B3                      = 0xD82b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B3                         = 0xD82c,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B3         = 0xD82d,
@@ -1981,13 +1997,13 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B1              = 0xD868,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B1              = 0xD869,
 
-    /* mpr begin */
+    /* modify by lishangfneg mpr begin */
     EN_NV_ID_LTE_TX_MPR_B1                          = 0xD86a,
-    /* mpr end */
+    /* modify by lishangfneg mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B1                      = 0xD86b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B1                         = 0xD86c,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B1         = 0xD86d,
@@ -2030,13 +2046,13 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B5              = 0xD8a8,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B5              = 0xD8a9,
 
-    /* mpr begin */
+    /* modify by lishangfneg mpr begin */
     EN_NV_ID_LTE_TX_MPR_B5                          = 0xD8aa,
-    /* mpr end */
+    /* modify by lishangfneg mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B5                      = 0xD8ab,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B5                         = 0xD8ac,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B5         = 0xD8ad,
@@ -2079,13 +2095,13 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B8              = 0xD8e8,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B8              = 0xD8e9,
 
-    /* mpr begin */
+    /* modify by wangrui mpr begin */
     EN_NV_ID_LTE_TX_MPR_B8                          = 0xD8ea,
-    /* mpr end */
+    /* modify by wangrui mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B8                      = 0xD8eb,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B8                         = 0xD8ec,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B8         = 0xD8ed,
@@ -2129,13 +2145,13 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B28             = 0xDf68,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B28             = 0xDf69,
 
-    /* mpr begin */
+    /* modify by lishangfneg mpr begin */
     EN_NV_ID_LTE_TX_MPR_B28                          = 0xDf6a,
-    /* mpr end */
+    /* modify by lishangfneg mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B28                      = 0xDf6b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B28                         = 0xDf6c,
     EN_NV_ID_LTE_TX_AMPR_BNon28                        = 0xdf7a,
@@ -2221,13 +2237,13 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B128              = 0xDfa8,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B128              = 0xDfa9,
 
-    /* mpr begin */
+    /* modify by lishangfneg mpr begin */
     EN_NV_ID_LTE_TX_MPR_B128                           = 0xDfaa,
-    /* mpr end */
+    /* modify by lishangfneg mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B128                          = 0xDfab,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B128                         = 0xDfac,
     EN_NV_ID_LTE_TX_DIVERSITY_LOSS_COMP_B128         = 0xDfad,
@@ -2247,7 +2263,6 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_PD_PARA_B128                       = 0xDfb6,
     EN_NV_ID_TX_ET_BAND_PARA_B128                      = 0xDfb7,
     EN_NV_ID_LTE_TAS2_DPDT_ANT_SAR_B128                     = 0xDfb9,
-
 #if 0
     EN_NV_ID_FTM_CAND_CELL_LIST_BNon2                 = 0xDf80,
     EN_NV_ID_LTE_RX_CALIBRATION_FREQ_BNon2            = 0xDf81,
@@ -2924,7 +2939,13 @@ enum NV_ITEM_ID_ENUM
 	EN_NV_ID_TDS_TAS_EXTRA_MODEM_GPIO                = 0xe480,
 	EN_NV_ID_TDS_TAS_DPDT_PROTECT_PARA               = 0xe481,
 
+    /* BEGIN: Added by zhaoyanmin, 2015/4/10   PN:全网通*/
 	EN_NV_ID_BBP_AFC_PORT_SEL_INDEX_PARA                   = 0xe482,
+	/* END:   Added by zhaoyamin, 2015/4/10 */
+	/*seattle GL interference feature: close Diversity RFIC and LNA*/
+	EN_NV_ID_RF_GL_INTERFERENCE_INFO				=0xe483,
+	EN_NV_ID_RF_LTE_BAND_EXTERNAL_LNA_CFG			=0xe484,
+	/*end seattle GL interference feature: close Diversity RFIC and LNA*/
 	#if 0
 	/*公共NV，预留*/
 	/*modem nv*/
@@ -2980,6 +3001,7 @@ enum NV_ITEM_ID_ENUM
 	EN_NV_ID_TDS_TX_CAL_PA_GAIN_BB_B34				= 0xf8a7,
 	EN_NV_ID_TDS_PA_MID_TX_FREQ_COMP_B34				= 0xf8a8,
 	EN_NV_ID_TDS_PA_LOW_TX_FREQ_COMP_B34				= 0xf8a9,
+	EN_NV_ID_TDS_PA_TEMP_DET_CHANNEL_B34				= 0xf8aa,
 	/*Band39*/
 	/*modem nv*/
 	EN_NV_ID_TDS_TEMPERATURE_SENSOR_B39				= 0xe4b0,
@@ -3005,6 +3027,7 @@ enum NV_ITEM_ID_ENUM
 	EN_NV_ID_TDS_TX_CAL_PA_GAIN_BB_B39				= 0xf8b7,
 	EN_NV_ID_TDS_PA_MID_TX_FREQ_COMP_B39				= 0xf8b8,
 	EN_NV_ID_TDS_PA_LOW_TX_FREQ_COMP_B39				= 0xf8b9,
+	EN_NV_ID_TDS_PA_TEMP_DET_CHANNEL_B39				= 0xf8ba,
 
 	/*Band40*/
 	/*modem nv*/
@@ -4966,7 +4989,9 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_AD9361_UL_PARA                         = 0xD3CB,
     EN_NV_ID_HI6360_UL_PARA                         = 0xD3CC,
 
+    /* modify by lisahgnfeng begin */
     EN_NV_ID_PHY_FUNC_VERIFY_SWITCH_PARA            = 0xD3E0,
+    /* modify by lisahgnfeng end */
 
     /*tcx0*/
     EN_NV_ID_TCXO_DYNAMIC_CONFIG_PARA               = 0xD3E2,
@@ -4974,7 +4999,7 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_TX_FILTER_CMP                          = 0xD3E3,
 
     EN_NV_ID_LPHY_PD_COMM_PARA                      = 0xD3E5,
-    
+
     EN_NV_ID_LTE_COM_ANT_SAR_PARA                   = 0xD4FA,
     EN_NV_EXT_TCXO_STATE_STRU                       = 0xD4FD,
 
@@ -5119,13 +5144,13 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_APT_PDM_MID_TBL_B26             = 0xe368,
     EN_NV_ID_LTE_TX_APT_PDM_LOW_TBL_B26             = 0xe369,
 
-    /* mpr begin */
+    /* modify by lishangfneg mpr begin */
     EN_NV_ID_LTE_TX_MPR_B26                          = 0xe36a,
-    /* mpr end */
+    /* modify by lishangfneg mpr end */
 
-    /* tx begin */
+    /* add by wangrui tx begin */
     EN_NV_ID_LTE_ANT_SAR_B26                      = 0xe36b,
-    /* tx end */
+    /* add by wangrui tx end */
 
     EN_NV_ID_LTE_TX_AMPR_B26                         = 0xe36c,
     EN_NV_ID_LTE_TX_AMPR_BNon26                      = 0xe37a,
@@ -5146,6 +5171,61 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_LTE_TX_PD_PARA_B26                     = 0xe376,
     EN_NV_ID_TX_ET_BAND_PARA_B26                    = 0xe377,
     EN_NV_ID_LTE_TAS2_DPDT_ANT_SAR_B26              = 0xe379,
+
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B20 = 0xf900,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B40 = 0xf901,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B38 = 0xf902,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B41 = 0xf903,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B07 = 0xf904,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B03 = 0xf905,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B01 = 0xf906,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B05 = 0xf907,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B08 = 0xf908,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B19 = 0xf909,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B21 = 0xf90a,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B02 = 0xf90b,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B04 = 0xf90c,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B06 = 0xf90d,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B09 = 0xf90e,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B10 = 0xf90f,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B11 = 0xf910,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B12 = 0xf911,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B13 = 0xf912,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B14 = 0xf913,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B17 = 0xf914,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B18 = 0xf915,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B22 = 0xf916,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B23 = 0xf917,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B24 = 0xf918,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B25 = 0xf919,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B26 = 0xf91a,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B33 = 0xf91b,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B34 = 0xf91c,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B35 = 0xf91d,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B36 = 0xf91e,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B37 = 0xf91f,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B42 = 0xf920,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B43 = 0xf921,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B39 = 0xf922,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B28 = 0xf923,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_B128 = 0xf924,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_BNon1 = 0xf925,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_BNon2 = 0xf926,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_BNon3 = 0xf927,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_BNon4 = 0xf928,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_BNon5 = 0xf929,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_BNon6 = 0xf92a,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_BNon7 = 0xf92b,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_BNon8 = 0xf92c,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_BNon9 = 0xf92d,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_BNon10 = 0xf92e,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_BNon11 = 0xf92f,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_BNon12 = 0xf930,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_BNon13 = 0xf931,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_BNon14 = 0xf932,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_BNon15 = 0xf933,
+	EN_NV_ID_LTE_PA_TEMP_DET_CH_BNon16 = 0xf934,
+
 
 /*BAND26 生产NV*/
     EN_NV_ID_ANT_MODEM_LOSS_B26                     = 0xf840,
@@ -5186,7 +5266,7 @@ enum NV_ITEM_ID_ENUM
     EN_NV_ID_ET_EVDELY_B26                           = 0xf873,
     EN_NV_ID_RF_CA_RCCODE_B26                        = 0xf874,
 
-    
+
 
 
 

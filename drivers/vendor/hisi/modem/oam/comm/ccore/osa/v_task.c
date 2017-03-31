@@ -348,7 +348,7 @@ VOS_UINT32 VOS_SuspendTask( VOS_UINT32 ulTaskID )
     }
 
     if ( OK == taskSuspend( iVxWorksTid ) )
-    {
+    {
         return(VOS_OK);
     }
     else

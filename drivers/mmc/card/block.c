@@ -57,6 +57,10 @@
 #include "queue.h"
 
 #include "hisi_partition.h"
+#ifdef CONFIG_HW_SD_HEALTH_DETECT
+#include "mmc_health_diag.h"
+#endif
+
 
 #ifdef CONFIG_HUAWEI_SDCARD_DSM
 #include <linux/mmc/dsm_sdcard.h>
@@ -533,7 +537,7 @@ static ssize_t force_ro_show(struct device *dev, struct device_attribute *attr,
 	int ret;
 	struct mmc_blk_data *md = mmc_blk_get(dev_to_disk(dev));
 
-	ret = snprintf(buf, PAGE_SIZE, "%d",
+	ret = snprintf(buf, PAGE_SIZE, "%d\n",
 		       get_disk_ro(dev_to_disk(dev)) ^
 		       md->read_only);
 	mmc_blk_put(md);
@@ -1586,11 +1590,6 @@ static inline void mmc_apply_rel_rw(struct mmc_blk_request *brq,
 	 R1_CC_ERROR |		/* Card controller error */		\
 	 R1_ERROR)		/* General/unknown error */
 
-#define CID_MANFID_SANDISK	0x2
-#define CID_MANFID_TOSHIBA	0x11
-#define CID_MANFID_MICRON	0x13
-#define CID_MANFID_SAMSUNG	0x15
-
 static int mmc_blk_err_check(struct mmc_card *card,
 			     struct mmc_async_req *areq)
 {
@@ -1599,19 +1598,6 @@ static int mmc_blk_err_check(struct mmc_card *card,
 	struct mmc_blk_request *brq = &mq_mrq->brq;
 	struct request *req = mq_mrq->req;
 	int ecc_err = 0, gen_err = 0;
-
-
-	int my_gen_err = 0;
-
-#ifdef CONFIG_HUAWEI_KERNEL
-	int need_retry = 0;
-
-	if (CID_MANFID_SANDISK == card->cid.manfid)
-	{
-		pr_debug("[HW]:CID_MANFID_SANDISK:Retry Function.");
-	}
-
-#endif
 
 	/*
 	 * sbc.error indicates a problem with the set block count
@@ -1668,31 +1654,6 @@ static int mmc_blk_err_check(struct mmc_card *card,
 
 		timeout = jiffies + msecs_to_jiffies(MMC_BLK_TIMEOUT_MS);
 		sd_timeout = jiffies + msecs_to_jiffies(SD_BLK_TIMEOUT_MS);
-
-		if (CID_MANFID_TOSHIBA == card->cid.manfid)
-		{
-			pr_debug("[HW]:CID_MANFID_TOSHIBA:Retry Function.");
-
-			/* Check stop command(CMD12)response */
-			if (brq->mrq.stop && (brq->mrq.stop->resp[0]&R1_ERROR))
-			{
-				pr_err("[HW]:CID_MANFID_TOSHIBA:R1_ERROR in CMD12 response, need retry.\n");
-				return MMC_BLK_RETRY;
-			}
-		}
-
-#ifdef CONFIG_HUAWEI_KERNEL
-
-		if (CID_MANFID_SANDISK == card->cid.manfid)
-		{
-			/* Bit 19 and Bit 20 set means VDET error, need retry this command */
-			if (status & (R1_ERROR | R1_CC_ERROR))
-			{
-				need_retry = 1;
-			}
-		}
-#endif
-
 		do {
 			int err = get_card_status(card, &status, 5);
 			if (err) {
@@ -1716,7 +1677,9 @@ static int mmc_blk_err_check(struct mmc_card *card,
 					pr_err("%s: SD card stuck in programming state!"\
 						" %s %s\n", mmc_hostname(card->host),
 						req->rq_disk->disk_name, __func__);
-
+#ifdef CONFIG_HW_SD_HEALTH_DETECT
+						mmc_diag_sd_health_status(req->rq_disk,MMC_BLK_STUCK_IN_PRG_ERR);
+#endif
 					return MMC_BLK_CMD_ERR;
 				}
 			} else {
@@ -1736,40 +1699,10 @@ static int mmc_blk_err_check(struct mmc_card *card,
 			 * so make sure to check both the busy
 			 * indication and the card state.
 			 */
-			if (CID_MANFID_TOSHIBA == card->cid.manfid)
-			{
-				if (status & R1_ERROR)
-				{
-					my_gen_err = 1;
-				}
-			}
-
-
 		} while (!(status & R1_READY_FOR_DATA) ||
 			 (R1_CURRENT_STATE(status) == R1_STATE_PRG));
-
-		if (CID_MANFID_TOSHIBA == card->cid.manfid)
-		{
-			/* if error occur,retry operation executes */
-			if (my_gen_err)
-			{
-				pr_err("[HW]:CID_MANFID_TOSHIBA:R1_ERROR in CMD13 response, need retry.\n");
-				return MMC_BLK_RETRY;
-			}
-		}
-#ifdef CONFIG_HUAWEI_KERNEL
-
-		if (CID_MANFID_SANDISK == card->cid.manfid)
-		{
-			/* if error occur,retry operation executes */
-			if (need_retry)
-			{
-				pr_err("[HW]:CID_MANFID_SANDISK:R1_ERROR and R1_CC_ERROR in CMD13 response, need retry.\n");
-				return MMC_BLK_RETRY;
-			}
-		}
-#endif
 	}
+
 	/* if general error occurs, retry the write operation. */
 	if (gen_err) {
 		pr_warn("%s: retrying write for general error\n",
@@ -2364,9 +2297,22 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 	struct mmc_async_req *areq;
 	const u8 packed_nr = 2;
 	u8 reqs = 0;
+#ifdef CONFIG_HW_SD_HEALTH_DETECT
+	unsigned long long time1 = 0;
+	unsigned int rq_byte=0;
+#endif
 
 	if (!rqc && !mq->mqrq_prev->req)
 		return 0;
+
+#ifdef CONFIG_HW_SD_HEALTH_DETECT
+	if(!strcmp(current->comm,"mmcqd/1"))
+	{
+		mmc_trigger_ro_check(rqc,md->disk,md->read_only);
+		time1 = sched_clock();
+		rq_byte = mmc_calculate_ioworkload_and_rwspeed(time1,rqc,md->disk);
+	}
+#endif
 
 	if (rqc)
 		reqs = mmc_blk_prep_packed_list(mq, rqc);
@@ -2406,6 +2352,12 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 		type = rq_data_dir(req) == READ ? MMC_BLK_READ : MMC_BLK_WRITE;
 		mmc_queue_bounce_post(mq_rq);
 
+#ifdef CONFIG_HW_SD_HEALTH_DETECT
+		if(mmc_card_sd(card))
+		{
+		mmc_diag_sd_health_status(md->disk,mmc_get_rw_status(status));
+		}
+#endif
 		switch (status) {
 		case MMC_BLK_SUCCESS:
 		case MMC_BLK_PARTIAL:
@@ -2506,6 +2458,12 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 		}
 	} while (ret);
 
+#ifdef CONFIG_HW_SD_HEALTH_DETECT
+	if(!strcmp(current->comm,"mmcqd/1"))
+	{
+		mmc_calculate_rw_size(time1,rq_byte,rqc);
+	}
+#endif
 	return 1;
 
  cmd_abort:
@@ -2909,7 +2867,10 @@ force_ro_fail:
 	return ret;
 }
 
-
+#define CID_MANFID_SANDISK	0x2
+#define CID_MANFID_TOSHIBA	0x11
+#define CID_MANFID_MICRON	0x13
+#define CID_MANFID_SAMSUNG	0x15
 
 static const struct mmc_fixup blk_fixups[] =
 {
@@ -3029,7 +2990,12 @@ static int mmc_blk_probe(struct mmc_card *card)
 
 	mmc_set_drvdata(card, md);
 	mmc_fixup_device(card, blk_fixups);
-
+#ifdef CONFIG_HW_SD_HEALTH_DETECT
+	if(mmc_card_sd(card))
+	{
+		mmc_clear_report_info();
+	}
+#endif
 #ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
 	if (mmc_card_sd(card)) {
 		mmc_set_bus_resume_policy(card->host, 1);

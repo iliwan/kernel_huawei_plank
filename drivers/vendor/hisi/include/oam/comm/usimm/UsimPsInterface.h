@@ -1197,6 +1197,16 @@ typedef struct
     PS_USIM_REFRESH_FILE_STRU           astEfId[1];     /* 更新的文件ID 信息，可变长数组*/
 }PS_USIM_REFRESH_IND_STRU;
 
+/* Added by c00318887 for file refresh需要触发背景搜, 2015-4-28, begin */
+typedef struct
+{
+    VOS_UINT16                          usEfNum;        /* 更新的文件的个数 */
+    VOS_UINT8                           aucRsv[2];      /* 预留对齐 */
+    PS_USIM_REFRESH_FILE_STRU           astRefreshFile[USIMM_MAX_REFRESH_FILE_NUM];
+}PS_USIM_REFRESH_FILE_CONTENT_STRU;
+
+/* Added by c00318887 for file refresh需要触发背景搜, 2015-4-28, end */
+
 typedef struct
 {
     USIMM_U8_LVDATA_STRU                stRand;

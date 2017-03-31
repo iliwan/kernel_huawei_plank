@@ -205,6 +205,8 @@ VOS_UINT32 AT_RcvMtaNvwrSecCtrlSetCnf( VOS_VOID *pMsg );
 VOS_UINT32 AT_QryNvwrSecCtrlPara(VOS_UINT8 ucIndex);
 VOS_BOOL AT_IsNVWRAllowedNvId(VOS_UINT16 usNvId);
 
+VOS_UINT32 AT_NVWRGetParaInfo( AT_PARSE_PARA_TYPE_STRU * pstPara, VOS_UINT8 * pu8Data, VOS_UINT32 * pulLen);
+
 
 
 

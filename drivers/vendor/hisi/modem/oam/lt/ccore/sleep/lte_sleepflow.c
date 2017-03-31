@@ -1130,7 +1130,7 @@ VOS_INT32 TLSLEEP_HwPowerUp(PWC_COMM_MODE_E modeId)
 *****************************************************************************/
 VOS_INT32 TLSLEEP_HwPowerDown(PWC_COMM_MODE_E modeId)
 {
-    VOS_UINT32          ret = 0;
+    VOS_INT32          ret = 0;
     VOS_INT32           flag = 0;
     PWC_COMM_MODEM_E    enModem = PWC_COMM_MODEM_0;
 
@@ -1583,7 +1583,7 @@ VOS_INT TLSLEEP_AwakeIsr(VOS_INT enMode)
     /*«ÂBBPªΩ–—÷–∂œ*/
     DRV_BBPWAKE_INT_CLEAR((PWC_COMM_MODE_E)enMode);
 
-    ulSwitchLen = DRV_BBP_GET_WAKEUP_TIME(enMode);
+    ulSwitchLen = DRV_BBP_GET_WAKEUP_TIME((PWC_COMM_MODE_E)enMode);
     
     g_stSleepSwitch.ulDelay[g_stSleepSwitch.ulPtrWake] = 0xffffffff;
 
@@ -1946,7 +1946,7 @@ VOS_VOID TLSLEEP_ActivateHw(PWC_COMM_MODE_E modeId)
     PWC_COMM_CHANNEL_E                  enChannel = PWC_COMM_CHANNEL_0;
 #endif
     VOS_INT         flag = 0;
-    VOS_UINT32      ret = 0;
+    VOS_INT32      ret = 0;
     
 	enModem = PWC_COMM_MODEM_0;
 

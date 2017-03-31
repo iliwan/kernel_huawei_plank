@@ -44,7 +44,6 @@ static int s_vpp_irq   = 0;
 static wait_queue_head_t s_wait_queue;
 static bool s_interrupt_cond = false;
 
-unsigned int g_mmu_ch;
 //VPP主设备open次数
 static unsigned int s_vpp_count = 0;
 static bool vpp_opened = false;
@@ -52,10 +51,8 @@ typedef struct vpp_drv_context_t {
     struct fasync_struct *async_queue;
 } vpp_drv_context_t;
 
-static struct clk *s_vpp_clk;
+static struct clk *s_vpp_clk = NULL;
 static struct regulator_bulk_data vpp_regulator = {0};
-static void vpp_clk_disable(struct clk *clk);
-static int vpp_clk_enable(struct clk *clk);
 static void vpp_clk_put(struct clk *clk);
 /*the func regist to irq*/
 static irqreturn_t vpp_isr ( int irq, void *dev_id )
@@ -80,9 +77,9 @@ static int vpp_setup_cdev(void)
     struct device *dev = NULL;
     unsigned int minor = 0;
     struct cdev  *device = NULL;
-    int retval = -1;;
+    int retval = -ENOMEM;
     logi("in vpp_setup_cdev\n");
-    retval = -ENOMEM;
+
     device = kzalloc(sizeof(*device), GFP_KERNEL);
 
     if (device == NULL)
@@ -90,7 +87,6 @@ static int vpp_setup_cdev(void)
         loge(KERN_ERR " Unable to allocate vpp device\n");
         return retval;
     }
-
 
     cdev_init(device, &vpp_file_ops);
     device->owner = THIS_MODULE;
@@ -117,9 +113,10 @@ static int vpp_probe(struct platform_device *pdev)
 {
     struct device *device       = &pdev->dev;
     struct device_node *node    = device->of_node;
-    int retval;
+    int retval = 0;
     dev_t dev;
     memset(&dev, 0x00, sizeof(dev));
+
     logi("in vpp_probe\n");
     if (!node) {
         loge(KERN_ERR "[VPPDRV] NOT FOUND device node %s!\n", VPP_PLATFORM_DEVICE_NAME);
@@ -132,6 +129,7 @@ static int vpp_probe(struct platform_device *pdev)
         loge(KERN_ERR "[VPPDRV] Couldn't get regulators err=%d\n", retval);
         goto ERROR_PROVE_DEVICE;
     }
+
     s_vpp_clk = of_clk_get(node,0);
     if (IS_ERR(s_vpp_clk)) {
         loge(KERN_ERR "[VPPDRV] FAIL to get clock controller\n");
@@ -141,6 +139,7 @@ static int vpp_probe(struct platform_device *pdev)
         logi("vpp get clock controller,s_vpp_clk=%p\n", s_vpp_clk);
     }
     s_vpp_class = class_create(THIS_MODULE, "vpp");
+
     if (NULL == s_vpp_class)
     {
         retval =  -ENOMEM;
@@ -160,21 +159,23 @@ static int vpp_probe(struct platform_device *pdev)
         loge(KERN_ERR "[VPPDRV] Can't get vpp device major\n");
         goto ERROR_PROVE_DEVICE;
     }
+
     s_vpp_irq = irq_of_parse_and_map(node, 0);
     logi(" vpp irq = %d\n",s_vpp_irq);
     retval = request_irq(s_vpp_irq, vpp_isr, 0, "VPP", NULL);
-
     if(retval)
     {
         loge("fail to request vpp irq, ret = 0x%x\n",retval);
         goto ERROR_PROVE_DEVICE;
     }
+
     retval = vpp_setup_cdev( );
     if (retval)
     {
         loge(KERN_ERR "[VPPDRV] Can't register char driver retval = %d\n",retval);
         goto ERROR_PROVE_DEVICE;
     }
+
     retval = hal_init(node);
     if (retval){
         loge(KERN_ERR "[VPPDRV] hal init is fail\n");
@@ -197,8 +198,8 @@ ERROR_PROVE_DEVICE:
 
     if (!IS_ERR(s_vpp_clk)){
         vpp_clk_put(s_vpp_clk);
-        //goto err;
     }
+
     regulator_put(vpp_regulator.consumer);
     memset(&vpp_regulator, 0, sizeof(vpp_regulator));
 
@@ -211,10 +212,12 @@ static int vpp_remove(struct platform_device *pdev)
         unregister_chrdev(s_vpp_major, VPP_DEV_NAME);
         s_vpp_major = 0;
     }
+
     if (s_vpp_irq){
         free_irq(s_vpp_irq, 0);
         s_vpp_irq = 0;
     }
+
     if(!IS_ERR(s_vpp_clk)){
         vpp_clk_put(s_vpp_clk);
     }
@@ -226,7 +229,8 @@ static int vpp_remove(struct platform_device *pdev)
 static int vpp_suspend(struct platform_device *pdev,pm_message_t state){
     printk("%s+.\n",__func__);
 
-    if (vpp_opened == false){
+    if (vpp_opened == false)
+    {
         logw("no vpp device opened , do not need power off!\n");
         return 0;
     }
@@ -247,19 +251,21 @@ static int vpp_resume(struct platform_device *pdev){
     int ret = -EFAULT;
     printk("%s+.\n",__func__);
 
-    if (vpp_opened == false){
+    if (vpp_opened == false)
+    {
         logw("no vpp device opened , do not need power on!\n");
         return 0;
     }
 
     err = regulator_bulk_enable(1, &vpp_regulator);
-    if (err){
+    if (err)
+    {
         loge(KERN_ERR "[VPPDRV] failed to enable vpp regulators %d\n", err);
         return err;
     }
 
-/*        err = vpp_clk_enable(s_vpp_clk);
-        if (err){
+/*          err = vpp_clk_enable(s_vpp_clk);
+            if (err){
             loge(KERN_ERR "[VPPDRV] failed to enable vpp clk %d\n", err);
             regulator_bulk_disable(1, &vpp_regulator);
             return err;
@@ -330,12 +336,15 @@ void __exit vpp_deinit(void)
         kfree(pDev);
         s_vpp_device = NULL;
     }
-    if(s_vpp_major){
-    unregister_chrdev_region(MKDEV(s_vpp_major, 0), 1);
+    if(s_vpp_major)
+    {
+        unregister_chrdev_region(MKDEV(s_vpp_major, 0), 1);
         s_vpp_major = 0;
     }
-    if(s_vpp_class){
-    class_destroy(s_vpp_class);
+
+    if(s_vpp_class)
+    {
+        class_destroy(s_vpp_class);
 
         s_vpp_class = NULL;
     }
@@ -358,7 +367,8 @@ static int vpp_open(struct inode *inode, struct file *file)
     }
 
     ret = regulator_bulk_enable(1, &vpp_regulator);
-    if (ret){
+    if (ret)
+    {
         printk("failed to enable vpp regulators ret=%#x\n", ret);
         return -1;
     }
@@ -501,7 +511,8 @@ static long vpp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
             return err;
             break;
         }
-
+#ifdef VPP_TEST
+     //this case only used to test
       case VPP_GETADDR:
         {
             loge("VPP get address\n");
@@ -509,6 +520,7 @@ static long vpp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
              __put_user(0x32000000, (unsigned long *)arg);
             break;
         }
+#endif
         default:
         {
             loge("unsurport cmd cmd = %d\n",cmd);
@@ -554,28 +566,15 @@ void vpp_clk_put(struct clk *clk)
     if (clk)
         clk_put(clk);
 }
-int vpp_clk_enable(struct clk *clk)
-{
-    if (IS_ERR(clk)) {
-        loge(KERN_ERR "[VPPDRV] vpp clock is null\n");
-        return 0;
-    }
-    return clk_prepare_enable(clk);
-}
-void vpp_clk_disable(struct clk *clk)
-{
-    if (IS_ERR(clk)) {
-        loge(KERN_ERR "[VPPDRV] vpp clock is null\n");
-        return;
-    }
-    clk_disable_unprepare(clk);
-}
-
 static struct file_operations vpp_file_ops =
 {
     .open = vpp_open,
     .release = vpp_close,
+#ifdef CONFIG_ARM64
     .compat_ioctl = vpp_ioctl,
+#else
+    .unlocked_ioctl = vpp_ioctl,
+#endif
 #ifdef VPP_MMAP
     .mmap = vpp_mmap,
 #endif

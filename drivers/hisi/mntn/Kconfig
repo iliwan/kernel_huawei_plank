@@ -10,3 +10,9 @@ config HISILICON_PLATFORM_HISI_EASYSHELL
 	help
 	  This driver supports HiSilicon HiXXX SOC,
 	  including easy shell, etc.
+
+config HISI_LOWMEM_DBG
+	bool "Hisilicon Low Memory Killer debug"
+	default n
+	help
+	  print processes info when lmk happen per several seconds

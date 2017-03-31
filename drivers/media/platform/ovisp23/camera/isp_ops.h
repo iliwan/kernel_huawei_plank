@@ -21,6 +21,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include "../sensor/hisi_sensor.h"
 
 /*************************** isp register macro definition *****************************/
 #define REG_ISP_TOP4				(0x65004) /* ISP work mode; Combine Mode (HDR) */
@@ -121,14 +122,20 @@
 #define REG_FW_WRITEBACK_GAIN(flow)				(FW_STAT_REG_BASE(flow) + 0x1e)
 #define REG_FW_WRITEBACK_EXPO(flow)				(FW_STAT_REG_BASE(flow) + 0x20)
 #define REG_FW_AECAGC_WRITESENSOR_ENABLE(flow)			(0x33011 + FW_REG_OFFSET * (flow))
+#define REG_FW_AE_SWITCH(flow)					(0x33550 + FW_REG_OFFSET * (flow))
 
+#define REG_SHIFT_PIPE0_EOF_IDI		6
+#define REG_SHIFT_PIPE1_EOF_IDI		1
+/* Irq enable bit. */
+#define ISP_PIPE0_EOF_IDI				(1 << REG_SHIFT_PIPE0_EOF_IDI)
+#define ISP_PIPE1_EOF_IDI				(1 << REG_SHIFT_PIPE1_EOF_IDI)
 /*************************** isp register macro definition *****************************/
 
 #define FIRMWARE_FILE_PATH		"/system/isp/isp.bin"
 
 #define RESET_DELAY_INTERVAL		4
 #define STAND_BY_DELAY_INTERVAL	10
-
+#define WAIT_EOF_TIMEOUT	2000
 
 
 struct irq_reg_t{
@@ -153,6 +160,13 @@ struct irq_reg_t{
 	u8  mac3_irq_status_ss;
 	u8 cmd_done_id;
 	u8 cmd_result;
+
+	/*host ae take effect*/
+	int host_ae_applied;
+	u32 expo;
+	u32 gain;
+	u16 hts;
+	u16 vts;
 };
 
 
@@ -163,12 +177,13 @@ typedef struct _isp_hw_data{
 	wait_queue_head_t poll_queue_head;
 	bool poll_start;
 
-	void __iomem * viraddr;
+	u32 viraddr;
 	u32 phyaddr;
 	u32 mem_size;
 	u32 irq_no;
 
 	struct irq_reg_t irq_val;
+	int irq_process_raw_done_count;
 	bool irq_query_flag;
 	struct clk *isp_sclk;
 	struct clk *ispmipi_clk;
@@ -184,6 +199,26 @@ typedef struct _isp_hw_data{
 	struct iommu_map_format format;
 }isp_hw_data_t;
 
+typedef struct {
+	struct hisi_sensor_t *sensor;
+	struct expo_gain_seq me_seq;
+	struct bshutter_expo_gain_seq bshutter_seq;
+	int eof_trigger;
+	int eof_bshutter_trigger;
+	int seq_index;
+}hisi_eg_ctrl_t;
+
+enum {
+	PIPE0_TRIG = 0,
+	PIPE1_TRIG,
+	NONE_TRIG,
+};
+
+enum {
+	MANUAL_AE_NOT_APPLIED = 0,
+	MANUAL_AE_APPLIED,
+};
+
 
 int k3_isp_init(struct device *pdev);
 int k3_isp_deinit(void);
@@ -193,12 +228,11 @@ unsigned int k3_poll_irq(struct file * filp, struct poll_table_struct *wait);
 void k3_query_irq(struct irq_reg_t *irq_info);
 u32 k3_get_isp_base_addr(void);
 u32 k3_get_isp_mem_size(void);
-
-#ifdef SEATTLE_FPGA
-	#define set8(reg, value) (*((volatile unsigned char *)(reg)) = (value))
-	#define set32(reg, value) (*((volatile u32 *)(reg)) = (value))
-	#define get8(reg) (*(volatile unsigned char *)(reg))
-	#define get32(reg) (*(volatile u32 *)(reg))
-#endif
+int setup_eof_tasklet(struct hisi_sensor_t *sensor, struct expo_gain_seq *me_seq);
+int setup_eof_bshutter_tasklet(struct hisi_sensor_t *sensor, struct bshutter_expo_gain_seq * bshutter_seq);
+int teardown_eof_tasklet(struct hisi_sensor_t *sensor, struct expo_gain_seq *me_seq);
+int k3_isp_clk_rate_set(int rate);
+int k3_alloc_firmware_memory(void);
+void k3_free_firmware_memory(void);
 
 #endif /*_ISP_OPS_H_ */

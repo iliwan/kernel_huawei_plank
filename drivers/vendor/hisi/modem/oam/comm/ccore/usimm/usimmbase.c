@@ -3558,6 +3558,20 @@ VOS_UINT32 USIMM_OpenChannelHandle(USIMM_MsgBlock *pMsg)
 
     pstMsg = (USIMM_OPEN_CHANNEL_REQ_STRU *)pMsg;
 
+    
+    if (VOS_TRUE == g_stUsimmFeatureCfg.unCfg.stFeatureCfg.ulOpenChannelCSIM)
+    {
+        /* CL模式下，CSIM应用已经提前打开逻辑通道，当前仅需返回session-id即可 */
+        if (pstMsg->ulSenderPid == WUEPS_PID_CSIMA
+            && g_ulCsimSessionId != VOS_NULL_DWORD
+            && 0 == VOS_MemCmp(pstMsg->stChannelInfo.aucADFName, g_astAidInfo[USIMM_AID_TYPE_CSIM].aucAID, g_astAidInfo[USIMM_AID_TYPE_CSIM].ulAIDLen)
+            && VOS_TRUE == USIMM_IsCLEnable())
+        {
+            USIMM_OpenChannelCnf(pstMsg->ulSenderPid, TAF_ERR_NO_ERROR, VOS_OK, g_ulCsimSessionId);
+            return VOS_OK;
+        }
+    }
+
     /* 判断当前是否还有剩余通道 */
     if (VOS_OK != USIMM_SearchCHFree())
     {
@@ -3672,8 +3686,119 @@ VOS_UINT32 USIMM_OpenChannelHandle(USIMM_MsgBlock *pMsg)
 
     return VOS_OK;
 }
+VOS_UINT32 USIMM_OpenChannelForCSIM(VOS_VOID)
+{
+    VOS_UINT32                          ulResult;
+    VOS_UINT8                           ucChannelId = VOS_NULL_BYTE;
+    VOS_UINT32                          ulSessionId = VOS_NULL_DWORD;
+    USIMM_APDU_ST                       stApduInfo = {0};
+    VOS_UINT32                          ulCSIMExistFlag;
+    VOS_UINT8                           aucCsimAid[USIMM_AID_LEN_MAX];
+    VOS_UINT32                          ulCsimAidLen;
+    VOS_UINT32                          ulUSIMExistFlag;
+    VOS_UINT8                           aucUsimAid[USIMM_AID_LEN_MAX];
+    VOS_UINT32                          ulUsimAidLen;
 
-
+    if (VOS_TRUE == g_stUsimmFeatureCfg.unCfg.stFeatureCfg.ulOpenChannelCSIM)
+    {        
+        VOS_MemSet(aucCsimAid, 0, sizeof(aucCsimAid));
+        VOS_MemSet(aucUsimAid, 0, sizeof(aucUsimAid));
+        
+        /* 仅CL制式需要打开逻辑通道 */
+        if (VOS_FALSE == USIMM_IsCLEnable())
+        {
+            return VOS_OK;
+        }
+        
+        ulCSIMExistFlag = USIMM_GetAid(USIMM_AID_TYPE_CSIM, &ulCsimAidLen, aucCsimAid);
+        ulUSIMExistFlag = USIMM_GetAid(USIMM_AID_TYPE_USIM, &ulUsimAidLen, aucUsimAid);
+        
+        /* 只有UICC双模卡需要创建逻辑通道 */
+        if (VOS_OK != ulCSIMExistFlag || VOS_OK != ulUSIMExistFlag)
+        {
+            return VOS_OK;
+        }
+        
+        /* 判断当前是否还有剩余通道 */
+        if (VOS_OK != USIMM_SearchCHFree())
+        {
+            USIMM_ERROR_LOG("USIMM_OpenChannelHandle: The logic channel is full.");
+        
+            return VOS_ERR;
+        }
+        
+        /* 一个通道使用者只允许打开一个通道，如果之前没有打开，则下发MANAGE CHANNEL命令打开通道 */
+        ulResult = USIMM_OpenChannel(&ucChannelId, &ulSessionId);
+        
+        if (VOS_OK != ulResult)
+        {
+            return VOS_ERR;
+        }
+        
+        if (VOS_TRUE == g_stUsimmFeatureCfg.unCfg.stFeatureCfg.ulAidLenCheckFlg)
+        {
+            if (ulCsimAidLen < USIMM_AID_LEN_MIN)
+            {
+                USIMM_ERROR_LOG("USIMM_OpenChannelForCSIM: the length of AID is error");
+        
+                USIMM_CloseChannel(ucChannelId);
+        
+                return VOS_ERR;
+            }
+        }
+        
+        stApduInfo.aucAPDU[CLA] = USIMM_USIM_CLA;
+        
+        stApduInfo.aucAPDU[P1] = USIMM_SELECT_BY_DF_NAME;
+        
+        stApduInfo.aucAPDU[P2] = USIMM_SELECT_RETURN_FCP_TEMPLATE;
+        
+        stApduInfo.aucAPDU[P3] = ulCsimAidLen;
+        
+        VOS_MemCpy(stApduInfo.aucSendBuf, aucCsimAid, ulCsimAidLen);
+        
+        /* 下发激活AID命令数据单元,cla字段应该在打开的逻辑通道上 */
+        ulResult = USIMM_SelectFileByChannelID_APDU(ucChannelId, &stApduInfo);
+        
+        if (VOS_OK != ulResult)
+        {
+            USIMM_ERROR_LOG("USIMM_OpenChannelHandle: Select ADF Error");
+        
+            USIMM_CloseChannel(ucChannelId);
+        
+            return VOS_ERR;
+        }
+        
+        ulResult = USIMM_CheckSW(&stApduInfo);
+        
+        if ((USIMM_SW_OK != ulResult) && (USIMM_SW_CMD_REMAINTIME != ulResult))
+        {
+            USIMM_ERROR_LOG("USIMM_OpenChannelHandle: USIMM_CheckSW failed.");
+        
+            USIMM_CloseChannel(ucChannelId);
+        
+            return VOS_ERR;
+        }
+        
+        if (VOS_TRUE == g_stUsimmFeatureCfg.unCfg.stFeatureCfg.ulAIDFCPSave)
+        {
+            VOS_MemCpy(g_astUSIMMChAIDFCP[ucChannelId].aucADFFcp, stApduInfo.aucRecvBuf, stApduInfo.ulRecDataLen);
+        
+            g_astUSIMMChAIDFCP[ucChannelId].ulAIDFCPLen = stApduInfo.ulRecDataLen;
+        }
+        
+        g_astUSIMMChCtrl[ucChannelId].ulSessionId = ulSessionId;
+        g_astUSIMMChCtrl[ucChannelId].ulChanNum   = ucChannelId;
+        g_astUSIMMChCtrl[ucChannelId].ulAIDLen    = ulCsimAidLen;
+        VOS_MemCpy(g_astUSIMMChCtrl[ucChannelId].aucADFName, aucCsimAid, ulCsimAidLen);
+        
+        g_astUSIMMChGetRsp[ucChannelId].ulRspLen  = 0;
+        
+        g_ulCsimSessionId = ulSessionId;
+        
+    }
+    return VOS_OK;
+}
 VOS_UINT32 USIMM_ChannelCmdParaCheck(VOS_VOID)
 {
     /* 中移动要求对鉴权命令也下发，非中移动版本要做检查 */

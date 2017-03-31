@@ -23,6 +23,8 @@ typedef struct lcd_dirty_region_info {
 
     int top_start;
     int bottom_start;
+
+    int extra_line_num;
 } lcd_dirty_region_info_t;
 
 #endif

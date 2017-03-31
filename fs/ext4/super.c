@@ -64,9 +64,11 @@ extern unsigned int get_datamount_flag(void);
 #define USERDATA_MOUNTPOINT "userdata"
 #define USERDATA_MOUNTPOINT_LEN 8
 #endif
+#if defined(CONFIG_HI3XXX_CMDLINE_PARSE)||defined(CONFIG_HISILICON_PLATFORM_HI6XXX_BOOTCMD)
 extern unsigned int get_boot_into_recovery_flag(void);
+#endif
 #ifdef CONFIG_HUAWEI_FS_DSM
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 struct dsm_dev dsm_fs = {
 	.name = "dsm_fs",
 	.device_name = NULL,
@@ -427,6 +429,7 @@ static char * ext4_get_mountpoint(struct super_block *sb)
 static inline void trigger_double_data(struct super_block *sb)
 {
 #ifndef TARGET_VERSION_FACTORY
+#if defined(CONFIG_HI3XXX_CMDLINE_PARSE)||defined(CONFIG_HISILICON_PLATFORM_HI6XXX_BOOTCMD)
 	if (get_boot_into_recovery_flag() == 0 &&
 			get_datamount_flag() == 0) {
 		if(ext4_get_mountpoint(sb) &&
@@ -435,6 +438,7 @@ static inline void trigger_double_data(struct super_block *sb)
 			kernel_restart("mountfail");
 		}
 	}
+#endif
 #endif
 }
 #endif
@@ -4748,6 +4752,8 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	int i, j;
 #endif
 	char *orig_data = kstrdup(data, GFP_KERNEL);
+
+	sync_filesystem(sb);
 
 	/* Store the original options */
 	old_sb_flags = sb->s_flags;

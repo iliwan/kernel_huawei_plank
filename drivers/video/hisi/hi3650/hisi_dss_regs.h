@@ -393,10 +393,8 @@ enum dss_rdma_idx {
 /*******************************************************************************
 ** MODULE BASE ADDRESS
 */
-// 1	BASE ADDRESS	00000000
 #define DSS_GLB0_OFFSET	(0x0000)
 
-// 2 BASE ADDRESS	00002000
 #define DSS_CMDLIST_OFFSET	(0x2000)
 
 #define DSS_DAB_OFFSET	(0x7000)
@@ -409,13 +407,11 @@ enum dss_rdma_idx {
 #define DSS_MMU_RBRG0_OFFSET	(0xA000)
 #define DSS_MMU_RBRG1_OFFSET	(0xA800)
 
-// 3	BASE ADDRESS	00010000
 #define DSS_MCTRL_CTL0_OFFSET	(0x10000)
 #define DSS_MCTRL_CTL1_OFFSET	(0x10400)
 #define DSS_MCTRL_CTL2_OFFSET	(0x10800)
 #define DSS_MCTRL_CTL3_OFFSET	(0x10C00)
 
-// 8 BASE ADDRESS 00060000
 #define DSS_OVL0_OFFSET	(0x60000)
 #define DSS_OVL1_OFFSET	(0x60400)
 #define DSS_OVL2_OFFSET	(0x60800)
@@ -424,7 +420,6 @@ enum dss_rdma_idx {
 #define DSS_DBUF0_OFFSET	(0x6D000)
 #define DSS_DBUF1_OFFSET	(0x6E000)
 
-// 9 BASE ADDRESS 00070000
 #define DSS_DPP_OFFSET	(0x70000)
 #define DSS_TOP_OFFSET	(0x70000)
 #define DSS_LCP_OFFSET	(0x70100)

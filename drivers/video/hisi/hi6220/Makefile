@@ -27,10 +27,18 @@ balongfb-objs += \
 	../panel/mipi_yassy_ILI9881-3.o \
 	../panel/mipi_cmi_OTM1284A.o \
 	../panel/mipi_cmi_OTM1283A.o \
+	../panel/mipi_tm_OTM1287A_CHM.o \
 	../panel/mipi_boe_NT35521_5P0.o \
 	../panel/mipi_boe_NT35521S_5P0.o \
+	../panel/mipi_boe_NT35521N_5P0.o \
+	../panel/mipi_tm_OTM1287A_ALE.o \
 	../panel/mipi_boe_NT35521_5P0_3lane.o \
-	../panel/mipi_boe_NT35521S_5P0_3lane.o
+	../panel/mipi_boe_NT35521N_5P0_3lane.o \
+	../panel/mipi_cmi_OTM1283A_3lane.o \
+	../panel/mipi_tm_OTM1287A_3lane.o \
+	../panel/mipi_tm_HX8394F.o \
+	../panel/mipi_boe_ILI9881C.o \
+	../panel/mipi_cmi_NT35521S.o
 all:
 	make $(KERNEL_MAKE) M=$(PWD) modules
 clean:

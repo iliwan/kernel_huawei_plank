@@ -16,6 +16,8 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/wakelock.h>
+#include <linux/kthread.h>
+#include <linux/sched/rt.h>
 #include <linux/hisi/hisi_mailbox.h>
 #include "hisi_mailbox_debugfs.h"
 
@@ -69,6 +71,7 @@ do {					\
 #define PRINT_TTS(tx_task)		do {} while (0)
 #endif
 
+#define TX_FIFO_CELL_SIZE   (sizeof(struct hisi_mbox_task *))
 /* max 256 simultaneous tasks for every mailbox device */
 #define MAILBOX_MAX_TX_BUFFER (256 * sizeof(struct hisi_mbox_task *))
 
@@ -445,6 +448,7 @@ hisi_mbox_msg_send_async(struct hisi_mbox *mbox, struct hisi_mbox_task *tx_task)
 {
 	struct hisi_mbox_device *mdev = NULL;
 	int ret = 0;
+	unsigned long flags;
 
 	if (!tx_task || !mbox || !mbox->tx) {
 		MBOX_PR_ERR("invalid parameters\n");
@@ -468,18 +472,19 @@ hisi_mbox_msg_send_async(struct hisi_mbox *mbox, struct hisi_mbox_task *tx_task)
 	spin_lock(&mdev->fifo_lock);
 	if (kfifo_avail(&mdev->fifo) < sizeof(struct hisi_mbox_task *)) {
 		MBOX_PR_ERR("mdev %s fifo full\n", mdev->name);
+		spin_unlock_irqrestore(&mdev->fifo_lock, flags);
 		ret = -ENOMEM;
-		goto unlock;
+		goto clearstatus;
 	}
 
-	kfifo_in(&mdev->fifo, &tx_task, sizeof(struct hisi_mbox_task *));
+	kfifo_in(&mdev->fifo, &tx_task, TX_FIFO_CELL_SIZE);
 
-	if (!work_pending(&mdev->tx_work))
-		schedule_work(&mdev->tx_work);
+	spin_unlock_irqrestore(&mdev->fifo_lock, flags);
 
-unlock:
-	spin_unlock(&mdev->fifo_lock);
 
+	wake_up_interruptible(&mdev->tx_wait);
+
+clearstatus:
 	/* ASYNC_ENQUEUE end */
 	clr_status(mdev, MDEV_ASYNC_ENQUEUE);
 out:
@@ -503,26 +508,38 @@ hisi_mbox_dequeue_task(struct hisi_mbox_device *mdev)
 	return tx_task;
 }
 
-static void hisi_mbox_tx_work(struct work_struct *work)
+static void hisi_mbox_tx_thread(unsigned long context)
 {
-	struct hisi_mbox_device *mdev =
-		container_of(work, struct hisi_mbox_device, tx_work);
+	struct hisi_mbox_device *mdev = (struct hisi_mbox_device *)context;
 	struct hisi_mbox_task *tx_task = NULL;
 	int ret = 0;
+	
+    while (!kthread_should_stop())
+    {
+		ret = wait_event_interruptible(mdev->tx_wait, (kfifo_len(&mdev->fifo) >= TX_FIFO_CELL_SIZE));
+		if (unlikely(ret))
+		{
+			/*to delete*/
+			printk("hisi_mbox_tx_thread wait event failed\n");
+			continue;
+		}
+		/*kick out the async send request from  mdev's kfifo one by one and send it out*/
+		mutex_lock(&mdev->dev_lock);
 
-	mutex_lock(&mdev->dev_lock);
-	while ((tx_task = hisi_mbox_dequeue_task(mdev))) {
-		ret = hisi_mbox_task_send_nolock(mdev, tx_task);
-		PRINT_TTS(tx_task);
+		/*start timer?*/
+		while ((tx_task = hisi_mbox_dequeue_task(mdev))) {
+			ret = hisi_mbox_task_send_nolock(mdev, tx_task);
+			PRINT_TTS(tx_task);
 
-		tx_task->tx_error = ret;
+			tx_task->tx_error = ret;
 		tx_task->complete_fn(tx_task);
 
 		/* current task unlinked */
 		mdev->tx_task = NULL;
 	}
 
-	mutex_unlock(&mdev->dev_lock);
+		mutex_unlock(&mdev->dev_lock);
+    }
 	return;
 }
 
@@ -651,7 +668,7 @@ hisi_mbox_shutdown(struct hisi_mbox_device *mdev, mbox_mail_type_t mail_type)
 
 		switch (mail_type) {
 		case TX_MAIL:
-			flush_work(&mdev->tx_work);
+			kthread_stop(mdev->tx_kthread);
 			kfifo_free(&mdev->fifo);
 		case RX_MAIL:
 			tasklet_kill(&mdev->rx_bh);
@@ -728,8 +745,24 @@ hisi_mbox_startup(struct hisi_mbox_device *mdev, mbox_mail_type_t mail_type)
 				goto deconfig;
 			}
 
-			INIT_WORK(&mdev->tx_work, hisi_mbox_tx_work);
-
+			init_waitqueue_head(&mdev->tx_wait);
+			/*create the async tx thread*/
+		    mdev->tx_kthread = kthread_create(hisi_mbox_tx_thread, (unsigned long)mdev, "%s", mdev->name);
+		    if (unlikely(IS_ERR(mdev->tx_kthread)))
+		    {
+		        	MBOX_PR_ERR("create kthread tx_kthread failed!\n");
+				ret = -EINVAL;
+				kfifo_free(&mdev->fifo);
+				goto deconfig;
+		    }
+			else
+			{
+				struct sched_param param;
+				/*set the thread's priority to 80, the bigger sched_priority, the higher priority*/
+				param.sched_priority = (MAX_RT_PRIO - 20);
+				(void)sched_setscheduler(mdev->tx_kthread, SCHED_RR, &param);
+				wake_up_process(mdev->tx_kthread);
+			}
 		/* tx mdev owns rx tasklet as well, for ipc ack msg. */
 		case RX_MAIL:
 			tasklet_init(&mdev->rx_bh, hisi_mbox_rx_bh,
@@ -764,7 +797,7 @@ shutdown:
 deinit_work:
 	switch (mail_type) {
 	case TX_MAIL:
-		flush_work(&mdev->tx_work);
+		//flush_work(&mdev->tx_work);
 		kfifo_free(&mdev->fifo);
 	case RX_MAIL:
 		tasklet_kill(&mdev->rx_bh);
@@ -916,7 +949,7 @@ void hisi_mbox_device_deactivate(struct hisi_mbox_device **list)
 		mutex_unlock(&mdev->dev_lock);
 
 		/* flush tx work & tx task list synchronously */
-		flush_work(&mdev->tx_work);
+		//flush_work(&mdev->tx_work);
 
 		mutex_lock(&mdev->dev_lock);
 		while ((tx_task = hisi_mbox_dequeue_task(mdev))) {

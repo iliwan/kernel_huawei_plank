@@ -169,7 +169,7 @@
 		huawei,reset_valid = <1>;
 		huawei,vcmpd_valid = <0>;
 		huawei,i2c-index = <0>;
-		huawei,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		huawei,i2c-speed = <0x0a>;
 		huawei,i2c-addr = <0x34>;
 		huawei,i2c-addr_bits = <1>;
 		huawei,i2c-val_bits = <0>;
@@ -203,7 +203,7 @@ huawei,ov5648@1 {
 		huawei,reset_valid = <1>;
 		huawei,vcmpd_valid = <0>;
 		huawei,i2c-index = <1>;
-		huawei,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		huawei,i2c-speed = <0x0a>;
 		huawei,i2c-addr = <0x6c>;
 		huawei,i2c-addr_bits = <1>;
 		huawei,i2c-val_bits = <0>;
@@ -241,7 +241,7 @@ huawei,ov8865_rear {
 		huawei,reset_valid = <1>;
 		huawei,vcmpd_valid = <0>;
 		huawei,i2c-index = <0>;
-		huawei,i2c-speed = <0x0a>; /* 240000 / 64 / 400 = 10 */
+		huawei,i2c-speed = <0x0a>;
 		huawei,i2c-addr = <0x34>;
 		huawei,i2c-addr_bits = <1>;
 		huawei,i2c-val_bits = <0>;

@@ -566,7 +566,7 @@ config MMC_DW_HISILICON
 
 config MMC_DW_HI3XXX
 	tristate "Hisilicon specific extensions for Synopsys DW Memory Card Interface"
-	depends on MMC_DW && ARCH_HI3XXX
+	depends on MMC_DW && (ARCH_HI3XXX || ARCH_HI3630)
 	select MMC_DW_PLTFM
 	select MMC_DW_IDMAC
 	default y

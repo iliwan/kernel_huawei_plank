@@ -428,6 +428,7 @@ typedef BSP_S32 (*socp_event_cb)(BSP_U32 u32ChanID, SOCP_EVENT_ENUM_UIN32 u32Eve
 typedef BSP_S32 (*socp_read_cb)(BSP_U32 u32ChanID);
 typedef BSP_S32 (*socp_rd_cb)(BSP_U32 u32ChanID);
 
+/* log2.0 2014-03-19 Begin:*/
 typedef struct SOCP_ENC_DST_BUF_LOG_CFG
 {
     BSP_U32     guWaterMark;    /* SOCP编码目的通道数据传输水线，GU通道 */

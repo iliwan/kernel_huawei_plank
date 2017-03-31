@@ -25,7 +25,7 @@ static unsigned long arch_timer_read_counter_long(void)
 static u32 sched_clock_mult __read_mostly;
 
 /* as arch_timer is enabled in xloader, val is not zero now */
-unsigned long long arch_timer_init_val __read_mostly;
+static unsigned long long arch_timer_init_val __read_mostly;
 
 static unsigned long long notrace arch_timer_sched_clock(void)
 {

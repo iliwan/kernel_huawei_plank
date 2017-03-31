@@ -36,7 +36,7 @@
 
 #define LOG_TAG "hdmi-hw-tpi"
 #include "k3_hdmi_log.h"
-#include "../k3_fb.h"
+#include "../hi3630/hisi_fb.h"
 
 extern hdmi_device hdmi;
 hdmi_hw_res hw_res = {0};
@@ -1792,7 +1792,7 @@ void hw_core_power_on(void)
 
         wake_lock(&hdmi.wake_lock);
 
-        k3_fb1_blank(FB_BLANK_UNBLANK);
+        hisi_fb1_blank(FB_BLANK_UNBLANK);
         if(!hw_support_mhl()) {
             if (regulator_enable(hw_res.boost_vcc) != 0) {
                 loge("failed to enable boost_vcc regulator.\n");
@@ -1951,7 +1951,7 @@ void  hw_core_power_off(void)
             regulator_disable(hw_res.boost_vcc);
         }
         /*disable edc1 regulator*/
-		k3_fb1_blank(FB_BLANK_POWERDOWN);  //FB_BLANK_POWERDOWN
+		hisi_fb1_blank(FB_BLANK_POWERDOWN);  //FB_BLANK_POWERDOWN
         mdelay(2);
 
         wake_unlock(&hdmi.wake_lock);
@@ -2282,7 +2282,7 @@ int hw_get_resources(struct platform_device *pdev)
         loge("NOT FOUND device node %s!\n", DTS_COMP_HDMI_NAME);
         goto err;
     }
-    node_fb = of_find_compatible_node(NULL, NULL, "hisilicon,k3fb");
+    node_fb = of_find_compatible_node(NULL, NULL, "hisilicon,hisifb");
     if (IS_ERR(node_fb)) {
         loge("of_find_compatible_node fb failed!\n");
         goto err;

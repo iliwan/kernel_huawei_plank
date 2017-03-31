@@ -500,7 +500,8 @@ typedef struct
     VOS_MSG_HEADER                                                              /*_H2ASN_Skip*/
     LRRC_TRRC_MSG_TYPE_ENUM_UINT32                          enMsgId;            /*_H2ASN_Skip*/
     VOS_UINT16                                              usOpId;
-    VOS_UINT8                                               aucReserved[2];
+    VOS_UINT8                                               ucValidFreqNum;
+    VOS_UINT8                                               ucReserved;
     LRRC_GURRC_MEAS_RESULT_ENUM_UINT32                      enRslt;
 }LRRC_TRRC_IDLE_MEASURE_CNF_STRU;
 
@@ -548,7 +549,8 @@ typedef struct
     VOS_MSG_HEADER                                                              /*_H2ASN_Skip*/
     LRRC_TRRC_MSG_TYPE_ENUM_UINT32                          enMsgId;            /*_H2ASN_Skip*/
     VOS_UINT16                                              usOpId;
-    VOS_UINT8                                               aucReserved[2];
+    VOS_UINT8                                               ucValidFreqNum;
+    VOS_UINT8                                               ucReserved;
     LRRC_GURRC_MEAS_RESULT_ENUM_UINT32                      enRslt;
 }LRRC_TRRC_CONNECTED_MEASURE_CNF_STRU;
 

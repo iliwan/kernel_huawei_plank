@@ -125,6 +125,12 @@ typedef long                        int64;
 
 #define COEXIST_MAX_FRAME           (10)        /* coexist data max lenth */
 
+#define BT_FRAME_MAX_LEN		(1032) /* 1026 + beat */
+#define GNSS_FRAME_MAX_LEN	    (58)  /* 52 + beat*/
+#define FM_FRAME_MAX_LEN		(75)  /* 69 + beat */
+#define DBG_FRAME_MAX_LEN		(156) /* 150 + beat */
+
+
 #define PACKET_START_SIGNAL         (0x7e)
 #define PACKET_END_SIGNAL           (0x7e)
 

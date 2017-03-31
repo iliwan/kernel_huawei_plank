@@ -42,6 +42,9 @@ enum MTC_RRC_MSG_ID_ENUM
     ID_MTC_RRC_TDS_LTE_RF_CONTROL_IND       = 0x0009,                           /* _H2ASN_MsgChoice MTC_RRC_TDS_LTE_RF_CONTROL_IND_STRU */
 
     ID_MTC_RRC_GSM_CELL_INFO_IND            = 0x000B,                           /* _H2ASN_MsgChoice MTC_RRC_GSM_CELL_INFO_IND_STRU */
+    ID_MTC_RRC_RSE_CFG_IND                  = 0x000D,                           /* _H2ASN_MsgChoice MTC_RRC_RSE_CFG_IND_STRU */
+    ID_MTC_RRC_MODEM1_INFO_IND              = 0x000F,                           /* _H2ASN_MsgChoice MTC_RRC_MODEM1_INFO_IND_STRU */
+
 
     /* RRC --> MTC */
     ID_RRC_MTC_INTRUSION_ACTION_SET_CNF     = 0x0002,                           /* _H2ASN_MsgChoice RRC_MTC_RESULT_CNF_STRU */
@@ -50,7 +53,7 @@ enum MTC_RRC_MSG_ID_ENUM
     ID_RRC_MTC_AREA_LOST_IND                = 0x0008,                           /* _H2ASN_MsgChoice RRC_MTC_AREA_LOST_IND_STRU */
     ID_RRC_MTC_NCELL_INFO_IND               = 0x000A,                           /* _H2ASN_MsgChoice RRC_MTC_NCELL_INFO_IND_STRU */
     ID_RRC_MTC_AREA_AVALIABLE_IND           = 0x000C,                           /* _H2ASN_MsgChoice RRC_MTC_AREA_AVALIABLE_IND_STRU */
-    ID_MTC_RRC_RSE_CFG_IND                  = 0x000D,                           /* _H2ASN_MsgChoice MTC_RRC_RSE_CFG_IND_STRU */
+
     ID_RRC_MTC_USING_FREQ_IND               = 0x000E,                           /* _H2ASN_MsgChoice RRC_MTC_USING_FREQ_IND_STRU */
 
     ID_RRC_MTC_GSM_CELL_INFO_IND            = 0x0010,                           /* _H2ASN_MsgChoice RRC_MTC_GSM_CELL_INFO_IND_STRU */
@@ -60,6 +63,8 @@ enum MTC_RRC_MSG_ID_ENUM
     ID_MTC_RRC_MSG_ID_ENUM_BUTT
 };
 typedef VOS_UINT32  MTC_RRC_MSG_ID_ENUM_UINT32;
+
+
 enum MTC_RRC_RESULT_ENUM
 {
     MTC_RRC_RESULT_NO_ERROR             = 0x0000,                               /* 消息处理正常 */
@@ -93,6 +98,27 @@ enum RRC_MTC_GSM_CELL_STATE_ENUM
     RRC_MTC_GSM_CELL_STATE_BUTT
 };
 typedef VOS_UINT32 RRC_MTC_GSM_CELL_STATE_ENUM_UINT32;
+
+
+enum RRC_MTC_CELL_STATE_ENUM
+{
+    RRC_MTC_CELL_STATE_IDLE         = 0,                                        /* 空闲态 */
+    RRC_MTC_CELL_STATE_CONNECT         ,                                        /* 连接态 */
+
+    RRC_MTC_CELL_STATE_BUTT
+};
+typedef VOS_UINT16 RRC_MTC_CELL_STATE_ENUM_UINT16;
+
+
+enum RRC_MTC_COUNTRY_ENUM
+{
+    RRC_MTC_COUNTRY_UNKNOWN             = 0,                                    /* 未知 */
+    RRC_MTC_COUNTRY_CHINA               = 1,                                    /* 中国区 */
+
+    RRC_MTC_COUNTRY_BUTT
+};
+typedef VOS_UINT16 RRC_MTC_COUNTRY_ENUM_UINT16;
+
 
 
 /*****************************************************************************
@@ -142,7 +168,10 @@ typedef struct
 {
     MSG_HEADER_STRU                     stMsgHeader;                            /*_H2ASN_Skip*/
     RRC_MTC_MS_BAND_INFO_STRU           stCurBandInfo;                          /* 当前检测到的频段信息(过滤掉不支持的频段), Band对应的Bit位为0代表不存在, 1代表存在 */
-    RRC_MTC_MS_BAND_INFO_STRU           stSerCellBandInfo;                      /* 当前驻留到的频段信息(过滤掉不支持的频段), Band对应的Bit位为0代表不存在, 1代表存在 */
+    RRC_MTC_MS_BAND_INFO_STRU           stSerCellBandInfo;                      /* 当前驻留到的频段信息(过滤掉不支持的频段), 服务频段, Band对应的Bit位为0代表不存在, 1代表存在, 目前只有TRRC及GAS1上报 */
+
+    RRC_MTC_MS_BAND_INFO_STRU           stServiceBandInfo;                      /* 当前业务频段信息, Band对应的Bit位为0代表不存在, 1代表存在, 目前只有GAS1上报 */
+    RRC_MTC_MS_BAND_INFO_STRU           stNCellBandInfo;                        /* 邻区频段信息, Band对应的Bit位为0代表不存在, 1代表存在, 目前只有GAS1上报 */
 }RRC_MTC_INTRUSION_BAND_INFO_IND_STRU;
 typedef struct
 {
@@ -283,6 +312,15 @@ typedef struct
     MSG_HEADER_STRU                     stMsgHeader;                            /*_H2ASN_Skip*/
     RRC_MTC_GSM_CELL_INFO_EX_STRU       stGsmCellInfoEx;                        /* GSM小区扩展信息 */
 } RRC_MTC_GSM_CELL_INFO_EX_IND_STRU;
+
+
+typedef struct
+{
+    MSG_HEADER_STRU                     stMsgHeader;                            /*_H2ASN_Skip*/
+    RRC_MTC_CELL_STATE_ENUM_UINT16      enCellState;                            /* 服务连接状态 */ 
+    RRC_MTC_COUNTRY_ENUM_UINT16         enCountry;                              /* 国家区域 */
+    RRC_MTC_MS_BAND_INFO_STRU           stSerCellBandInfo;                      /* 服务小区频段信息, Band对应的Bit位为0代表不存在, 1代表存在 */
+}MTC_RRC_MODEM1_INFO_IND_STRU;
 
 
 /*****************************************************************************

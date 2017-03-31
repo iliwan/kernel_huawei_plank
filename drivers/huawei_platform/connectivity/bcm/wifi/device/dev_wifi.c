@@ -530,6 +530,7 @@ int  wifi_power_probe(struct platform_device *pdev)
 	struct device_node *np;
 	enum of_gpio_flags gpio_flags;
 	const char *nvpath = NULL;
+	bool ext_gpio_type = 0;
 
 	np = of_find_compatible_node(NULL, NULL, DTS_COMP_WIFI_POWER_NAME);	// should be the same as dts node compatible property
 	if (np == NULL) {
@@ -646,7 +647,7 @@ int  wifi_power_probe(struct platform_device *pdev)
 			ret = -1;
 			goto err_gpio_get;
 		}
-
+		ext_gpio_type = of_property_read_bool(pdev->dev.of_node, "ext_type");
 		ret = gpio_request(vio_enable, NULL);
 		if (ret < 0) {
 			pr_err("%s: vio gpio_request failed, ret:%d.\n", __func__, ret);
@@ -654,10 +655,18 @@ int  wifi_power_probe(struct platform_device *pdev)
 		}
 
 		gpio_direction_output(vio_enable, 1);
-		ret = gpio_get_value(vio_enable);
+		if(!ext_gpio_type) {
+			ret = gpio_get_value(vio_enable);
+		} else {
+			ret = gpio_get_value_cansleep(vio_enable);
+		}
 		if(ret <= 0) {
 			pr_err("%s: gpio_get_value, vio_enable, ret:%d, pull on.\n", __func__, ret);
-			gpio_set_value(vio_enable, 1);
+			if(!ext_gpio_type) {
+				gpio_set_value(vio_enable, 1);
+			} else {
+				gpio_set_value_cansleep(vio_enable, 1);
+			}
 		} else {
 			pr_err("%s: gpio_get_value, vio already on.\n", __func__);
 		}

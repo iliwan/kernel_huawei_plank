@@ -15,7 +15,7 @@
 
 #ifndef HW_LCD_COMMON_H
 #define HW_LCD_COMMON_H
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 struct lcd_pwr_status_t
 {
 	int panel_power_on;

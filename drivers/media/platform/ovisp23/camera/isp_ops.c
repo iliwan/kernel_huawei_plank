@@ -33,21 +33,129 @@
 #include <linux/regulator/machine.h>
 #include <linux/pinctrl/consumer.h>
 
+
 #include "hisi_camera.h"
 #include "../hisi_cam_module.h"
 #include "../io/hisi_isp_io.h"
 #include "isp_ops.h"
 #include "../sensor/hisi_sensor.h"
+#include "../cci/hisi_cci.h"
+#include "../flash/hisi_flash.h"
 
 extern struct hisi_sensor_ctrl_t hisi_s_ctrl_0;
 extern struct hisi_sensor_ctrl_t hisi_s_ctrl_1;
 
+#define SENSOR_EXPO_EFFECT_DELAY 2
+
 #define IRQ_TWO_TIME_BUGFIX 1
 static isp_hw_data_t isp_hw_data;
+static hisi_eg_ctrl_t hisi_eg_ctrl;
+
+
+#define FIRMWARE_MEM_SIZE   (200*1024)
+static u8 *isp_firmware_addr;
+static u32 isp_firmware_size;
+
+struct workqueue_struct *flash_eof_work_queue;
+struct work_struct flash_eof_work;
 
 static void aec_cmd_tasklet(unsigned long arg);
 DECLARE_TASKLET(isr_aec_tasklet, aec_cmd_tasklet, (unsigned long) 0);
 struct timeval tv[2];
+struct timeval ts[2];
+static void host_ae_tasklet(unsigned long data);
+static void host_ae_bshutter_tasklet(unsigned long data);
+
+DECLARE_TASKLET(isr_host_ae_tasklet, host_ae_tasklet, (unsigned long) 0);
+DECLARE_TASKLET(isr_host_ae_bshutter_tasklet, host_ae_bshutter_tasklet, (unsigned long) 0);
+
+
+static void host_ae_tasklet(unsigned long data)
+{
+	struct hisi_sensor_t *sensor = hisi_eg_ctrl.sensor;
+	struct expo_gain_seq *me_seq = &hisi_eg_ctrl.me_seq;
+	int index = hisi_eg_ctrl.seq_index;
+
+	if(!sensor) {
+		cam_err("%s, sensor pointer is NULL!", __func__);
+		return;
+	}
+
+	do_gettimeofday(&ts[0]);
+
+	if (index < me_seq->seq_size) {
+		if (0 == index) {
+			sensor->func_tbl->sensor_set_hts(sensor, me_seq->hts);
+			sensor->func_tbl->sensor_set_vts(sensor, me_seq->vts);
+
+			if (sensor->func_tbl->sensor_set_expo_gain != NULL)
+				sensor->func_tbl->sensor_set_expo_gain(sensor,
+					me_seq->expo[index], me_seq->gain[index], true);
+
+		} else {
+			if (sensor->func_tbl->sensor_set_expo_gain != NULL)
+				sensor->func_tbl->sensor_set_expo_gain(sensor,
+					me_seq->expo[index], me_seq->gain[index], false);
+		}
+	}
+
+	hisi_eg_ctrl.seq_index++;
+	do_gettimeofday(&ts[1]);
+	cam_info("tasklet used %dus",
+		(int)((ts[1].tv_sec - ts[0].tv_sec)*1000000 + (ts[1].tv_usec - ts[0].tv_usec)));
+}
+
+static void host_ae_bshutter_tasklet(unsigned long data)
+{
+	struct hisi_sensor_t *sensor = hisi_eg_ctrl.sensor;
+	struct bshutter_expo_gain_seq *me_seq = &hisi_eg_ctrl.bshutter_seq;
+	int index = hisi_eg_ctrl.seq_index;
+
+	if(!sensor) {
+		cam_err("%s, sensor pointer is NULL!", __func__);
+		return;
+	}
+	cam_info("%s enter, index=%d,seq_size=%d",__func__,index,me_seq->seq_size);
+
+	do_gettimeofday(&ts[0]);
+
+	if (index < me_seq->seq_size) {
+		sensor->func_tbl->sensor_set_vts(sensor, me_seq->vts[index]);
+		if (sensor->func_tbl->sensor_set_bshutter_expo_gain != NULL) {
+			sensor->func_tbl->sensor_set_bshutter_expo_gain(sensor,me_seq->expo[index], me_seq->gain[index]);
+		} else {
+		    cam_err("%s: sensor %s sensor_set_bshutter_expo_gain is NULL!",__func__,sensor->sensor_info->name);
+		}
+	}
+
+	hisi_eg_ctrl.seq_index++;
+	do_gettimeofday(&ts[1]);
+	cam_info("%s: tasklet used %dus",__func__,
+		(int)((ts[1].tv_sec - ts[0].tv_sec)*1000000 + (ts[1].tv_usec - ts[0].tv_usec)));
+}
+
+
+static void flash_eof_turn_on(struct work_struct *work)
+{
+	hisi_flash_actual_turn_on();
+}
+
+int ispv3_flash_work_init(void)
+{
+	flash_eof_work_queue = create_singlethread_workqueue("flash_eof_work");
+	if (!flash_eof_work_queue) {
+		cam_err("create workqueue is failed in %s function at line#%d\n", __func__, __LINE__);
+		return -1;
+	}
+	INIT_WORK(&flash_eof_work, flash_eof_turn_on);
+	return 0;
+}
+
+int ispv3_flash_work_deinit(void)
+{
+	destroy_workqueue(flash_eof_work_queue);
+	return 0;
+}
 
 static int wait_fw_load_timeout(int time_out)
 {
@@ -103,18 +211,17 @@ inline void check_done_time(u8 *val_mac, irq_port_done port_done)
 }
 #endif
 
+//#define AP_WRITE_AE_TIME_PRINT
 static void aec_sensor_handle(int flow, struct hisi_sensor_t *sensor)
 {
 	int interrupt_type;
 	u32 expo;
 	u16 gain;
-	int hold_flag;
 
-	hold_flag = GETREG8(HOST_HOLD_FLAG(flow));
-	if (hold_flag == 0) {
-		cam_warn("no valid host_hold_flag, flow %d", flow);
-		return;
-	}
+#ifdef AP_WRITE_AE_TIME_PRINT
+	struct timeval tv_start, tv_end;
+	do_gettimeofday(&tv_start);
+#endif
 
 	interrupt_type = GETREG8(REG_FW_AE_INT_TYPE(flow));
 
@@ -127,51 +234,47 @@ static void aec_sensor_handle(int flow, struct hisi_sensor_t *sensor)
 	if (interrupt_type == CMD_WRITEBACK_EXPO_GAIN ||
 		interrupt_type == CMD_WRITEBACK_EXPO ||
 		interrupt_type == CMD_WRITEBACK_GAIN) {
-			if (sensor->func_tbl->sensor_set_expo_gain) {
-				sensor->func_tbl->sensor_set_expo_gain(sensor, expo, gain);
-			} else {
-				if (sensor->func_tbl->sensor_set_expo)
-					sensor->func_tbl->sensor_set_expo(sensor, expo);
-				if (sensor->func_tbl->sensor_set_gain)
-					sensor->func_tbl->sensor_set_gain(sensor, gain);
+			SETREG8(REG_HOST_HOLD_FLAG(flow), SCCB_HOST_UNHOLD_FLAG);
+			SETREG8(REG_SCCB_BUS_MUTEX(flow), SCCB_MASTER_UNLOCK);
+			if (GETREG8(REG_FW_AE_SWITCH(flow)) == 0x0 && sensor->func_tbl->sensor_set_expo_gain) {
+				sensor->func_tbl->sensor_set_expo_gain(sensor, expo, gain, false);
 			}
 	}
 
 	SETREG8(REG_FW_AE_INT_TYPE(flow), 0);
-	SETREG8(HOST_HOLD_FLAG(flow), 0);
+
+#ifdef AP_WRITE_AE_TIME_PRINT
+	do_gettimeofday(&tv_end);
+	cam_notice("expo 0x%x, gain 0x%x, cmdid 0x%x, used %dus",
+		expo, gain, interrupt_type,
+		(int)((tv_end.tv_sec - tv_start.tv_sec)*1000000 + (tv_end.tv_usec - tv_start.tv_usec)));
+#endif
 
 	return;
 }
 
 static void aec_cmd_tasklet(unsigned long arg)
 {
-	int flag_pipe[2];
 	int flow;
-
 	struct hisi_sensor_t *sensor = NULL;
 
-	flag_pipe[0] = GETREG8(HOST_HOLD_FLAG(0));
-	flag_pipe[1] = GETREG8(HOST_HOLD_FLAG(1));
-
-	if (flag_pipe[0] == 1) {
+	if (GETREG8(REG_FW_AE_INT_TYPE(0)) != 0) {
 		flow = 0;
 		sensor = hisi_s_ctrl_0.sensor;
 		if (sensor != NULL) {
 			aec_sensor_handle(flow, sensor);
 		} else {
 			SETREG8(REG_FW_AE_INT_TYPE(flow), 0);
-			SETREG8(HOST_HOLD_FLAG(flow), 0);
 		}
 	}
 
-	if (flag_pipe[1] == 1) {
+	if (GETREG8(REG_FW_AE_INT_TYPE(1)) != 0) {
 		flow = 1;
 		sensor = hisi_s_ctrl_1.sensor;
 		if (sensor != NULL) {
 			aec_sensor_handle(flow, sensor);
 		} else {
 			SETREG8(REG_FW_AE_INT_TYPE(flow), 0);
-			SETREG8(HOST_HOLD_FLAG(flow), 0);
 		}
 	}
 
@@ -185,11 +288,17 @@ static irqreturn_t isp_irq_handler(int irq, void *dev_id)
 	u8 val_mac1[4];
 	u8 val_mac2[4];
 	u8 val_mac3[4];
-
+	u8 temp;
+	int index;
 	u8 cmd_result = 0;
 	u8 cmd_done = 0;
-	int flag_aec[2];
+	int eof_trigger;
+	int eof_bshutter_trigger;
+	struct hisi_sensor_t *sensor = NULL;
+	struct expo_gain_seq *me_seq = &hisi_eg_ctrl.me_seq;
+	struct bshutter_expo_gain_seq *bshutter_seq = &hisi_eg_ctrl.bshutter_seq;
 
+	sensor = hisi_eg_ctrl.sensor;
 	do_gettimeofday(&tv[0]);
 
 	if (!isp_hw_data.poll_start) {
@@ -221,6 +330,69 @@ static irqreturn_t isp_irq_handler(int irq, void *dev_id)
 	val_mac3[1] = GETREG8_ISPHW(REG_ISP_MAC3_INT_STAT_S0);
 	val_mac3[2] = GETREG8_ISPHW(REG_ISP_MAC3_INT_STAT_S1);
 	val_mac3[3] = GETREG8_ISPHW(REG_ISP_MAC3_STREAM_SELECT);
+
+#if IRQ_TWO_TIME_BUGFIX
+	/* read status registers again to confirm read clear */
+	/* re-read mac1 */
+	if (val_mac1[1] != 0) {
+		temp = GETREG8_ISPHW(REG_ISP_MAC1_INT_STAT_S0);
+		if ((temp | val_mac1[1]) != val_mac1[1]) {
+			val_mac1[1] |= temp;
+			cam_info("re-read mac1[1] 0x%x exception", temp);
+		}
+		if (temp != 0)
+			cam_info("re-read mac1[1] 0x%x helpful", temp);
+	}
+	if (val_mac1[2] != 0) {
+		temp = GETREG8_ISPHW(REG_ISP_MAC1_INT_STAT_S1);
+		if ((temp | val_mac1[2]) != val_mac1[2]) {
+			val_mac1[2] |= temp;
+			cam_info("re-read mac1[2] 0x%x exception", temp);
+		}
+		if (temp != 0)
+			cam_info("re-read mac1[2] 0x%x helpful", temp);
+	}
+
+	/* re-read mac2 */
+	if (val_mac2[1] != 0) {
+		temp = GETREG8_ISPHW(REG_ISP_MAC2_INT_STAT_S0);
+		if ((temp | val_mac2[1]) != val_mac2[1]) {
+			val_mac2[1] |= temp;
+			cam_info("re-read mac2[1] 0x%x exception", temp);
+		}
+		if (temp != 0)
+			cam_info("re-read mac2[1] 0x%x helpful", temp);
+	}
+	if (val_mac2[2] != 0) {
+		temp = GETREG8_ISPHW(REG_ISP_MAC2_INT_STAT_S1);
+		if ((temp | val_mac2[2]) != val_mac2[2]) {
+			val_mac2[2] |= temp;
+			cam_info("re-read mac2[2] 0x%x exception", temp);
+		}
+		if (temp != 0)
+			cam_info("re-read mac2[2] 0x%x helpful", temp);
+	}
+
+	/* re-read mac3 */
+	if (val_mac3[1] != 0) {
+		temp = GETREG8_ISPHW(REG_ISP_MAC3_INT_STAT_S0);
+		if ((temp | val_mac3[1]) != val_mac3[1]) {
+			val_mac3[1] |= temp;
+			cam_info("re-read mac3[1] 0x%x exception", temp);
+		}
+		if (temp != 0)
+			cam_info("re-read mac3[1] 0x%x helpful", temp);
+	}
+	if (val_mac3[2] != 0) {
+		temp = GETREG8_ISPHW(REG_ISP_MAC3_INT_STAT_S1);
+		if ((temp | val_mac3[2]) != val_mac3[2]) {
+			val_mac3[2] |= temp;
+			cam_info("re-read mac3[2] 0x%x exception", temp);
+		}
+		if (temp != 0)
+			cam_info("re-read mac3[2] 0x%x helpful", temp);
+	}
+#endif
 
 #if IRQ_TWO_TIME_BUGFIX
 	/* PORT0 WRITE_DONE: calculater the time gap between this and  last  */
@@ -256,12 +428,58 @@ static irqreturn_t isp_irq_handler(int irq, void *dev_id)
 			SETREG8(REG_FW_CMD_DONE_TYPE, 0);
 		}
 
-		flag_aec[0] = GETREG8(HOST_HOLD_FLAG(0));
-		flag_aec[1] = GETREG8(HOST_HOLD_FLAG(1));
-		if (flag_aec[0] != 0 || flag_aec[1] != 0)
+		if ((GETREG8(REG_FW_AE_INT_TYPE(0)) != 0)
+			|| (GETREG8(REG_FW_AE_INT_TYPE(1)) != 0)) {
 			tasklet_schedule(&isr_aec_tasklet);
+		}
 	}
 
+	/* set flag in done interrupt */
+	if ((val_mac1[1] >> REG_SHIFT_WRITE_DONE) & 0x1
+		|| (val_mac1[2] >> REG_SHIFT_WRITE_DONE) & 0x1
+		|| (val_mac2[1] >> REG_SHIFT_WRITE_DONE) & 0x1
+		|| (val_mac2[2] >> REG_SHIFT_WRITE_DONE) & 0x1) {
+		index = hisi_eg_ctrl.seq_index - SENSOR_EXPO_EFFECT_DELAY;
+		if (index >= 0){
+		    if(me_seq->seq_size && index < me_seq->seq_size) {
+    			isp_hw_data.irq_val.host_ae_applied = MANUAL_AE_APPLIED;
+    			isp_hw_data.irq_val.expo = me_seq->expo[index];
+    			isp_hw_data.irq_val.gain = me_seq->gain[index + sensor->sensor_info->sensor_type];
+    			isp_hw_data.irq_val.hts = me_seq->hts;
+    			isp_hw_data.irq_val.vts = me_seq->vts;
+    		}
+    		else if (bshutter_seq->seq_size && index < bshutter_seq->seq_size) {
+                isp_hw_data.irq_val.host_ae_applied = MANUAL_AE_APPLIED;
+                isp_hw_data.irq_val.expo = bshutter_seq->expo_time[index];
+                isp_hw_data.irq_val.gain = bshutter_seq->gain[index + bshutter_seq->expo_gain_offset];
+                isp_hw_data.irq_val.hts = bshutter_seq->hts[index];
+                isp_hw_data.irq_val.vts = bshutter_seq->vts[index];
+    		}
+		}
+	}
+
+	eof_trigger = hisi_eg_ctrl.eof_trigger;
+	if (((eof_trigger == PIPE0_TRIG) && (val_level1[3] & ISP_PIPE0_EOF_IDI))
+		|| ((eof_trigger == PIPE1_TRIG) && (val_level1[2] & ISP_PIPE1_EOF_IDI))) {
+		tasklet_hi_schedule(&isr_host_ae_tasklet);
+	}
+
+	eof_bshutter_trigger = hisi_eg_ctrl.eof_bshutter_trigger;
+	if (((eof_bshutter_trigger == PIPE0_TRIG) && (val_level1[3] & ISP_PIPE0_EOF_IDI))
+		|| ((eof_bshutter_trigger == PIPE1_TRIG) && (val_level1[2] & ISP_PIPE1_EOF_IDI))) {
+		tasklet_hi_schedule(&isr_host_ae_bshutter_tasklet);
+	}
+
+	if ((hisi_flash_get_turn_on() == true) &&
+		((val_level1[3] & ISP_PIPE0_EOF_IDI) || (val_level1[2] & ISP_PIPE1_EOF_IDI))) {
+		queue_work(flash_eof_work_queue, &flash_eof_work);
+	}
+
+	if (((isp_hw_data.irq_val.mac3_irq_status_s0>>REG_SHIFT_WRITE_DONE) & 0x1) == 1 &&
+	(val_mac3[1]>>REG_SHIFT_WRITE_DONE & 0x1) == 1) {
+		cam_err("%s, process raw done handle delay, save it and report in next irq!!",__func__);
+		isp_hw_data.irq_process_raw_done_count = 1;
+	}
 	/* save status later */
 	isp_hw_data.irq_val.mac1_irq_status_h |= val_mac1[0];
 	isp_hw_data.irq_val.mac1_irq_status_s0 |= val_mac1[1];
@@ -285,6 +503,11 @@ static irqreturn_t isp_irq_handler(int irq, void *dev_id)
 
 	isp_hw_data.irq_val.cmd_done_id |= cmd_done;
 	isp_hw_data.irq_val.cmd_result |= cmd_result;
+	if ((((isp_hw_data.irq_val.mac3_irq_status_s0>>REG_SHIFT_WRITE_DONE) & 0x1) == 0) &&
+	isp_hw_data.irq_process_raw_done_count == 1) {
+		isp_hw_data.irq_process_raw_done_count = 0;
+		isp_hw_data.irq_val.mac3_irq_status_s0 |= (0x1<<REG_SHIFT_WRITE_DONE);
+	}
 
 	isp_hw_data.irq_query_flag = true;
 	spin_unlock_irqrestore(&isp_hw_data.irq_status_lock, lock_flags);
@@ -294,16 +517,16 @@ static irqreturn_t isp_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int load_firmware(char *filename, u32 addr)
+static int load_firmware(char *filename)
 {
 	struct kstat stat;
 	mm_segment_t fs;
 	struct file *fp = NULL;
 	int file_flag = O_RDONLY;
 	int ret = 0;
+	size_t size;
 
-
-	if (NULL == filename || 0 == addr) {
+	if (NULL == filename ) {
 		cam_err("%s param error", __func__);
 		return -EINVAL;
 	}
@@ -326,19 +549,23 @@ static int load_firmware(char *filename, u32 addr)
 		goto ERROR;
 	}
 
-	cam_notice("firmware %s, file size : %d", filename, (u32) stat.size);
-	ret = vfs_read(fp, (char *)addr, (u32) stat.size, &fp->f_pos);
-	if (ret != stat.size) {
+	if (stat.size > FIRMWARE_MEM_SIZE) {
+		cam_err("firmware size excceed memory size!");
+		ret = -EIO;
+		goto ERROR;
+	}
+	isp_firmware_size = stat.size;
+	cam_notice("firmware %s, file size : %d", filename, isp_firmware_size);
+
+	size = vfs_read(fp, (char *)isp_firmware_addr, isp_firmware_size, &fp->f_pos);
+	if (size != isp_firmware_size) {
 		cam_err("read file error!, %s , ret=%d\n", filename, ret);
 		ret = -EIO;
-	} else {
-		ret = 0;
 	}
 ERROR:
 	/* must have the following 1 statement */
 	set_fs(fs);
-	if (NULL != fp)
-		filp_close(fp, 0);
+	filp_close(fp, 0);
 	return ret;
 }
 
@@ -350,37 +577,23 @@ static int isp_res_init(struct device *pdev)
 	int ret = 0;
 	static int flag = 0;
 
-	if (is_fpga_board()) {
-		int i = 0;
-		void __iomem * isp_unreset_reg;
-		void __iomem * isp_clock_enable_reg;
-		void __iomem * isp_noc_idle_req_reg;
-		void __iomem * isp_iomg_reg;
-		
-		isp_unreset_reg = (unsigned long)ioremap_nocache(0xfff35088, 0x4);
-		cam_notice("isp_unreset_reg=0x%x", isp_unreset_reg);
-		set32(isp_unreset_reg, 0xffffffff);
-		msleep(100);
-			
-		isp_clock_enable_reg = (unsigned long)ioremap_nocache(0xfff35030, 0x4);
-		cam_notice("isp_clock_enable_reg=0x%x", isp_clock_enable_reg);
-		set32(isp_clock_enable_reg, 0xffffffff);
-			
-		msleep(100);
-		isp_noc_idle_req_reg = (unsigned long)ioremap_nocache(0xfff31380, 0x4);
-		cam_notice("isp_noc_idle_req_reg=0x%x", isp_noc_idle_req_reg);
-		set32(isp_noc_idle_req_reg, 0x0);
-		msleep(100);
-		
-		isp_iomg_reg = (unsigned long)ioremap_nocache(0xe8612010, 88);
-		for (i = 0; i < 22; i++)
-		{	
-			cam_notice("isp_iomg_reg=0x%x", isp_iomg_reg);
-			set32(isp_iomg_reg, 0x1);
-			isp_iomg_reg+=4;
-			msleep(10);
+	/* property(hisi,isp-base) = <address, size>, so count is 2 */
+	count = 2;
+	if (of_node) {
+		ret = of_property_read_u32_array(of_node, "hisi,isp-base",
+			base_array, count);
+		if (ret < 0) {
+			cam_err("%s failed line %d\n", __func__, __LINE__);
+			return ret;
 		}
+	} else {
+		cam_err("%s isp of_node is NULL.%d\n", __func__, __LINE__);
+		return -ENXIO;
 	}
+
+
+	isp_hw_data.phyaddr = base_array[0];
+	isp_hw_data.mem_size = base_array[1];
 
 	isp_hw_data.viraddr = (u32)ioremap_nocache(isp_hw_data.phyaddr, isp_hw_data.mem_size);
 	if (0 == isp_hw_data.viraddr) {
@@ -388,40 +601,33 @@ static int isp_res_init(struct device *pdev)
 		return -ENXIO;
 	}
 
-	isp_hw_data.phyaddr = base_array[0];
-	isp_hw_data.mem_size = base_array[1];
-
 	ret = of_property_read_u32(of_node, "hisi,isp-irq", &isp_hw_data.irq_no);
 	if (ret < 0) {
 		cam_err("%s failed line %d\n", __func__, __LINE__);
-		goto fail;
+		goto fail1;
 	}
 
 	cam_notice("%s isp-base address = 0x%x. isp-base size = 0x%x. isp-irq = %d.\n",
 		__func__, isp_hw_data.phyaddr, isp_hw_data.mem_size, isp_hw_data.irq_no);
 
-	isp_hw_data.viraddr = (unsigned long)ioremap_nocache(isp_hw_data.phyaddr, isp_hw_data.mem_size);
-	if (0 == isp_hw_data.viraddr) {
-		cam_err("%s ioremap fail", __func__);
-		return -ENXIO;
-	}
-
 	spin_lock_init(&isp_hw_data.irq_status_lock);
 	init_waitqueue_head(&isp_hw_data.poll_queue_head);
 	sema_init(&isp_hw_data.sem_cmd_done, 0);
+	ispv3_flash_work_init();
+	isp_hw_data.irq_process_raw_done_count = 0;
 
 	/*request irq*/
 	ret = request_irq(isp_hw_data.irq_no, isp_irq_handler, 0, "isp_irq", 0);
+
+#if IRQ_TWO_TIME_BUGFIX
+	init_irq_done_time();
+#endif
 
 	if (ret != 0) {
 		cam_err("fail to request irq [%d], error: %d", isp_hw_data.irq_no, ret);
 		ret = -ENXIO;
 		goto fail;
 	}
-
-#if IRQ_TWO_TIME_BUGFIX
-	init_irq_done_time();
-#endif
 
 	if (is_fpga_board()) {
 		return ret;
@@ -485,15 +691,18 @@ static int isp_res_init(struct device *pdev)
 		goto fail;
 	}
 
+	hisi_eg_ctrl.eof_trigger = NONE_TRIG;
+	hisi_eg_ctrl.eof_bshutter_trigger = NONE_TRIG;
+
 	return 0;
 fail:
-	if (isp_hw_data.viraddr)
-		iounmap((void*)isp_hw_data.viraddr);
-
 	if (isp_hw_data.irq_no) {
 		free_irq(isp_hw_data.irq_no, 0);
 		isp_hw_data.irq_no = 0;
 	}
+fail1:
+	if (isp_hw_data.viraddr)
+		iounmap((void*)isp_hw_data.viraddr);
 
 	return ret;
 }
@@ -502,9 +711,15 @@ static int isp_res_deinit(void)
 {
 	int ret = 0;
 	cam_notice("enter %s", __func__);
+	ispv3_flash_work_deinit();
+	if (isp_hw_data.irq_no)
+		free_irq(isp_hw_data.irq_no, 0);
 
 	if (isp_hw_data.viraddr)
 		iounmap((void*)isp_hw_data.viraddr);
+
+	hisi_eg_ctrl.eof_trigger = NONE_TRIG;
+	hisi_eg_ctrl.eof_bshutter_trigger = NONE_TRIG;
 
 	return ret;
 }
@@ -540,8 +755,8 @@ void k3_query_irq(struct irq_reg_t *irq_info)
 	cam_debug("enter %s", __func__);
 
 	spin_lock_irqsave(&isp_hw_data.irq_status_lock, lock_flags);
-	memcpy(irq_info,  &isp_hw_data.irq_val, sizeof(struct irq_reg_t));
-	memset(&isp_hw_data.irq_val, 0, sizeof(struct irq_reg_t));
+	memcpy(irq_info, &isp_hw_data.irq_val, sizeof(struct irq_reg_t));
+	memset(&isp_hw_data.irq_val, 0, offsetof(struct irq_reg_t, host_ae_applied));
 	spin_unlock_irqrestore(&isp_hw_data.irq_status_lock, lock_flags);
 
 	do_gettimeofday(&tv[1]);
@@ -570,6 +785,8 @@ int k3_isp_init(struct device *pdev)
 
 	io_set_isp_base(isp_hw_data.viraddr);
 
+	ret = load_firmware(FIRMWARE_FILE_PATH);
+
 	return ret;
 }
 
@@ -590,13 +807,17 @@ int k3_isp_deinit(void)
 	return ret;
 }
 
+
 int k3_isp_poweron(void)
 {
 	int ret = 0;
+	int retry = 0;
+
 	cam_info("enter %s", __func__);
 
 	isp_hw_data.poll_start = false;
 
+power_on_try:
 	if (!is_fpga_board()) {
 		ret = regulator_bulk_enable(1, &isp_hw_data.inter_ldo);
 		if (ret)
@@ -624,22 +845,23 @@ int k3_isp_poweron(void)
 	/* MCU reset */
 	SETREG8(REG_ISP_CLK_USED_BY_MCU, 0xf1);
 
-	ret = load_firmware(FIRMWARE_FILE_PATH, isp_hw_data.viraddr);
-	if (ret) {
-		cam_err("failed to load firmware file.\n");
-		k3_isp_poweroff();
-		return ret;
-	}
+	memcpy((void*)isp_hw_data.viraddr, (void*)isp_firmware_addr, isp_firmware_size);
 
 	SETREG8(REG_ISP_INT_EN_1, 0x40);//enable cmd set done interrupt
+	SETREG8(REG_ISP_INT_EN_2, 0x00);
+	SETREG8(REG_ISP_INT_EN_3, 0x00);
+	SETREG8(REG_ISP_INT_EN_4, 0x00);
 
 	/* MCU enable */
 	SETREG8(REG_ISP_CLK_USED_BY_MCU, 0xf0);
 
 	ret = wait_fw_load_timeout(WAIT_FW_LOAD_TIMEOUT);
 	if (ret) {
-		cam_err("wait fw load timeout failed.\n");
+		cam_err("wait fw load timeout failed, retry %d.\n", retry);
 		k3_isp_poweroff();
+		if (retry++ < 4)
+			goto power_on_try;
+
 		return ret;
 	}
 	cam_notice("%s isp poweron success. viraddr %#x", __func__, isp_hw_data.viraddr);
@@ -654,9 +876,6 @@ int k3_isp_poweroff(void)
 
 	SETREG8(REG_ISP_SOFT_RST, DO_SOFT_RST);
 	SETREG8(REG_ISP_INT_EN_4, 0x00);
-
-	if (isp_hw_data.irq_no)
-		free_irq(isp_hw_data.irq_no, 0);
 
 	if (is_fpga_board())
 		return 0;
@@ -687,6 +906,21 @@ int k3_isp_poweroff(void)
 	return ret;
 }
 
+int k3_isp_clk_rate_set(int rate)
+{
+	int ret = 0;
+	cam_notice("%s enter rate=%d(M).\n", __func__, rate);
+
+	if (IS_ERR_OR_NULL(isp_hw_data.isp_sclk)) {
+		return -1;
+	}
+	ret = clk_set_rate(isp_hw_data.isp_sclk, rate * 1000 * 1000);
+	if (ret) {
+		cam_err("isp sclk set rate error.\n");
+	}
+	return ret;
+}
+
 u32 k3_get_isp_base_addr(void)
 {
 	return isp_hw_data.phyaddr;
@@ -695,6 +929,81 @@ u32 k3_get_isp_base_addr(void)
 u32 k3_get_isp_mem_size(void)
 {
 	return isp_hw_data.mem_size;
+}
+
+int setup_eof_tasklet(struct hisi_sensor_t *sensor, struct expo_gain_seq *me_seq)
+{
+	unsigned long lock_flags;
+
+	spin_lock_irqsave(&isp_hw_data.irq_status_lock, lock_flags);
+	hisi_eg_ctrl.sensor = sensor;
+	hisi_eg_ctrl.seq_index = 0;
+	memcpy(&hisi_eg_ctrl.me_seq, me_seq, sizeof(struct expo_gain_seq));
+	hisi_eg_ctrl.eof_trigger = me_seq->eof_trigger;
+	spin_unlock_irqrestore(&isp_hw_data.irq_status_lock, lock_flags);
+
+	return 0;
+}
+
+int setup_eof_bshutter_tasklet(struct hisi_sensor_t *sensor, struct bshutter_expo_gain_seq * bshutter_seq)
+{
+	unsigned long lock_flags;
+
+	cam_notice("%s enter", __func__);
+
+	spin_lock_irqsave(&isp_hw_data.irq_status_lock, lock_flags);
+	hisi_eg_ctrl.sensor = sensor;
+	hisi_eg_ctrl.seq_index = 0;
+	memcpy(&hisi_eg_ctrl.bshutter_seq, bshutter_seq, sizeof(struct bshutter_expo_gain_seq));
+	hisi_eg_ctrl.eof_bshutter_trigger = bshutter_seq->eof_bshutter_trigger;
+	spin_unlock_irqrestore(&isp_hw_data.irq_status_lock, lock_flags);
+
+	return 0;
+}
+
+
+int teardown_eof_tasklet(struct hisi_sensor_t *sensor, struct expo_gain_seq *me_seq)
+{
+	int ret = 0;
+	unsigned long lock_flags;
+
+	sensor->func_tbl->sensor_set_hts(sensor, me_seq->hts);
+	sensor->func_tbl->sensor_set_vts(sensor, me_seq->vts);
+
+	if (sensor->func_tbl->sensor_set_expo_gain != NULL)
+		sensor->func_tbl->sensor_set_expo_gain(sensor,
+			me_seq->expo[0], me_seq->gain[0], false);
+
+	tasklet_kill(&isr_host_ae_tasklet);
+	tasklet_kill(&isr_host_ae_bshutter_tasklet);
+	spin_lock_irqsave(&isp_hw_data.irq_status_lock, lock_flags);
+	hisi_eg_ctrl.eof_trigger = NONE_TRIG;
+	hisi_eg_ctrl.eof_bshutter_trigger = NONE_TRIG;
+	hisi_eg_ctrl.sensor = NULL;
+	hisi_eg_ctrl.seq_index = 0;
+	memset(&hisi_eg_ctrl.me_seq, 0, sizeof(struct expo_gain_seq));
+	isp_hw_data.irq_val.host_ae_applied = MANUAL_AE_NOT_APPLIED;
+	spin_unlock_irqrestore(&isp_hw_data.irq_status_lock, lock_flags);
+
+	return ret;
+}
+
+int k3_alloc_firmware_memory()
+{
+	isp_firmware_addr = kzalloc(FIRMWARE_MEM_SIZE, GFP_KERNEL);
+	if (0 == isp_firmware_addr) {
+		cam_err("%s kzalloc fail!", __func__);
+		return -ENOMEM;
+	} else {
+		return 0;
+	}
+}
+void k3_free_firmware_memory()
+{
+    if (NULL != isp_firmware_addr) {
+        kfree(isp_firmware_addr);
+        isp_firmware_addr = NULL;
+    }
 }
 
 /***************** external interface definition end *****************************************/

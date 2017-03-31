@@ -74,6 +74,9 @@
 #define CAMERA_EXPOSURE_MAX		2
 #define CAMERA_EXPOSURE_STEP	100
 
+//1s in us
+#define PROCAM_TIME_BASE                   1000000
+
 typedef enum {
 	CAMERA_CONTRAST_L2 = 0,
 	CAMERA_CONTRAST_L1,
@@ -287,6 +290,16 @@ typedef enum {
 
 
 typedef enum {
+    CAMERA_B_SHUTTER_MODE_OFF = 0,
+    CAMERA_B_SHUTTER_MODE_ON
+} camera_b_shutter_mode;
+
+typedef enum {
+    CAMERA_AEC_NONE_STABLE = 0,
+    CAMERA_AEC_STABLE
+} camera_aec_stable_state;
+
+typedef enum {
     CAMERA_ZSL_OFF = 0,
     CAMERA_ZSL_ON
 } camera_zsl;
@@ -470,6 +483,13 @@ typedef enum {
 
 	OVERRIDE_TYPE_MAX,
 } camera_override_type_t;
+
+typedef enum {
+	PRO_MODE_OFF = 0,
+	PRO_MODE_ON,
+	PRO_MODE_MAX,
+} camera_pro_mode;
+
 
 #endif /*CAMERA_SENSOR_H_INCLUDED */
 

@@ -230,7 +230,7 @@ static int hi6421_spk_probe(struct platform_device *pdev)
 
 	/* config classD ocp threshold as 3.5A */
 	hi6421_spk_reg_write(HI6421_SPK_CRTL_1, 0x30);
-
+    hi6421_spk_reg_write(HI6421_SPK_CFG, 0x03);
 	return ret;
 }
 

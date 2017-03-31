@@ -41,10 +41,12 @@
 #define REG_SCCB_MAST2_COMMAND          (0x63709)
 #define REG_SCCB_MAST2_STATUS           (0x6370a)
 
-#define REG_SCCB_BUS_MUTEX 		(0x1c4ee)
-
 #define REG_SCCB_MAST1_BUS_MUTEX 	(0x32c60)
 #define REG_SCCB_MAST2_BUS_MUTEX 	(0x32c70)
+
+#define REG_SCCB_BUS_MUTEX(pipe)	(0x32c60 + 0x10 * (pipe))
+#define REG_HOST_HOLD_FLAG(pipe)	(0x32c61 + 0x10 * (pipe))
+#define REG_MCU_HOLD_FLAG(pipe)	(0x32c62 + 0x10 * (pipe))
 
 #define REG_SCCB_FIRMWARE1_ID           (0x33056)
 #define REG_SCCB_FIRMWARE2_ID           (0x33656)
@@ -59,16 +61,21 @@
 #define SCCB_MASTER_LOCK           (1)
 #define SCCB_MASTER_UNLOCK      (0)
 
-#define ISP_I2C_POLL_INTERVAL 100 /* 100us */
-#define ISP_I2C_POLL_MAX_COUNT 400 /* 400x100us=40ms */
+#define SCCB_MCU_HOLD_FLAG                 (1)
+#define SCCB_MCU_UNHOLD_FLAG            (0)
+#define SCCB_HOST_HOLD_FLAG           (1)
+#define SCCB_HOST_UNHOLD_FLAG       (0)
 
+#define ISP_I2C_POLL_INTERVAL 10 /* 10us */
+#define ISP_I2C_POLL_MAX_COUNT 4000 /* 4000x10us=40ms */
+#define MAX_SENSOR_REG_VALUE 0xffff
 void isp_config_i2c(i2c_t *i2c_info);
 
-int isp_write_sensor_byte(i2c_t *i2c_info, u16 reg, u16 val, u8 mask);
+int isp_write_sensor_byte(i2c_t *i2c_info, u16 reg, u16 val, u8 mask, int wait);
 
 int isp_write_sensor_seq(i2c_t *i2c_info, const struct sensor_i2c_reg *buf, u32 size);
 
 int isp_read_sensor_byte(i2c_t *i2c_info, u16 reg, u16 *val);
 
- int isp_write_vcm(u8 i2c_addr, u16 reg, u16 val, i2c_length length);
+ int isp_write_vcm(int index, u8 i2c_addr, u16 reg, u16 val, i2c_length length);
 #endif

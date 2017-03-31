@@ -6,9 +6,7 @@
 #include "AdsDebug.h"
 #include "DrvInterface.h"
 #include "IpsMntn.h"
-
 #include "AcpuReset.h"
-
 #include "AdsFilter.h"
 
 
@@ -75,66 +73,13 @@ VOS_VOID ADS_DL_RcvTiProtectExpired(
 #if (FEATURE_OFF == FEATURE_SKB_EXP)
 VOS_INT32 ADS_DL_IpfAdqEmptyCB(IPF_ADQ_EMPTY_E eAdqEmpty)
 {
-    /* 增加下行IPF ADQ空中断统计计数 */
-    ADS_DBG_DL_RECV_ADQ_EMPTY_BREAK_NUM(1);
-
-    ADS_DBG_DL_GET_ADQ_EMPTY_NUM(eAdqEmpty, 1);
-
-    /* 触发下行ADQ空中断处理事件 */
     ADS_DL_SndEvent(ADS_DL_EVENT_IPF_ADQ_EMPTY_INT);
-
+    ADS_DBG_DL_RECV_ADQ_EMPTY_BREAK_NUM(1);
+    ADS_DBG_DL_GET_ADQ_EMPTY_NUM(eAdqEmpty, 1);
     return VOS_OK;
 }
 
 
-VOS_VOID ADS_DL_ProcIpfAdqEmtpyEvent(VOS_VOID)
-{
-    VOS_INT32                           lRslt;
-    VOS_UINT                            ulIpfAd0Num;
-    VOS_UINT                            ulIpfAd1Num;
-    VOS_UINT                            ulActAd0Num;
-    VOS_UINT                            ulActAd1Num;
-
-    ulIpfAd0Num = 0;
-    ulIpfAd1Num = 0;
-    ulActAd0Num = 0;
-    ulActAd1Num = 0;
-
-    /* 获取两个ADQ的空闲的AD个数 */
-    lRslt = BSP_IPF_GetDlAdNum(&ulIpfAd0Num, &ulIpfAd1Num);
-
-    if (IPF_SUCCESS != lRslt)
-    {
-        ADS_DBG_DL_GET_AD_FAIL_NUM(1);
-        return;
-    }
-
-    /* 首先配置大内存的ADQ1 */
-    if (0 != ulIpfAd1Num)
-    {
-        ADS_DL_ConfigAdq(IPF_AD_1, ulIpfAd1Num, &ulActAd1Num);
-    }
-
-    /* 再配置小内存的ADQ0 */
-    if (0 != ulIpfAd0Num)
-    {
-        ADS_DL_ConfigAdq(IPF_AD_0, ulIpfAd0Num, &ulActAd0Num);
-    }
-
-    /* AD0为空或者AD1为空需要重新启动定时器 */
-    if (((0 == ulActAd0Num) && (ADS_IPF_DLAD_START_TMR_THRESHOLD < ulIpfAd0Num))
-     || ((0 == ulActAd1Num) && (ADS_IPF_DLAD_START_TMR_THRESHOLD < ulIpfAd1Num)))
-    {
-        /* 如果两个ADQ任何一个空且申请不到内存，启定时器 */
-        ADS_DL_StartAdqEmptyTimer();
-    }
-    else
-    {
-        ADS_StopTimer(ACPU_PID_ADS_DL, TI_ADS_DL_ADQ_EMPTY, ADS_TIMER_STOP_CAUSE_USER);
-    }
-
-    return;
-}
 
 VOS_VOID ADS_DL_RcvTiAdqEmptyExpired(
     VOS_UINT32                          ulParam,
@@ -143,6 +88,8 @@ VOS_VOID ADS_DL_RcvTiAdqEmptyExpired(
 {
     /* 触发下行ADQ空中断处理事件 */
     ADS_DL_SndEvent(ADS_DL_EVENT_IPF_ADQ_EMPTY_INT);
+    ADS_DBG_DL_ADQ_EMPTY_TMR_TIMEOUT_NUM(1);
+    return;
 }
 VOS_VOID ADS_DL_ConfigAdq(
     IPF_AD_TYPE_E                       enAdType,
@@ -246,7 +193,6 @@ VOS_VOID ADS_DL_ConfigAdq(
 }
 
 
-
 VOS_VOID ADS_DL_ProcAdq(VOS_VOID)
 {
     VOS_INT32                           lRslt;
@@ -262,7 +208,6 @@ VOS_VOID ADS_DL_ProcAdq(VOS_VOID)
 
     /* 获取两个ADQ的空闲的AD个数 */
     lRslt = BSP_IPF_GetDlAdNum(&ulIpfAd0Num, &ulIpfAd1Num);
-
     if (IPF_SUCCESS != lRslt)
     {
         ADS_DBG_DL_GET_AD_FAIL_NUM(1);
@@ -279,6 +224,14 @@ VOS_VOID ADS_DL_ProcAdq(VOS_VOID)
     if (0 != ulIpfAd0Num)
     {
         ADS_DL_ConfigAdq(IPF_AD_0, ulIpfAd0Num, &ulActAd0Num);
+    }
+
+    /* AD0为空或者AD1为空需要重新启动定时器 */
+    if ( ((0 == ulActAd0Num) && (ADS_IPF_DLAD_START_TMR_THRESHOLD < ulIpfAd0Num))
+      || ((0 == ulActAd1Num) && (ADS_IPF_DLAD_START_TMR_THRESHOLD < ulIpfAd1Num)) )
+    {
+        /* 如果两个ADQ任何一个空且申请不到内存，启定时器 */
+        ADS_DL_StartAdqEmptyTimer();
     }
 
     return;
@@ -707,6 +660,7 @@ VOS_VOID ADS_DL_ProcIpfResult(VOS_VOID)
 #if(FEATURE_OFF == FEATURE_SKB_EXP)
     IMM_ZC_STRU                        *pstImmZc = VOS_NULL_PTR;
 #endif
+    VOS_UINT32                          ulRxTimeout;
 
 #ifdef CONFIG_ARM64
     struct device                       dev;
@@ -718,6 +672,8 @@ VOS_VOID ADS_DL_ProcIpfResult(VOS_VOID)
 #endif
 
     ucInstanceIndex = 0;
+    ulRxTimeout     = 0;
+
     /*
     IPF_RD_DESC_S中u16Result含义
     [15]Reserve
@@ -750,7 +706,6 @@ VOS_VOID ADS_DL_ProcIpfResult(VOS_VOID)
     {
         /* 增加RD获取个数为0的统计个数 */
         ADS_DBG_DL_RECV_RD_ZERO_NUM(1);
-
         return;
     }
 
@@ -804,6 +759,7 @@ VOS_VOID ADS_DL_ProcIpfResult(VOS_VOID)
                 ADS_DBG_DL_IPF_ERR_PKT_NUM(ucInstanceIndex, 1);
             }
 
+            ulRxTimeout = ADS_DL_RX_WAKE_LOCK_TMR_LEN;
             ADS_DL_ProcRd(pstRdDesc);
         }
         /* BearId 19: NDClient包，需要转发给NDClient */
@@ -833,7 +789,7 @@ VOS_VOID ADS_DL_ProcIpfResult(VOS_VOID)
     }
     /*lint +e771*/
 
-
+    ADS_DL_EnableRxWakeLockTimeout(ulRxTimeout);
     return;
 }
 

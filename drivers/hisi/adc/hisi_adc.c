@@ -229,10 +229,11 @@ static ssize_t adc_debugfs_write(struct file *file,
 		return count;
 	}
 
-	if (copy_from_user(buf, user_buf, count)) {
+	if (copy_from_user(buf, user_buf, count - 1)) {
 		kfree(buf);
 		return -EFAULT;
 	}
+	buf[count - 1] = '\0';
 
 	ret = kstrtol(buf, 10, &val);
 	if (ret < 0) {

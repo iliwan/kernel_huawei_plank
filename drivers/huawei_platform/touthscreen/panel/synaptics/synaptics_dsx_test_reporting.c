@@ -389,6 +389,8 @@ enum f54_report_types {
 //#define CFG_F54_RXCOUNT	25
 #define TOUCH_RX_DEFAULT 26
 #define TOUCH_TX_DEFAULT 14
+#define TP_TEST_FAILED_REASON_LEN 20
+
 static unsigned char rx = TOUCH_RX_DEFAULT;
 static unsigned char tx = TOUCH_TX_DEFAULT;
 
@@ -654,6 +656,7 @@ enum mmi_results {
 	TEST_FAILED,
 	TEST_PASS,
 };
+static char tp_test_failed_reason[TP_TEST_FAILED_REASON_LEN] = {"-software_reason"};
 static char *g_mmi_buf_f54test_result = NULL;
 static char *g_mmi_highresistance_report = NULL;
 static char *g_mmi_maxmincapacitance_report = NULL;
@@ -664,7 +667,7 @@ extern struct ts_data g_ts_data;
 static char g_synaptics_trigger_log_flag = 0;
 #endif
 
-static void synaptics_rmi4_f54_attention(void);
+static int synaptics_rmi4_f54_attention(void);
 
 struct f54_query {
 	union {
@@ -2553,10 +2556,12 @@ static void mmi_rawimage_report(unsigned char *buffer)
 	  	}
 	}
 
-	if (TestResult)
+	if (TestResult) {
 	    strcat(g_mmi_buf_f54test_result,"1P-");
-	else
+	}else{
 	    strcat(g_mmi_buf_f54test_result,"1F-");
+	    strncpy(tp_test_failed_reason,"panel_reason",TP_TEST_FAILED_REASON_LEN);
+	}
 
 	kfree(DataArray);
 	return;
@@ -2670,6 +2675,7 @@ static void mmi_RxtoRxshort2_report(unsigned char* buffer)
 	} else{
 		//TestResult = TEST_FAILED;
 	 	strcat(g_mmi_buf_f54test_result,"4F-");
+		strncpy(tp_test_failed_reason,"panel_reason",TP_TEST_FAILED_REASON_LEN);
 	}
 
 	return;
@@ -2697,11 +2703,12 @@ static void mmi_txtotx_short_report(unsigned char* buffer)
 		}
    	}
 
-	if (TestResult)
-	    strcat(g_mmi_buf_f54test_result,"2P-");
-	else
-	    strcat(g_mmi_buf_f54test_result,"2F-");
-
+	if (TestResult){
+		strcat(g_mmi_buf_f54test_result,"2P-");
+	}else{
+		strcat(g_mmi_buf_f54test_result,"2F-");
+		strncpy(tp_test_failed_reason,"panel_reason",TP_TEST_FAILED_REASON_LEN);
+	}
 	return;
 }
 
@@ -2733,6 +2740,7 @@ static void mmi_txtoground_short_report(unsigned char* buffer, size_t report_siz
 			TS_LOG_ERR("%s: Failed in txtoground, result = %d\n",__func__,result);
 			//TestResult = TEST_FAILED;
 			 strcat(g_mmi_buf_f54test_result,"3F-");
+			strncpy(tp_test_failed_reason,"panel_reason",TP_TEST_FAILED_REASON_LEN);
 		}
 
 	return;
@@ -2758,6 +2766,7 @@ static void mmi_maxmincapacitance_report(unsigned char* buffer)
 	}else{
 		//TestResult = TEST_FAILED;
 		strcat(g_mmi_buf_f54test_result,"5F-");
+		strncpy(tp_test_failed_reason,"panel_reason",TP_TEST_FAILED_REASON_LEN);
 	}
 
 	sprintf(buf, " %d %d", max, min);
@@ -2792,11 +2801,12 @@ static void mmi_highresistance_report(unsigned char* buffer)
 
 	strncat(g_mmi_highresistance_report, "\n", 1);
 
-	if(TestResult)
+	if(TestResult){
 		strcat(g_mmi_buf_f54test_result,"6P-");
-	else
+	}else{
 		strcat(g_mmi_buf_f54test_result,"6F-");
-
+		strncpy(tp_test_failed_reason,"panel_reason",TP_TEST_FAILED_REASON_LEN);
+	}
 	return;
 }
 static void mmi_delta_report(unsigned char *buffer)
@@ -2866,7 +2876,12 @@ static int mmi_runtest(int report_type)
 		}
 		patience--;
 	}
-	synaptics_rmi4_f54_attention();
+	retval = synaptics_rmi4_f54_attention();
+	if(retval)
+	{
+		TS_LOG_ERR("synaptics_rmi4_f54_attention failed  retval=%d",retval);
+		goto test_exit;
+	}
 
 	report_size = f54->report_size;
 
@@ -2987,10 +3002,10 @@ static ssize_t synaptics_rmi4_f54_mmi_test_show(struct device *dev,
 
 	atomic_set(&g_ts_data.state, TS_MMI_CAP_TEST);
 	if (!g_mmi_buf_f54test_result)
-		g_mmi_buf_f54test_result = kmalloc(50, GFP_KERNEL);
+		g_mmi_buf_f54test_result = kmalloc(80, GFP_KERNEL);
 
 	if (g_mmi_buf_f54test_result)
-		memset(g_mmi_buf_f54test_result, 0, 50);
+		memset(g_mmi_buf_f54test_result, 0, 80);
 	else
 		goto exit;
 	retval = synaptics_rmi4_irq_enable(IRQ_OFF);
@@ -2998,7 +3013,6 @@ static ssize_t synaptics_rmi4_f54_mmi_test_show(struct device *dev,
 	if (retval)
 		{
 			TS_LOG_ERR("fail to do preparation set\n");
-			sprintf(g_mmi_buf_f54test_result, "0F-");
 			goto exit;
 		}
 	sprintf(g_mmi_buf_f54test_result, "0P-");
@@ -3030,6 +3044,28 @@ static ssize_t synaptics_rmi4_f54_mmi_test_show(struct device *dev,
 	retval = mmi_runtest(F54_TX_TO_TX_SHORT);
 	if (retval)
 		goto exit;
+	if (0 == strlen(g_mmi_buf_f54test_result) || strstr(g_mmi_buf_f54test_result, "F")){
+		strncat(g_mmi_buf_f54test_result, tp_test_failed_reason, 50);
+	}
+
+	switch(f54->rmi4_data->synaptics_chip_data->ic_type) {
+		case SYNAPTICS_S3207:
+			strncat(g_mmi_buf_f54test_result, "-synaptics_3207", strlen("-synaptics_3207"));
+			break;
+		case SYNAPTICS_S3350:
+			strncat(g_mmi_buf_f54test_result, "-synaptics_3350", strlen("-synaptics_3350"));
+			break;
+		case SYNAPTICS_S3320:
+			strncat(g_mmi_buf_f54test_result, "-synaptics_3320", strlen("-synaptics_3320"));
+			break;
+		case SYNAPTICS_S3718:
+			strncat(g_mmi_buf_f54test_result, "-synaptics_3718", strlen("-synaptics_3718"));
+			break;
+		default:
+			TS_LOG_ERR("failed to recognize ic_ver\n");
+			break;
+		}
+	
 	retval = synaptics_rmi4_irq_enable(IRQ_ON);
 	sysfs_is_busy = true;
 	f54->rmi4_data->reset_device(rmi4_data);
@@ -3039,7 +3075,7 @@ exit:
 	retval = synaptics_rmi4_irq_enable(IRQ_ON);
 	sysfs_is_busy = true;
 	f54->rmi4_data->reset_device(rmi4_data);
-	strcat(g_mmi_buf_f54test_result,"F");
+	strcat(g_mmi_buf_f54test_result,"0F-software_reason");
 	TS_LOG_ERR("%s: Failed to run mmi test\n",
 			__func__);
 	atomic_set(&g_ts_data.state, TS_WORK);
@@ -3330,12 +3366,12 @@ static ssize_t hw_synaptics_mmi_test_result_show(struct kobject *dev,
 	return synaptics_rmi4_f54_mmi_test_result_show(cdev, NULL, buf);
 }
 static struct kobj_attribute synaptics_mmi_test_v = {
-	.attr = {.name = "synaptics_mmi_test", .mode = 0664},
+	.attr = {.name = "tp_legacy_capacitance_test", .mode = 0664},
 	.show = hw_synaptics_mmi_test_show,
 	.store = NULL,
 };
 static struct kobj_attribute synaptics_mmi_test_result_v = {
-	.attr = {.name = "synaptics_mmi_test_result", .mode = 0444},
+	.attr = {.name = "tp_legacy_capacitance_data", .mode = 0444},
 	.show = hw_synaptics_mmi_test_result_show,
 	.store = NULL,
 };
@@ -4180,7 +4216,7 @@ exit_no_mem:
 }
 
 
-static void synaptics_rmi4_f54_status_work(struct work_struct *work)
+static int synaptics_rmi4_f54_status_work(struct work_struct *work)
 {
 	int retval;
 	unsigned char report_index[2];
@@ -4271,12 +4307,12 @@ error_exit:
 	f54->status = retval;
 	mutex_unlock(&f54->status_mutex);
 
-	return;
+	return retval;
 }
 
-static void synaptics_rmi4_f54_attention(void)
+static int synaptics_rmi4_f54_attention(void)
 {
-	synaptics_rmi4_f54_status_work(NULL);
+	 return synaptics_rmi4_f54_status_work(NULL);
 }
 
 static void synaptics_rmi4_f54_set_regs(struct synaptics_rmi4_data *rmi4_data,

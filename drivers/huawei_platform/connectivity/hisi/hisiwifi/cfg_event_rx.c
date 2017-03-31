@@ -678,7 +678,12 @@ int32 report_scanned_bss(struct cfg_struct *cfg, struct scanned_bss_event *event
 
     if (bss)
     {
-        update_bss_info(&cfg->scan.bss_mgmt, bss);
+        ret = update_bss_info(&cfg->scan.bss_mgmt, bss);
+        if (-EFAIL == ret)
+        {
+            HWIFI_WARNING("update hide ssid or bss_mgmt is null,free bss");
+            kfree(bss);
+        }
     }
     else
     {

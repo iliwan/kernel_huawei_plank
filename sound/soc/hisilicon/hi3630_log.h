@@ -21,7 +21,7 @@
 #define __HI3630_LOG_H__
 
 
-#define DEBUG_LEVEL 1
+#define DEBUG_LEVEL 0
 
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL 0

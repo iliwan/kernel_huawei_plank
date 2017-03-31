@@ -1,3 +1,30 @@
+/*****************************************************************************/
+/*                                                                           */
+/*                Copyright 1999 - 2003, Huawei Tech. Co., Ltd.              */
+/*                           ALL RIGHTS RESERVED                             */
+/*                                                                           */
+/* FileName: v_sock.h                                                        */
+/*                                                                           */
+/* Author: dopra                                                             */
+/*                                                                           */
+/* Version: 1.0                                                              */
+/*                                                                           */
+/* Date: 2006-10                                                             */
+/*                                                                           */
+/* Description: implement socket. copy this file from dopra                  */
+/*                                                                           */
+/* Others:                                                                   */
+/*                                                                           */
+/* History:                                                                  */
+/* 1. Date:                                                                  */
+/*    Author:                                                                */
+/*    Modification: Create this file                                         */
+/*                                                                           */
+/* 2. Date: 2006-10                                                          */
+/*    Author: Xu Cheng                                                       */
+/*    Modification: Standardize code                                         */
+/*                                                                           */
+/*****************************************************************************/
 
 #ifndef _V_SOCK_H
 #define _V_SOCK_H
@@ -10,6 +37,9 @@ extern "C"{
 
 #include "dopra_def.h"
 #include "vos_config.h"
+
+/*½ûÖ¹pclint¸æ´íExpression-like macro    'name' not parenthesized*/
+/*lint -save -e773 */
 
 #ifdef VOS_OS_VER
 #ifdef RUN_IN_TIPS
@@ -143,7 +173,7 @@ extern "C"{
 
 /* VRP_MODULE_IPV6  */
 #ifndef AF_INET6
-#define AF_INET6        29             /* for IPv6 */
+#define AF_INET6        29             /* added by mayun for IPv6 */
 #endif
 
 #ifndef GRE_FR
@@ -249,12 +279,13 @@ extern "C"{
 /* end of mayun */
 #define SO_SEQPACKET  0x00040000         /* sequnce tcp packet */
 
-#define SO_SENDDATAPORT  0x00080000   /* for gsr 2003-05-08 */
+#define SO_SENDDATAPORT  0x00080000   /* added by mayun for gsr 2003-05-08 */
 
+/*set the vlanid of the socket add by gao 03/12/31 BYDD01389*/
 #define SO_SETVLANID   0x00100000
 /*
  * it means that application don't want transfer layers to check the vrfIndex,
- * for socket muti_instance 2002-12-17
+ * added by mayun for socket muti_instance 2002-12-17
  */
 #define SO_VRFINDEX_ANY (FILENUM + 1)
 
@@ -484,7 +515,7 @@ typedef struct in_addr
     VOS_UINT32 s_addr;       /* IP address of the socket */
 }in_addr;
 
-#define IP_HOSTNAME_LEN    20
+#define IP_HOSTNAME_LEN    20      /* added by mayun 20010608 */
 struct  hostent
 {
         VOS_CHAR    h_name[IP_HOSTNAME_LEN + 1];         /* official name of host */ /* 10->21 by mayun 20010608 */

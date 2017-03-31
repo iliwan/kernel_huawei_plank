@@ -54,6 +54,7 @@ enum    MMA_IMSA_MSG_ID_ENUM
     ID_MMA_IMSA_DEREG_REQ               ,                                       /* _H2ASN_MsgChoice MMA_IMSA_DEREGISTER_REQ_STRU */
     ID_MMA_IMSA_SERVICE_CHANGE_IND      ,                                       /* _H2ASN_MsgChoice MMA_IMSA_SERVICE_CHANGE_IND_STRU */
     ID_MMA_IMSA_CAMP_INFO_CHANGE_IND,                                           /* _H2ASN_MsgChoice MMA_IMSA_CAMP_INFO_CHANGE_IND_STRU */
+    ID_MMA_IMSA_VOICE_DOMAIN_CHANGE_IND ,                                        /* _H2ASN_MsgChoice MMA_IMSA_VOICE_DOMAIN_CHANGE_IND_STRU */
 
 
     /* IMSA发给MMA的消息原语 */
@@ -127,6 +128,36 @@ enum MMA_IMSA_IMS_VOICE_CAP_ENUM
 typedef VOS_UINT8 MMA_IMSA_IMS_VOICE_CAP_ENUM_UINT8;
 
 
+enum MMA_IMSA_VOICE_DOMAIN_ENUM
+{
+    MMA_IMSA_VOICE_DOMAIN_CS_ONLY            = 0,    /* CS voice only */
+    MMA_IMSA_VOICE_DOMAIN_IMS_PS_ONLY        = 1,    /* IMS PS voice only */
+    MMA_IMSA_VOICE_DOMAIN_CS_PREFERRED       = 2,    /* CS vocie preferred, IMS PS voice as secondary */
+    MMA_IMSA_VOICE_DOMAIN_IMS_PS_PREFERRED   = 3,    /* IMS PS voice preferred, CS vocie as secondary */
+
+    MMA_IMSA_VOICE_DOMAIN_BUTT
+};
+typedef VOS_UINT32  MMA_IMSA_VOICE_DOMAIN_ENUM_UINT32;
+
+
+enum MMA_IMSA_START_TYPE_ENUM
+{
+    MMA_IMSA_START_TYPE_POWER_ON            = 0,
+    MMA_IMSA_START_TYPE_IMS_SWITCH_ON       = 1,
+    MMA_IMSA_START_TYPE_BUTT
+};
+typedef VOS_UINT32  MMA_IMSA_START_TYPE_ENUM_UINT32;
+
+
+enum MMA_IMSA_STOP_TYPE_ENUM
+{
+    MMA_IMSA_STOP_TYPE_POWER_OFF            = 0,
+    MMA_IMSA_STOP_TYPE_IMS_SWITCH_OFF       = 1,
+    MMA_IMSA_STOP_TYPE_BUTT
+};
+typedef VOS_UINT32  MMA_IMSA_STOP_TYPE_ENUM_UINT32;
+
+
 /*****************************************************************************
   5 STRUCT
 *****************************************************************************/
@@ -145,7 +176,7 @@ typedef struct
 {
     VOS_MSG_HEADER                                          /*_H2ASN_Skip*/
     MMA_IMSA_MSG_ID_ENUM_UINT32         ulMsgId;            /*_H2ASN_Skip*/
-    VOS_UINT8                           aucReserve[4];
+    MMA_IMSA_START_TYPE_ENUM_UINT32     enStartType;
 }MMA_IMSA_START_REQ_STRU;
 
 typedef struct
@@ -166,7 +197,7 @@ typedef struct
 {
     VOS_MSG_HEADER                                          /*_H2ASN_Skip*/
     MMA_IMSA_MSG_ID_ENUM_UINT32         ulMsgId;            /*_H2ASN_Skip*/
-    VOS_UINT8                           aucReserve[4];
+    MMA_IMSA_STOP_TYPE_ENUM_UINT32      enStopType;
 }MMA_IMSA_STOP_REQ_STRU;
 
 typedef struct
@@ -227,6 +258,12 @@ typedef struct
 }IMSA_MMA_IMS_VOICE_CAP_NOTIFY_STRU;
 
 
+typedef struct
+{
+    VOS_MSG_HEADER                                                  /*_H2ASN_Skip*/
+    MMA_IMSA_MSG_ID_ENUM_UINT32         ulMsgId;                    /*_H2ASN_Skip*/
+    MMA_IMSA_VOICE_DOMAIN_ENUM_UINT32   enVoiceDomain;              /* 0:cs only 1:ps only 2:cs prefer 3:ps prefer */
+}MMA_IMSA_VOICE_DOMAIN_CHANGE_IND_STRU;
 
 
 

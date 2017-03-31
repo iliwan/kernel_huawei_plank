@@ -43,7 +43,7 @@ struct isp_cfg_data;
 
 #define CFG_ISP_POWER_UP	0
 #define CFG_ISP_POWER_DOWN	1
-
+#define CFG_ISP_SET_CLK_RATE    2
 
 /********************** isp controler struct define **********************/
 struct isp_reg_t {

@@ -1689,6 +1689,10 @@ static int32_t handle_hc_xacterr_intr(dwc_otg_hcd_t * hcd,
 	DWC_DEBUGPL(DBG_HCD, "--Host Channel %d Interrupt: "
 		    "Transaction Error--\n", hc->hc_num);
 
+	if((NULL == hcd) || (NULL == hc) || (NULL == hc_regs) || (NULL == qtd) || (NULL == qtd->urb)) {
+		DWC_ERROR("[USB_OTG]: NULL PTR to Phone Dump!!\n");
+		goto handle_xacterr_done;
+	}
 	if (hcd->core_if->dma_desc_enable) {
 		dwc_otg_hcd_complete_xfer_ddma(hcd, hc, hc_regs,
 					       DWC_OTG_HC_XFER_XACT_ERR);

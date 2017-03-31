@@ -43,8 +43,9 @@ else if (HISI_NOC_HI6XXX & g_config_hisi_noc_data->platform_id ) \
 #define HISI_NOC_HI6220 (1<<0)
 #define HISI_NOC_HI3635 (1<<1)
 #define HISI_NOC_HI3650 (1<<2)
+#define HISI_NOC_HI3630 (1<<3)
 
-#define HISI_NOC_HI3XXX (HISI_NOC_HI3635|HISI_NOC_HI3650)
+#define HISI_NOC_HI3XXX (HISI_NOC_HI3635|HISI_NOC_HI3650|HISI_NOC_HI3630)
 #define HISI_NOC_HI6XXX (HISI_NOC_HI6220)
 
 struct hisi_noc_data {

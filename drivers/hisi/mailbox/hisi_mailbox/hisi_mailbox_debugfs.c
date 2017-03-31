@@ -357,6 +357,17 @@ mbox_debugfs_write(struct file *filp, const char __user *ubuf,
 	mbox_msg_t msg[8];
 	mbox_msg_len_t len;
 
+	if (NULL == ubuf || 0 == cnt) {
+		cnt = -EINVAL;
+		goto out;
+	}
+
+	/*to avoid overflow*/
+	if (sizeof(debugfs_cmd)/sizeof(char) < cnt) {
+		cnt = -EINVAL;
+		goto out;
+	}
+
 	if (copy_from_user(debugfs_cmd, ubuf, cnt - 1)) {
 		cnt = -EINVAL;
 		goto out;

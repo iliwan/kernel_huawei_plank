@@ -118,6 +118,10 @@ VOS_UINT32 AT_RcvMtaSetGFreqLockCnf(
 VOS_UINT32 AT_SetGFreqLock(VOS_UINT8 ucIndex);
 
 
+
+VOS_UINT32 AT_SetActPdpStubPara(VOS_UINT8 ucIndex);
+
+
 #if (VOS_OS_VER == VOS_WIN32)
 #pragma pack()
 #else

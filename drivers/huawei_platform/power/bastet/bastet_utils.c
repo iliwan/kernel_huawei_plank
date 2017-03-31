@@ -116,7 +116,9 @@ struct sock *get_sock_by_fd_pid(int fd, pid_t pid)
 	if (NULL != sk) {
 		sock_hold(sk);
 	}
-	sockfd_put(sock);
+	if (NULL != sock->file) {
+		sockfd_put(sock);
+	}
 
 	return sk;
 }
@@ -367,6 +369,11 @@ int set_current_net_device_name(char *iface)
 
 	memcpy(cur_netdev_name, iface, IFNAMSIZ);
 	return 0;
+}
+
+void bastet_reconn_config(struct sock *sk, int val)
+{
+	BASTET_LOGI("sk=%p, val=%d", sk, val);
 }
 
 void bastet_utils_init(void)

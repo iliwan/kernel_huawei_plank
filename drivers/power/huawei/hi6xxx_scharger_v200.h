@@ -18,7 +18,9 @@
 #ifndef _LINUX_HI6521_CHARGER_H
 #define _LINUX_HI6521_CHARGER_H
 
+#ifndef CONFIG_ARCH_HI3630 /*just for compile*/
 #include <soc_scharger_interface.h>
+#endif
 /*#include <dev_scharger_v200.h>*/
 #include <huawei_platform/log/hw_log.h>
 

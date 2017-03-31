@@ -280,7 +280,7 @@ static const struct _sensor_reg_t ov5648_foxconn_cherryplus_framesize_full[] = {
     //{0x3501, 0x7b}, // exposure
     //{0x3502, 0x00}, // exposure
     {0x3035, 0x11}, // PLL                 //kenxu @ 20130912 to reduce preview SCLK to 56M
-    {0x3036, 0x42}, // PLL                 //kenxu @ 20130912 to reduce preview SCLK to 56M
+    {0x3036, 0x3f}, // PLL                 //kenxu @ 20130912 to reduce preview SCLK to 56M
     {0x3708, 0x63},
     {0x3709, 0x12},
     {0x370c, 0xcc},   //0xc0               //kenxu @ 20130913 to stabilize BLC result at full size
@@ -314,7 +314,7 @@ static const struct _sensor_reg_t ov5648_foxconn_cherryplus_framesize_full[] = {
     {0x4004, 0x04}, // black line number
     {0x4005, 0x1a}, // blc level trigger
     //{0x350b, 0x40}, // gain = 8x
-    {0x4837, 0x16},   //kenxu @ 20130913 to update mipi global timing
+    {0x4837, 0x17}, //kenxu @ 20130913 to update mipi global timing
     {0x0100, 0x01},
 };
 static sensor_setting_t ov5648_foxconn_cherryplus_init_array[] = {
@@ -322,8 +322,8 @@ static sensor_setting_t ov5648_foxconn_cherryplus_init_array[] = {
 };
 
 static framesize_s ov5648_foxconn_cherryplus_framesizes[] = {
-    {0, 0, 1280, 960, 1408, 1360, 30, 30, 0x199, 0x154, 0x100, VIEW_FULL, RESOLUTION_4_3, false, false, {ov5648_foxconn_cherryplus_framesize_quarter, ARRAY_SIZE(ov5648_foxconn_cherryplus_framesize_quarter)}, CLK_300M},
-    {0, 0, 2592, 1952, 2816, 2128, 15, 15, 0x141, 0x10b, 0xC9, VIEW_FULL, RESOLUTION_4_3, false, false, {ov5648_foxconn_cherryplus_framesize_full, ARRAY_SIZE(ov5648_foxconn_cherryplus_framesize_full)}, CLK_450M },
+    {0, 0, 1280, 960, 1408, 1360, 30, 30, 0x199, 0x154, 0x100, VIEW_FULL, RESOLUTION_4_3, false, false, ECGC_TYPE_MAX, {ov5648_foxconn_cherryplus_framesize_quarter, ARRAY_SIZE(ov5648_foxconn_cherryplus_framesize_quarter)}, CLK_300M},
+    {0, 0, 2592, 1952, 2816, 2128, 14, 14, 0x133, 0x100, 0xC0, VIEW_FULL, RESOLUTION_4_3, false, false, ECGC_TYPE_MAX, {ov5648_foxconn_cherryplus_framesize_full, ARRAY_SIZE(ov5648_foxconn_cherryplus_framesize_full)}, CLK_450M },
 };
 #endif /* _OV5648_FOXCONN_CHERRYPLUS_H_ */
 

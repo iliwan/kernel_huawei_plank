@@ -41,7 +41,7 @@
 #endif
 
 #if defined (CONFIG_HUAWEI_DSM)
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 
 static struct dsm_dev dsm_dw_mmc = {
 	.name = "dw_mmc",
@@ -633,7 +633,9 @@ static void dw_mci_hi6xxx_set_ios(struct dw_mci *host, struct mmc_ios *ios)
             ;
         }
 
-        clk_set_rate( host->biu_clk, host->bus_hz );
+        ret = clk_set_rate( host->biu_clk, host->bus_hz );
+	if (ret)
+		dev_err(host->dev, "clk_set_rate failed******\n");
 
         dw_mci_hi6xxx_set_clock(host,ios->clock );
 

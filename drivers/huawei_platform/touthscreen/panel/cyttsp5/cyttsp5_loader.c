@@ -26,7 +26,7 @@
 #include <linux/firmware.h>
 #include <linux/fs.h>
 #if defined (CONFIG_HUAWEI_DSM)
-#include <huawei_platform/dsm/dsm_pub.h>
+#include <dsm/dsm_pub.h>
 #endif
 
 #define CYTTSP5_LOADER_NAME "cyttsp5_loader"
@@ -97,6 +97,7 @@ struct cyttsp5_loader_data {
     int config_size;
     bool config_loading;
 #endif
+    bool is_firmware_broke;
 };
 
 struct cyttsp5_dev_id {
@@ -138,6 +139,8 @@ static struct cyttsp5_fw_info hw_fw_info[] = {
     {"Alice","CS445A", 5,"default","ts/Alice_CS445A_default.bin"},
     {"mozart","CS448", 0,"ofilm","ts/mozart_CS448_ofilm.bin"},
     {"mozart","CS448", 1,"truly","ts/mozart_CS448_truly.bin"},
+    {"liszt","CS448", 1,"truly","ts/liszt_CS448_default.bin"},
+    {"liszt","CS448", 0,"mutto","ts/liszt_CS448_default.bin"},
 };
 
 #if CYTTSP5_FW_UPGRADE || CYTTSP5_TTCONFIG_UPGRADE
@@ -151,6 +154,7 @@ static int cyttsp5_check_firmware_version(struct device *dev,
         u32 fw_ver_new, u32 fw_revctrl_new)
 {
     struct cyttsp5_loader_data *ld = cyttsp5_get_loader_data(dev);
+    struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
     u32 fw_ver_img;
     u32 fw_revctrl_img;
 
@@ -159,15 +163,28 @@ static int cyttsp5_check_firmware_version(struct device *dev,
 
     TS_LOG_INFO("%s: Builtin fw version:0x%04X  IC fw version:0x%04X\n", __func__,
             fw_ver_img, fw_ver_new);
+    TS_LOG_INFO( "%s: Firmware Configuration Version in iC:0x%04X\n",
+             __func__,ld->si->cydata.fw_ver_conf);
 
-    if (fw_ver_new > fw_ver_img) {
-        TS_LOG_INFO("%s: Builtin fw version is High!\n", __func__);
-        return 1;
-    }
+    if (FW_UPDATE_DIFF == cd->cpdata->fw_update_logic) {
+        TS_LOG_INFO("%s: update logic is update when image ver different with IC\n",__func__);
 
-    if (fw_ver_new < fw_ver_img) {
-        TS_LOG_INFO("%s: Builtin fw version is Low!\n", __func__);
-        return -1;
+        if (fw_ver_new != fw_ver_img) {
+            TS_LOG_INFO("%s: Image ver is different, will upgrade\n", __func__);
+            return 1;
+        }
+    } else {
+        TS_LOG_INFO("%s: update logic is update to hige ver\n",__func__);
+
+        if (fw_ver_new > fw_ver_img) {
+            TS_LOG_INFO("%s: Image is newer, will upgrade\n", __func__);
+            return 1;
+        }
+
+        if (fw_ver_new < fw_ver_img) {
+            TS_LOG_INFO("%s: Image is older, will NOT upgrade\n", __func__);
+            return -1;
+        }
     }
 
     fw_revctrl_img = ld->si->cydata.revctrl;
@@ -175,17 +192,22 @@ static int cyttsp5_check_firmware_version(struct device *dev,
     TS_LOG_INFO("%s: Builtin fw revctrl:0x%04X IC fw revctrl:0x%04X\n", __func__,
             fw_revctrl_img, fw_revctrl_new);
 
-    if (fw_revctrl_new > fw_revctrl_img) {
-        TS_LOG_INFO("%s: Builtin fw version is High!\n", __func__);
-        return 1;
+    if (FW_UPDATE_DIFF == cd->cpdata->fw_update_logic) {
+        if (fw_revctrl_new != fw_revctrl_img) {
+            TS_LOG_INFO( "%s: Image ver is different, will upgrade\n", __func__);
+            return 1;
+        }
+    } else {
+        if (fw_revctrl_new > fw_revctrl_img) {
+            TS_LOG_INFO("%s: Image is newer, will upgrade\n", __func__);
+            return 1;
+        }
+        if (fw_revctrl_new < fw_revctrl_img) {
+            TS_LOG_INFO("%s: Image is older, will NOT upgrade\n", __func__);
+            return -1;
+        }
     }
-
-    if (fw_revctrl_new < fw_revctrl_img) {
-        TS_LOG_INFO("%s: Builtin fw version is Low!\n", __func__);
-        return -1;
-    }
-
-    TS_LOG_INFO("%s: version info same\n", __func__);
+    TS_LOG_INFO("%s: Image has same version\n", __func__);
 
     return 0;
 }
@@ -508,7 +530,7 @@ static int cyttsp5_upgrade_firmware(struct device *dev, const u8 *fw_img,
     bool wait_for_calibration_complete = false;
     int rc;
 
-    TS_LOG_INFO("%s: cyttsp5 upgrade firmware\n", __func__);
+    TS_LOG_INFO("%s: cyttsp5 upgrade firmware begin\n", __func__);
 
     rc = cmd->request_exclusive(dev, CY_LDR_REQUEST_EXCLUSIVE_TIMEOUT);
     if (rc < 0) {
@@ -761,6 +783,7 @@ static void _cyttsp5_firmware_cont_builtin(const struct firmware *fw,
 {
     struct device *dev = context;
     struct cyttsp5_loader_data *ld = cyttsp5_get_loader_data(dev);
+    struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
     int upgrade;
 
     ld->builtin_bin_fw_status = -EINVAL;
@@ -783,7 +806,13 @@ static void _cyttsp5_firmware_cont_builtin(const struct firmware *fw,
 
     TS_LOG_INFO("%s: Found firmware\n", __func__);
 
-    upgrade = cyttsp5_check_firmware_version_builtin(dev, fw);
+    if ( true == cd->config_crc_fail_flag ) {
+        upgrade = 1;
+        TS_LOG_INFO("%s: IC config crc fail,will force upgrade bin\n", __func__);
+    } else {
+        upgrade = cyttsp5_check_firmware_version_builtin(dev, fw);
+    }
+
     if (upgrade) {
         _cyttsp5_firmware_cont(fw, dev);
         ld->builtin_bin_fw_status = 0;
@@ -857,6 +886,9 @@ static char *generate_firmware_filename(struct device *dev)
         #if defined (CONFIG_HUAWEI_DSM)
         g_tp_dsm_info.constraints_UPDATE_status = FWU_GET_SYSINFO_FAIL;
         #endif
+        if(core_pdata->support_sec_upgrd_firmware) {
+            ld->is_firmware_broke = true;
+        }
         snprintf(filename, FILENAME_LEN_MAX, "ts/%s_%s_default.bin", product_name, chip_name);
         TS_LOG_INFO("%s: sysinfo is null, use default firmware: %s\n", __func__, filename);
     } else {
@@ -866,6 +898,9 @@ static char *generate_firmware_filename(struct device *dev)
             if(retval == 0 && hw_fw_info[index].panel_id == panel_id){
                 snprintf(filename, FILENAME_LEN_MAX, "%s", hw_fw_info[index].fw_name);
                 findfirmware = true;
+                if(core_pdata->support_sec_upgrd_firmware) {
+                    ld->is_firmware_broke = false;
+                }
                 break;
             }
         }
@@ -1519,6 +1554,12 @@ exit:
     mutex_lock(&cd->system_lock);
     cd->fw_upgrade_flag = FW_UPGRADE_NOT_RUNNING;
     mutex_unlock(&cd->system_lock);
+    if (core_pdata->support_sec_upgrd_firmware) {
+        TS_LOG_INFO("is_firmware_broke:[%d]\n",ld->is_firmware_broke);
+        if (ld->is_firmware_broke){
+            schedule_work(&ld->fw_and_config_upgrade);
+        }
+    }
 }
 
 #if CYTTSP5_FW_UPGRADE

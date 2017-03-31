@@ -24,6 +24,9 @@ __DRV_AUDIO_MAILBOX_WORK__   : leave mailbox's work to workqueue
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/proc_fs.h>
+#include <linux/kthread.h>
+#include <linux/semaphore.h>
+#include <linux/sched/rt.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -86,8 +89,8 @@ __DRV_AUDIO_MAILBOX_WORK__   : leave mailbox's work to workqueue
 /* CAPTURE SUPPORT RATES : 48/96kHz */
 #define HI6210_CP_RATES    ( SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 )
 
-#define HI6210_CP_MIN_CHANNELS  ( 2 )
-#define HI6210_CP_MAX_CHANNELS  ( 2 )
+#define HI6210_CP_MIN_CHANNELS  ( 1 )
+#define HI6210_CP_MAX_CHANNELS  ( 4 )
 /* Assume the FIFO size */
 #define HI6210_CP_FIFO_SIZE     ( 32 )
 #define HI6210_MODEM_RATES      ( SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 )
@@ -99,6 +102,9 @@ __DRV_AUDIO_MAILBOX_WORK__   : leave mailbox's work to workqueue
 #define HI6210_MIN_BUFFER_SIZE  ( 32 )
 #define HI6210_MAX_PERIODS      ( 32 )
 #define HI6210_MIN_PERIODS      ( 2 )
+#define HI6210_WORK_DELAY_1MS   ( 33 )    /* 33 equals 1ms */
+#define HI6210_CYC_SUB(Cur, Pre, CycLen)                    \
+    (((Cur) < (Pre)) ? (((CycLen) - (Pre)) + (Cur)) : ((Cur) - (Pre))) /* 考虑给定范围内循环, 计算给定两个量的差 */
 
 #ifndef OK
 #define OK              0
@@ -174,8 +180,6 @@ static const struct snd_soc_component_driver hi6210_pcm_component = {
 };
 
 static u64 hi6210_pcm_dmamask           = (u64)(0xffffffff);
-
-struct proc_dir_entry *audio_pcm_dir    = NULL;
 
 static struct snd_soc_dai_driver hi6210_dai[] =
 {
@@ -292,8 +296,8 @@ static const struct snd_pcm_hardware hi6210_hardware_modem_playback =
 struct hi6210_simu_pcm_data hi6210_simu_pcm;
 #endif
 #ifdef __DRV_AUDIO_MAILBOX_WORK__
-/* workqueue for Playback and Capture */
-struct hi6210_pcm_mailbox_wq hi6210_pcm_mailbox_workqueue;
+/* Controller for Playback and Capture */
+struct hi6210_pcm_mailbox_ctrl hi6210_pcm_maibox_controller;
 #endif
 
 static u32 pcm_cp_status_open = 0;
@@ -301,6 +305,7 @@ static u32 pcm_pb_status_open = 0;
 
 DEFINE_SEMAPHORE(g_pcm_cp_open_sem);
 DEFINE_SEMAPHORE(g_pcm_pb_open_sem);
+LIST_HEAD(recv_hifi_msg_list);
 
 /*****************************************************************************
   3 函数声明
@@ -346,53 +351,77 @@ void simu_pcm_work_func(struct work_struct *work)
 #endif
 
 #ifdef __DRV_AUDIO_MAILBOX_WORK__
-void pcm_mailbox_work_func(struct work_struct *work)
+static int hi6210_pcm_mailbox_thread(void *p)
 {
-    struct hi6210_pcm_mailbox_data *priv =
-            container_of(work, struct hi6210_pcm_mailbox_data, pcm_mailbox_delay_work.work);
+    struct hi6210_pcm_mailbox_data *priv = NULL;
     int ret                     = 0;
     unsigned short msg_type         = 0;
     unsigned short pcm_mode         = 0;
     struct snd_pcm_substream * substream   = NULL;
     struct hi6210_runtime_data *prtd        = NULL;
+    unsigned int delay_time = 0;
 
-    /*获取消息类型*/
-    msg_type    = priv->msg_type;
-    pcm_mode    = priv->pcm_mode;
-    substream   = priv->substream;
-    logd("substream : 0x%x\n", substream);
-    prtd    = (struct hi6210_runtime_data *)substream->runtime->private_data;
+    while (!hi6210_pcm_maibox_controller.kthread_should_stop) {
 
-    if (NULL == prtd){
-        loge("prtd is null \n");
+        down_interruptible(&hi6210_pcm_maibox_controller.pcm_mailbox_sema);
+
+        spin_lock_bh(&hi6210_pcm_maibox_controller.pcm_mailbox_lock);
+
+        if (list_empty(&recv_hifi_msg_list)) {
+            spin_unlock_bh(&hi6210_pcm_maibox_controller.pcm_mailbox_lock);
+            loge("msg list is empty!\n");
+            continue;
+        }
+
+        priv = list_entry(recv_hifi_msg_list.next, struct hi6210_pcm_mailbox_data, node);
+
+        spin_unlock_bh(&hi6210_pcm_maibox_controller.pcm_mailbox_lock);
+
+        /*获取消息类型*/
+        msg_type    = priv->msg_type;
+        pcm_mode    = priv->pcm_mode;
+        substream   = priv->substream;
+
+        prtd    = (struct hi6210_runtime_data *)substream->runtime->private_data;
+        if (!prtd) {
+            loge("prtd is null \n");
+            goto free_list_node;
+        }
+
+        delay_time = HI6210_CYC_SUB(mailbox_get_timestamp(), priv->msg_timestamp, 0xffffffff);
+
+        if (delay_time > (HI6210_WORK_DELAY_1MS * 10))
+            logw("[%d]:this msg delayed %d slices, pcm mode:%d\n", mailbox_get_timestamp(), delay_time, pcm_mode);
+
+        switch(msg_type) {
+        case HI_CHN_MSG_PCM_PERIOD_ELAPSED:
+            ret = hi6210_mb_intr_handle(pcm_mode, substream);
+            if (ret == IRQ_NH)
+                loge("mb msg handle err, ret : %d\n", ret);
+            break;
+        case HI_CHN_MSG_PCM_PERIOD_STOP:
+            if (STATUS_STOPPING == prtd->status) {
+                prtd->status = STATUS_STOP;
+                logi("stop now !\n");
+            }
+            break;
+        default:
+            /*数据消息及其他类型不应出现*/
+            loge("msg_type 0x%x\n", msg_type);
+            break;
+        }
+
+free_list_node:
+        spin_lock_bh(&hi6210_pcm_maibox_controller.pcm_mailbox_lock);
+        list_del(&priv->node);
+        kfree(priv);
+        priv = NULL;
+        spin_unlock_bh(&hi6210_pcm_maibox_controller.pcm_mailbox_lock);
     }
 
-    switch( msg_type )
-    {
-    case HI_CHN_MSG_PCM_PERIOD_ELAPSED:
-        ret = hi6210_mb_intr_handle( pcm_mode, substream );
-        if( ret == IRQ_NH )
-        {
-            loge("ret : %d\n", ret);
-        }
-        break;
-    case HI_CHN_MSG_PCM_PERIOD_STOP:
-        if (STATUS_STOPPING == prtd->status){
-            prtd->status = STATUS_STOP;
-            logi("stop now !\n");
-        }
-        break;
-    default:
-        ret = IRQ_NH_TYPE;
-        /*数据消息及其他类型不应出现*/
-        loge("msg_type 0x%x\n", msg_type);
-        break;
-    }
-
-    return ;
-
+    logi("pcm mailbox thread exit.\n");
+    return 0;
 }
-
 #endif
 STATIC irq_rt_t hi6210_intr_handle_pb(struct snd_pcm_substream *substream)
 {
@@ -661,12 +690,12 @@ STATIC int hi6210_mailbox_send_data( void *pmsg_body, unsigned int msg_len,
 		loge("!!!!!!!!!!!!!!!!!!!!==========================================22222222222222 \r\n");
 		break;
 	}
-#endif 		
+#endif
     ret = DRV_MAILBOX_SENDMAIL(MAILBOX_MAILCODE_ACPU_TO_HIFI_AUDIO, pmsg_body, msg_len);
     if( MAILBOX_OK != ret )
     {
         loge("Mailbox send mail failed,ret=%d\n", ret);
-    }        
+    }
 #endif
     return (int)ret;
 }
@@ -739,7 +768,8 @@ STATIC int hi6210_notify_pcm_hw_params( unsigned short pcm_mode,
 
     /* CHECK SUPPORT CHANNELS : mono or stereo */
     params_value = params_channels(params);
-    if ( (2 == params_value) || (1 == params_value) )
+    if (HI6210_CP_MIN_CHANNELS <= params_value
+		&& HI6210_CP_MAX_CHANNELS >= params_value)
     {
         msg_body.channel_num = params_value;
     }
@@ -814,6 +844,10 @@ STATIC int hi6210_notify_pcm_trigger( int cmd,
     struct hifi_chn_pcm_trigger msg_body    = { 0 };
     int ret                                 = OK;
 
+    if(NULL == prtd ){
+        loge("hi6210_notify_pcm_trigger failed prtd = NULL");
+        return -EINVAL;
+    }
     msg_body.msg_type   	= (unsigned short)HI_CHN_MSG_PCM_TRIGGER;
     msg_body.pcm_mode   	= (unsigned short)substream->stream;
     msg_body.tg_cmd     	= (unsigned short)cmd;
@@ -847,15 +881,21 @@ STATIC int hi6210_notify_pcm_set_buf( struct snd_pcm_substream *substream )
 {
     struct hi6210_runtime_data *prtd        =
                 (struct hi6210_runtime_data *)substream->runtime->private_data;
-    unsigned int period_size                = prtd->period_size;
+    unsigned int period_size;
     unsigned short pcm_mode                 = (unsigned short)substream->stream;
     struct hifi_channel_set_buffer msg_body    = { 0 };
     int ret                                 = 0;
+    unsigned int delay_time = 0;
 
-    if ( (SNDRV_PCM_STREAM_PLAYBACK != pcm_mode) &&
-            (SNDRV_PCM_STREAM_CAPTURE != pcm_mode) )
-    {
-        loge("pcm_mode=%d\n", pcm_mode);
+    if (NULL == prtd) {
+        loge("hi6210_notify_pcm_set_buf faied prtd = NULL");
+        return -EINVAL;
+    }
+    period_size = prtd->period_size;
+
+    if ((SNDRV_PCM_STREAM_PLAYBACK != pcm_mode)
+        && (SNDRV_PCM_STREAM_CAPTURE != pcm_mode)) {
+        loge("pcm mode invald, mode=%d\n", pcm_mode);
         return -EINVAL;
     }
 
@@ -866,18 +906,23 @@ STATIC int hi6210_notify_pcm_set_buf( struct snd_pcm_substream *substream )
 
     logd("d_addr=0x%p(%d)\r\n", msg_body.data_addr, msg_body.data_len);
 
-    if (STATUS_RUNNING != prtd->status){
+    if (STATUS_RUNNING != prtd->status) {
         logd("pcm is closed \n");
         return -EINVAL;
     }
 
+#ifdef __DRV_AUDIO_MAILBOX_WORK__
+    delay_time = HI6210_CYC_SUB(mailbox_get_timestamp(), prtd->hi6210_pcm_mailbox.msg_timestamp, 0xffffffff);
+    if (delay_time > (HI6210_WORK_DELAY_1MS * 10))
+        logw("[%d]:this msg delayed %d slices, pcm mode:%d\n", mailbox_get_timestamp(), delay_time, pcm_mode);
+#endif
+
     /* mail-box send */
     /* trace_dot(APCM,"4",0); */
     ret = hi6210_mailbox_send_data( &msg_body, sizeof(struct hifi_channel_set_buffer), 0 );
-    if( OK != ret )
-    {
+    if (OK != ret)
         ret = -EBUSY;
-    }
+
     /* trace_dot(APCM,"5",0); */
 
     logd("End(%d)\r\n", ret);
@@ -894,14 +939,14 @@ STATIC irq_rt_t hi6210_notify_recv_isr( void *usr_para, void *mail_handle,  unsi
 #ifndef __DRV_AUDIO_MAILBOX_WORK__
     irq_rt_t ret                    = IRQ_NH;
 #endif
+
     memset(&mail_buf, 0, sizeof(struct hifi_chn_pcm_period_elapsed));
+
     /*获取邮箱数据内容*/
 #ifdef CONFIG_SND_TEST_AUDIO_PCM_LOOP
     memcpy(&mail_buf, mail_handle, sizeof(struct hifi_chn_pcm_period_elapsed));
 #else
-
     ret_mail = DRV_MAILBOX_READMAILDATA(mail_handle, (unsigned char*)&mail_buf, &mail_size);
-
     if ((ret_mail != MAILBOX_OK)
         || (mail_size <= 0)
         || (mail_size > sizeof(struct hifi_chn_pcm_period_elapsed)))
@@ -933,27 +978,37 @@ STATIC irq_rt_t hi6210_notify_recv_isr( void *usr_para, void *mail_handle,  unsi
     }
 
     logd("Begin msg_type=0x%x, substream=0x%p\n", (unsigned int)mail_buf.msg_type,substream);
-    hi6210_pcm_mailbox            	= &prtd->hi6210_pcm_mailbox;
+
+    hi6210_pcm_mailbox = kmalloc(sizeof(struct hi6210_pcm_mailbox_data), GFP_ATOMIC);
+    if (!hi6210_pcm_mailbox) {
+        loge("hi6210_pcm_mailbox malloc failed!\n");
+        return IRQ_NH_OTHERS;
+    }
+
+    memset(hi6210_pcm_mailbox, 0, sizeof(struct hi6210_pcm_mailbox_data));
+
     hi6210_pcm_mailbox->msg_type    = mail_buf.msg_type;
     hi6210_pcm_mailbox->pcm_mode    = mail_buf.pcm_mode;
     hi6210_pcm_mailbox->substream   = substream;
+    hi6210_pcm_mailbox->msg_timestamp = mailbox_get_timestamp();
+    prtd->hi6210_pcm_mailbox.msg_timestamp = hi6210_pcm_mailbox->msg_timestamp;
 
-    queue_delayed_work(hi6210_pcm_mailbox->pcm_mailbox_delay_wq,
-            &hi6210_pcm_mailbox->pcm_mailbox_delay_work,
-            msecs_to_jiffies(0));
+    spin_lock_bh(&hi6210_pcm_maibox_controller.pcm_mailbox_lock);
+    list_add_tail(&hi6210_pcm_mailbox->node, &recv_hifi_msg_list);
+    spin_unlock_bh(&hi6210_pcm_maibox_controller.pcm_mailbox_lock);
+
+    up(&hi6210_pcm_maibox_controller.pcm_mailbox_sema);
 
     logd("End\n");
     return IRQ_HDD;
 #else
     substream = INT_TO_ADDR(mail_buf.substream_l32,mail_buf.substream_h32);
-    switch( mail_buf.msg_type )
+    switch(mail_buf.msg_type)
     {
     case HI_CHN_MSG_PCM_PERIOD_ELAPSED:
-        ret = hi6210_mb_intr_handle( mail_buf.pcm_mode, substream );
-        if( ret == IRQ_NH )
-        {
+        ret = hi6210_mb_intr_handle(mail_buf.pcm_mode, substream);
+        if (ret == IRQ_NH)
             loge("ret : %d\n", ret);
-        }
         break;
     default:
         ret = IRQ_NH_TYPE;
@@ -1005,6 +1060,12 @@ STATIC int hi6210_pcm_hifi_hw_params(struct snd_pcm_substream *substream,
     int ret                             = 0;
 
     IN_FUNCTION;
+
+    if(NULL == prtd){
+        loge("hi6210_pcm_hifi_hw_params faied prtd = NULL");
+        return -EINVAL;
+    }
+
 
     logd("entry : %s\n", substream->stream == SNDRV_PCM_STREAM_PLAYBACK
             ? "PLAYBACK" : "CAPTURE");
@@ -1066,6 +1127,11 @@ STATIC int hi6210_pcm_hifi_prepare(struct snd_pcm_substream *substream)
     hi6210_notify_pcm_prepare( &msg_body );
     */
 
+    if(NULL == prtd){
+        loge("hi6210_pcm_hifi_prepare faied prtd = NULL");
+        return -EINVAL;
+    }
+
     /* init prtd */
     prtd->status        = STATUS_STOP;
     prtd->period_next   = 0;
@@ -1084,6 +1150,12 @@ STATIC int hi6210_pcm_hifi_trigger(int cmd, struct snd_pcm_substream *substream)
 
     logd("entry : %s, cmd : %d\n", substream->stream == SNDRV_PCM_STREAM_PLAYBACK
             ? "PLAYBACK" : "CAPTURE", cmd);
+
+
+    if(NULL == prtd){
+        loge("hi6210_pcm_hifi_trigger faied prtd = NULL");
+        return -EINVAL;
+    }
 
     switch (cmd)
     {
@@ -1142,6 +1214,12 @@ STATIC snd_pcm_uframes_t hi6210_pcm_hifi_pointer(struct snd_pcm_substream *subst
                 (struct hi6210_runtime_data *)substream->runtime->private_data;
     long frame                     = 0L;
 
+
+    if(NULL == prtd){
+        loge("hi6210_pcm_hifi_pointer faied prtd = NULL");
+        return -EINVAL;
+    }
+
     frame = bytes_to_frames(runtime, prtd->period_cur * prtd->period_size);
     if(frame >= runtime->buffer_size)
         frame = 0;
@@ -1176,11 +1254,6 @@ STATIC int hi6210_pcm_hifi_open(struct snd_pcm_substream *substream)
         snd_soc_set_runtime_hwparams(substream, &hi6210_hardware_playback);
     else
         snd_soc_set_runtime_hwparams(substream, &hi6210_hardware_capture);
-
-#ifdef __DRV_AUDIO_MAILBOX_WORK__
-    prtd->hi6210_pcm_mailbox.pcm_mailbox_delay_wq = hi6210_pcm_mailbox_workqueue.pcm_mailbox_delay_wq;
-    INIT_DELAYED_WORK(&prtd->hi6210_pcm_mailbox.pcm_mailbox_delay_work, pcm_mailbox_work_func);
-#endif
 
     /* 通知HIFI PCM Open */
     ret = hi6210_notify_pcm_open( (unsigned short)substream->stream );
@@ -1254,6 +1327,11 @@ static int hi6210_pcm_hw_free(struct snd_pcm_substream *substream)
 
     prtd    = (struct hi6210_runtime_data *)substream->runtime->private_data;
 
+    if(NULL == prtd){
+        loge("hi6210_pcm_hw_free faied prtd = NULL");
+        return -EINVAL;
+    }
+
     if (substream->pcm->device == 0){
         for(i = 0; i < 30 ; i++){  /* wait for dma ok */
             if (STATUS_STOP == prtd->status){
@@ -1265,9 +1343,7 @@ static int hi6210_pcm_hw_free(struct snd_pcm_substream *substream)
         if (30 == i){
             loge("timeout for waiting for stop info from hifi \n");
         }
-#ifdef  __DRV_AUDIO_MAILBOX_WORK__
-        flush_workqueue(hi6210_pcm_mailbox_workqueue.pcm_mailbox_delay_wq);
-#endif
+
         ret = hi6210_pcm_hifi_hw_free(substream);
     }
     return ret;
@@ -1535,6 +1611,7 @@ struct snd_soc_platform_driver hi6210_pcm_platform = {
 static int  hi6210_platform_probe(struct platform_device *pdev)
 {
     int ret = -ENODEV;
+    struct sched_param param;
 
     IN_FUNCTION;
     logi("hi6210_platform_probe beg");
@@ -1542,7 +1619,7 @@ static int  hi6210_platform_probe(struct platform_device *pdev)
     /* register dai (name : hi6210-hifi) */
 
       ret = snd_soc_register_component(&pdev->dev, &hi6210_pcm_component,
-					  hi6210_dai, ARRAY_SIZE(hi6210_dai));
+                                        hi6210_dai, ARRAY_SIZE(hi6210_dai));
     if (ret) {
         loge("snd_soc_register_dai return %d\n" ,ret);
         goto probe_failed;
@@ -1566,15 +1643,28 @@ static int  hi6210_platform_probe(struct platform_device *pdev)
     }
     INIT_DELAYED_WORK(&hi6210_simu_pcm.simu_pcm_delay_work, simu_pcm_work_func);
 #endif
+
 #ifdef __DRV_AUDIO_MAILBOX_WORK__
-    hi6210_pcm_mailbox_workqueue.pcm_mailbox_delay_wq = create_singlethread_workqueue("pcm_mailbox_delay_wq");
-    if (!(hi6210_pcm_mailbox_workqueue.pcm_mailbox_delay_wq)) {
-        pr_err("%s(%u) : workqueue create failed", __FUNCTION__,__LINE__);
+    sema_init(&hi6210_pcm_maibox_controller.pcm_mailbox_sema, 0);
+
+    spin_lock_init(&hi6210_pcm_maibox_controller.pcm_mailbox_lock);
+
+    hi6210_pcm_maibox_controller.pcm_mailbox_kthread = kthread_create(hi6210_pcm_mailbox_thread, 0, "hi6210_pcm_mailbox_kthread");
+    if (IS_ERR(hi6210_pcm_maibox_controller.pcm_mailbox_kthread)) {
+        loge("create pcm mailbox thread fail.\n");
         ret = -ENOMEM;
         goto pcm_mailbox_wq_failed;
     }
-/*  put INIT_DELAYED_WORK to open() function
-    INIT_DELAYED_WORK(&hi6210_pcm_mailbox_workqueue.pcm_mailbox_delay_work, pcm_mailbox_work_func); */
+
+    hi6210_pcm_maibox_controller.kthread_should_stop = 0;
+
+    /*set the thread's priority to 80, the bigger sched_priority, the higher priority*/
+    memset(&param, 0, sizeof(struct sched_param));
+    param.sched_priority = (MAX_RT_PRIO - 20);
+    (void)sched_setscheduler(hi6210_pcm_maibox_controller.pcm_mailbox_kthread, SCHED_RR, &param);
+
+    wake_up_process(hi6210_pcm_maibox_controller.pcm_mailbox_kthread);
+
 #endif
 
     OUT_FUNCTION;
@@ -1609,9 +1699,10 @@ static int hi6210_platform_remove(struct platform_device *pdev)
     }
 #endif
 #ifdef __DRV_AUDIO_MAILBOX_WORK__
-    if(hi6210_pcm_mailbox_workqueue.pcm_mailbox_delay_wq) {
-        flush_workqueue(hi6210_pcm_mailbox_workqueue.pcm_mailbox_delay_wq);
-        destroy_workqueue(hi6210_pcm_mailbox_workqueue.pcm_mailbox_delay_wq);
+    if (hi6210_pcm_maibox_controller.pcm_mailbox_kthread) {
+        hi6210_pcm_maibox_controller.kthread_should_stop = 1;
+        up(&hi6210_pcm_maibox_controller.pcm_mailbox_sema);
+        kthread_stop(hi6210_pcm_maibox_controller.pcm_mailbox_kthread);
     }
 #endif
 
@@ -1636,75 +1727,16 @@ static struct platform_driver hi6210_platform_driver = {
     .remove = hi6210_platform_remove,
 };
 
-static ssize_t status_read_proc_hstatus(struct file *file, char __user *buf,
-								   size_t count, loff_t *ppos)
-{
-    int n             = 0;
-    unsigned long len = 0;
-    if(count < sizeof(int)){
-        return len;
-    }
-    len = copy_to_user(buf,(void*)&n,sizeof(int));
-    return len;
-   // return (ssize_t)sprintf(buf, "%d", 0);
-}
-
-static ssize_t status_write_proc_hstatus(struct file *file, const char *buffer,
-                    size_t count, loff_t *data)
-{
-    char buf[64] = {0};
-    int value = 0;
-
-    if (count < 1)
-        return -EINVAL;
-    if (count > 60)
-        count  = 60;
-
-    if (copy_from_user(buf, buffer, count)) {
-        loge("copy_from_user Error\n");
-        return -EFAULT;
-    }
-    if (sscanf(buf, "0x%x", &value) != 1) {
-        logd("set the audiostatus error\r\n");
-    }
-    logd("get the audiostatus %d\r\n",value);
-
-    return (ssize_t)count;
-}
-
-static const struct file_operations hi6210_status_fops = {
-	.owner = THIS_MODULE,
-	.read  = status_read_proc_hstatus,
-	.write = status_write_proc_hstatus,
-};
 static int __init hi6210_init(void)
 {
-    struct proc_dir_entry *ent;
-    logi("%s\n",__FUNCTION__);
-
-    audio_pcm_dir = proc_mkdir("apcm", NULL);
-    if (audio_pcm_dir == NULL) {
-        loge("Unable to create /proc/apcm directory");
-        return -ENOMEM;
-    }
-
-    /* Creating read/write "status" entry */
-
-	ent = proc_create("status", 0660, audio_pcm_dir,&hi6210_status_fops);
-	if (ent == NULL) {
-	    remove_proc_entry("apcm", 0);
-	    loge("Unable to create /proc/apcm/status entry");
-	    return -ENOMEM;
-	}
-    return platform_driver_register(&hi6210_platform_driver);
+	logi("%s\n",__FUNCTION__);
+	return platform_driver_register(&hi6210_platform_driver);
 }
 module_init(hi6210_init);
 
 static void __exit hi6210_exit(void)
 {
-    remove_proc_entry("status", audio_pcm_dir);
-
-    platform_driver_unregister(&hi6210_platform_driver);
+	platform_driver_unregister(&hi6210_platform_driver);
 }
 module_exit(hi6210_exit);
 

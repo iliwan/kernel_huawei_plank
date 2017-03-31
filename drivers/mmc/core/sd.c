@@ -24,6 +24,9 @@
 #include "mmc_ops.h"
 #include "sd.h"
 #include "sd_ops.h"
+#ifdef CONFIG_MMC_PASSWORDS
+#include "lock.h"
+#endif
 #ifdef CONFIG_HUAWEI_SDCARD_DSM
 #include <linux/mmc/dsm_sdcard.h>
 struct dsm_sdcard_cmd_log dsm_sdcard_cmd_logs[] = 
@@ -46,6 +49,10 @@ struct dsm_sdcard_cmd_log dsm_sdcard_cmd_logs[] =
 	{"Report Uevent : ",	0},
 };
 
+#endif
+
+#ifdef CONFIG_HW_SD_HEALTH_DETECT
+static unsigned int g_sd_speed_class = 0;
 #endif
 
 static const unsigned int tran_exp[] = {
@@ -264,6 +271,9 @@ static int mmc_read_ssr(struct mmc_card *card)
 
 	card->ssr.speed_class = UNSTUFF_BITS(ssr, 440 - 384, 8);
 
+#ifdef CONFIG_HW_SD_HEALTH_DETECT
+	g_sd_speed_class = card->ssr.speed_class;
+#endif
 	/*
 	 * UNSTUFF_BITS only works with four u32s so we have to offset the
 	 * bitfield positions accordingly.
@@ -647,7 +657,11 @@ static int sd_set_current_limit(struct mmc_card *card, u8 *status)
 /*
  * UHS-I specific initialization procedure
  */
+#ifdef CONFIG_MMC_PASSWORDS
+int mmc_sd_init_uhs_card(struct mmc_card *card)
+#else
 static int mmc_sd_init_uhs_card(struct mmc_card *card)
+#endif
 {
 	int err;
 	u8 *status;
@@ -758,6 +772,30 @@ struct device_type sd_type = {
 	.groups = sd_attr_groups,
 };
 
+#ifdef CONFIG_MMC_PASSWORDS
+/*
+ * Adds sysfs entries as relevant.
+ */
+static int mmc_sd_sysfs_add(struct mmc_host *host, struct mmc_card *card)
+{
+	int ret;
+
+	ret = mmc_lock_add_sysfs(card);
+	if (ret < 0) {
+		return ret;
+	}
+
+	return 0;
+}
+
+/*
+ * Removes the sysfs entries added by mmc_sysfs_add().
+ */
+static void mmc_sd_sysfs_remove(struct mmc_host *host, struct mmc_card *card)
+{
+	mmc_lock_remove_sysfs(card);
+}
+#endif
 /*
  * Fetch CID from card.
  */
@@ -1005,11 +1043,13 @@ unsigned mmc_sd_get_max_clock(struct mmc_card *card)
 	return max_dtr;
 }
 
+#ifdef CONFIG_MMC_PASSWORDS
 void mmc_sd_go_highspeed(struct mmc_card *card)
 {
-	mmc_card_set_highspeed(card);
+	mmc_card_set_highspeed(card);//temp remove this
 	mmc_set_timing(card->host, MMC_TIMING_SD_HS);
 }
+#endif
 
 /*
  * Handle the detection and initialisation of a card.
@@ -1024,6 +1064,9 @@ int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	int err;
 	u32 cid[4];
 	u32 rocr = 0;
+#ifdef CONFIG_MMC_PASSWORDS
+	u32 status = 0;
+#endif
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
@@ -1069,6 +1112,28 @@ int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 			goto free_card;
 			}
 	}
+#ifdef CONFIG_MMC_PASSWORDS
+    /* whether voltage switch just for sd card */
+	if (rocr & SD_ROCR_S18A)
+        card->swith_voltage = true;
+    else
+        card->swith_voltage = false;
+
+    printk("%s, sd card voltage swith(3.3v--> 1.8v) is %d\n", __func__, card->swith_voltage);
+
+	/*
+	 * Check if card is locked.
+    */
+	err = mmc_send_status(card, &status);
+	if (err)
+		goto free_card;
+	if (status & R1_CARD_IS_LOCKED)
+	//	mmc_card_set_locked(card);
+	{
+		mmc_card_set_encrypted(card);
+		mmc_card_set_locked(card);
+	}
+#endif
 
 	if (!oldcard) {
 		err = mmc_sd_get_csd(host, card);
@@ -1095,6 +1160,62 @@ int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 			goto free_card;
 			}
 	}
+#if CONFIG_MMC_PASSWORDS
+	if (status & R1_CARD_IS_LOCKED) {
+		if(card->auto_unlock )
+		{
+			if(card->unlock_pwd[0] > 0 )
+			{
+				//unlock sd card
+				err = mmc_lock_unlock_by_buf(card,  card->unlock_pwd+1,(int)card->unlock_pwd[0], MMC_LOCK_MODE_UNLOCK);
+				if(err)
+				{
+					printk("[SDLOCK] %s unlock failed \n",__func__);
+				}
+				else
+				{
+					printk("[SDLOCK] %s unlock success \n",__func__);
+
+					if(!mmc_card_locked(card))
+					{
+						card->auto_unlock = false;
+						printk("[SDLOCK] %s unlock success and sdcard status is unlocked.\n",__func__);
+					}
+					else
+					{
+						printk("[SDLOCK] %s unlock success but sdcard status is locked, abnormal status.\n",__func__);
+					}
+
+				}
+				//Check if card is locked
+				err = mmc_send_status(card, &status);
+				if (err)
+				{
+					printk("[SDLOCK] %s resume sd card exception /n",__func__);
+					goto free_card;
+				}
+			}
+			else
+			{
+				printk("[SDLOCK] %s unlock password is null\n",__func__);
+			}
+		} 
+
+		if (status & R1_CARD_IS_LOCKED)
+		{
+			printk(KERN_WARNING "[SDLOCK] sdcard is locked\n");
+			goto locked_card;
+		}
+		else
+		{
+			printk(KERN_WARNING "[SDLOCK] sdcard resume to unlocked\n");
+		}
+	}
+	else
+	{
+		printk(KERN_WARNING "[SDLOCK] sdcard is unlocked\n");
+	}
+#endif
 
 	err = mmc_sd_setup_card(host, card, oldcard != NULL);
 	if (err)
@@ -1144,7 +1265,9 @@ int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 			mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
 		}
 	}
-
+#ifdef CONFIG_MMC_PASSWORDS
+locked_card:
+#endif
 	host->card = card;
 	return 0;
 
@@ -1236,6 +1359,15 @@ static int mmc_sd_suspend(struct mmc_host *host)
 	mmc_claim_host(host);
 	if (!mmc_host_is_spi(host))
 		err = mmc_deselect_cards(host);
+#ifdef CONFIG_MMC_PASSWORDS	
+	/*if sd is unlock , set auto unlock flag , so system resume auto unlock sd card */
+	if(!mmc_card_locked(host->card))
+	{
+		pr_err("%s: [SDLOCK] sdcard is unlocked on suspend and set auto_unlock = true. \n", mmc_hostname(host));
+		host->card->auto_unlock = true;
+	}
+	host->card->state &= ~(MMC_STATE_LOCKED | MMC_STATE_ENCRYPT);
+#endif	
 	host->card->state &= ~MMC_STATE_HIGHSPEED;
 	mmc_release_host(host);
 
@@ -1358,6 +1490,10 @@ static const struct mmc_bus_ops mmc_sd_ops_unsafe = {
 	.resume = mmc_sd_resume,
 	.power_restore = mmc_sd_power_restore,
 	.alive = mmc_sd_alive,
+#ifdef CONFIG_MMC_PASSWORDS
+	.sysfs_add = mmc_sd_sysfs_add,
+	.sysfs_remove = mmc_sd_sysfs_remove,
+#endif
 };
 
 static void mmc_sd_attach_bus_ops(struct mmc_host *host)
@@ -1479,6 +1615,33 @@ err:
 
 	return err;
 }
+
+#ifdef CONFIG_HW_SD_HEALTH_DETECT
+unsigned int mmc_get_sd_speed()
+{
+   unsigned int speed = 0;
+   switch(g_sd_speed_class){
+   case 0x00:
+        speed = 0;
+        break;
+   case 0x01:
+        speed = 2;
+        break;
+   case 0x02:
+        speed = 4;
+        break;
+   case 0x03:
+        speed = 6;
+        break;
+   case 0x04:
+        speed = 10;
+        break;
+   default:
+        speed = 2;
+}
+   return speed;
+}
+#endif
 
 #ifdef CONFIG_HUAWEI_SDCARD_DSM
 char *dsm_sdcard_get_log(int cmd,int err)

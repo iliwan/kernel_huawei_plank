@@ -1,3 +1,26 @@
+/*****************************************************************************/
+/*                                                                           */
+/*                Copyright 1999 - 2003, Huawei Tech. Co., Ltd.              */
+/*                           ALL RIGHTS RESERVED                             */
+/*                                                                           */
+/* FileName: \vos\include\vos\v_id.h                                         */
+/*                                                                           */
+/* Author: Qin Peifeng                                                       */
+/*                                                                           */
+/* Version: 1.0                                                              */
+/*                                                                           */
+/* Date: 2000-04-21                                                          */
+/*                                                                           */
+/* Description:                                                              */
+/*                                                                           */
+/* Others:                                                                   */
+/*                                                                           */
+/* History:                                                                  */
+/* 1. Date: 2000-04-21                                                       */
+/*    Author: Qin Peifeng                                                    */
+/*    Modification: Create this file                                         */
+/*                                                                           */
+/*****************************************************************************/
 #ifndef _V_ID_H
 #define _V_ID_H
 
@@ -125,7 +148,9 @@ extern VOS_UINT32 IMSA_FidInit ( enum VOS_INIT_PHASE_DEFINE ip );
 extern VOS_UINT32 IMSVA_FidInit ( enum VOS_INIT_PHASE_DEFINE ip );
 extern VOS_UINT32 IPS_MNTN_CCORE_FidInit ( enum VOS_INIT_PHASE_DEFINE ip );
 
+/* Added by x00312156 for TLPHY CHR, 2015-01-27,  Begin */
 extern VOS_UINT32 TLPHY_RTTAGENT_FidInit( enum VOS_INIT_PHASE_DEFINE enPhase );
+/* Added by x00312156 for TLPHY CHR, 2015-01-27,  End */
 
 /************************* MODEM ID DEFINITION ******************************/
 
@@ -189,8 +214,10 @@ BEGIN_FID_DEFINITION()
      DEFINE_FID(PS_FID_RM_DL)
      DEFINE_FID(PS_FID_HPA)
      DEFINE_FID(PS_FID_COMM)
+     /*added by sunbing for VoLTE 20130715 begin*/
      DEFINE_FID(PS_FID_IMSA)
      DEFINE_FID(PS_FID_IMSVA)
+    /*added by sunbing for VoLTE 20130715 end*/
      /*add for L2 2011-07-04 start */
      DEFINE_FID(UEPS_FID_FLOWCTRL_C)
      DEFINE_FID(UEPS_FID_RM_DL)
@@ -269,7 +296,9 @@ BEGIN_FID_DEFINITION()
     DEFINE_FID(UEPS_FID_BASTET)
 #endif
 
+    /* Added by x00312156 for TLPHY CHR, 2015-01-28,  Begin */
     DEFINE_FID(TLPHY_FID_RTTAGENT)
+    /* Added by x00312156 for TLPHY CHR, 2015-01-28,  End */
 
 END_FID_DEFINITION()
 #endif  /*(OSA_CPU_CCPU == VOS_OSA_CPU)*/

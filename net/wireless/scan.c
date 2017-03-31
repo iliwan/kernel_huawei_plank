@@ -56,7 +56,10 @@
  */
 
 #define IEEE80211_SCAN_RESULT_EXPIRE	(7 * HZ)
-
+#ifndef MAC2STR
+#define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
+#define MACSTR "%02X:%02X:%02X:%02X:%02X:%02X \n"
+#endif
 static void bss_free(struct cfg80211_internal_bss *bss)
 {
 	struct cfg80211_bss_ies *ies;
@@ -153,8 +156,11 @@ static void __cfg80211_bss_expire(struct cfg80211_registered_device *dev,
 		if (!time_after(expire_time, bss->ts))
 			continue;
 
-		if (__cfg80211_unlink_bss(dev, bss))
+		if (__cfg80211_unlink_bss(dev, bss)) {
+			pr_info("bss expired:\n");
+			pr_info(MACSTR,  MAC2STR(bss->pub.bssid));
 			expired = true;
+		}
 	}
 
 	if (expired)
@@ -371,6 +377,11 @@ void cfg80211_bss_expire(struct cfg80211_registered_device *dev)
 	__cfg80211_bss_expire(dev, jiffies - IEEE80211_SCAN_RESULT_EXPIRE);
 }
 
+void cfg80211_bss_expire_p2p(struct cfg80211_registered_device *dev)
+{
+	__cfg80211_bss_expire(dev, jiffies);
+}
+
 const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len)
 {
 	while (len > 2 && ies[0] != eid) {
@@ -571,14 +582,20 @@ struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
 	spin_lock_bh(&dev->bss_lock);
 
 	list_for_each_entry(bss, &dev->bss_list, list) {
-		if ((bss->pub.capability & capa_mask) != capa_val)
+		if ((bss->pub.capability & capa_mask) != capa_val) {
+			pr_info("bss->pub.capability = %d\n", bss->pub.capability);
 			continue;
-		if (channel && bss->pub.channel != channel)
+		}
+		if (channel && bss->pub.channel != channel) {
+			pr_info("bss->pub.channel = 0x%x, channel = 0x%x\n", bss->pub.channel, channel);
 			continue;
+		}
 		/* Don't get expired BSS structs */
 		if (time_after(now, bss->ts + IEEE80211_SCAN_RESULT_EXPIRE) &&
-		    !atomic_read(&bss->hold))
+		    !atomic_read(&bss->hold)) {
+			pr_info("time expired !!!!\n");
 			continue;
+		}
 		if (is_bss(&bss->pub, bssid, ssid, ssid_len)) {
 			res = bss;
 			bss_ref_get(dev, res);

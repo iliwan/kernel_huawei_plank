@@ -27,12 +27,12 @@
 /********************************************************************
 Define macros here
 ********************************************************************/
-#define MNTN_RGZNAME_SZ 64
+/* #define MNTN_RGZNAME_SZ 64 */
 #define MNTN_FULLPATH_STRING_LEN		128
 #define MNTN_TIME_STRING_LEN		20
 #define MNTN_MDM_LOG_MAX     5
 #define MNTN_HIFI_LOG_MAX     5
-#define MNTN_MCU_LOG_MAX     5
+/* #define MNTN_MCU_LOG_MAX     5 */
 
 #define MODEM_SYS_MEM_SAVE_SIZE 0x06F00000
 

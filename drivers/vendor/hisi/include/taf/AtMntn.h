@@ -531,6 +531,15 @@ VOS_VOID AT_SetPcuiCtrlConcurrentFlag(VOS_UINT8 ucFlag);
 
 VOS_VOID AT_ShowClientCtxInfo(VOS_VOID);
 
+VOS_VOID AT_SetPcuiPsCallFlag(
+    VOS_UINT8                           ucFlag,
+    VOS_UINT16                           ucIndex
+);
+VOS_VOID AT_SetCtrlPsCallFlag(
+    VOS_UINT8                           ucFlag,
+    VOS_UINT16                          ucIndex
+);
+
 #if (VOS_OS_VER == VOS_WIN32)
 #pragma pack()
 #else

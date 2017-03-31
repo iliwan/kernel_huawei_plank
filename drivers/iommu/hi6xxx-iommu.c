@@ -28,6 +28,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <asm/cacheflush.h>
+#include <linux/hisi/hisi-iommu.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/clk.h>
@@ -77,7 +78,22 @@ static DEFINE_MUTEX(hi6xxx_smmu_mutex);
 static DEFINE_SPINLOCK(iommu_spinlock);
 static unsigned int smmu_regs_value[SMMU_REGS_MAX] = {0};
 static int smmu_ddr_size;
+static iommu_vpu_cb vpu_callback = NULL;
+static int vpu_is_on = 0;
 
+void iommu_set_vpu_onoff(int onoff,iommu_vpu_cb vpu_cb)
+{
+    vpu_is_on = onoff;
+    vpu_callback = vpu_cb;
+
+    /* when vpu off, unmask iommu*/
+    if (onoff == 0) {
+        if (NULL != smmu_dev_keeper.smmu_chip->reg_base) {
+            writel(0x0,smmu_dev_keeper.smmu_chip->reg_base + SMMU_INTMASK_OFFSET);
+        }
+    }
+}
+EXPORT_SYMBOL(iommu_set_vpu_onoff);
 void dump_pgtbl(int start, int end)
 {
 	int i;
@@ -599,7 +615,10 @@ static irqreturn_t hi6xxx_smmu_isr(int irq, void *dev_id)
 	irq_stat = readl(chip->reg_base + SMMU_MINTSTS_OFFSET);
 	irq_rawstat = readl(chip->reg_base + SMMU_RINTSTS_OFFSET);
 	pr_err(" irq raw status is %#x \n",irq_rawstat);
-
+        if (vpu_is_on){
+            pr_err("in %s vpu is on and mask smmu int\n",__func__);
+            writel(0xff,chip->reg_base+SMMU_INTMASK_OFFSET);
+        }
 	/**
 	 * clear smmu interrupt
 	 */
@@ -659,10 +678,12 @@ static irqreturn_t hi6xxx_smmu_isr(int irq, void *dev_id)
 	}else if (irq_stat & (1<<5)) {
 		pr_err("AXI master1 access timeout,not receive peer's response \n");
 	}
+        if ((vpu_is_on) && (vpu_callback != NULL)){
+               (void)vpu_callback();
+        }
 
-	BUG_ON(irq_stat&0x3f);
-
-	return IRQ_HANDLED;
+    WARN_ON(irq_stat&0x3f);
+    return IRQ_HANDLED;
 }
 
 
