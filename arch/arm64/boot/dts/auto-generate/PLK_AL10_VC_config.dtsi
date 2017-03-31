@@ -1,0 +1,45 @@
+
+/**
+ * Huawei Ltd.
+ * PhosphorV660
+ */
+
+
+/include/ "fastboot.dtsi"
+/include/ "PLK_AL10_VB_config.dtsi"
+/include/ "PLK_AL10_VC_pin.dtsi"
+/include/ "PLK_AL10_VC_hi6402_pin.dtsi"
+/include/ "PLK_AL10_VC_modem_pin.dtsi"
+///include/ "PLK_AL10_VC_charger.dtsi"
+///include/ "PLK_AL10_VC_pmic.dtsi"
+///include/ "PLK_AL10_VC_gpio_logic.dtsi"
+
+/ {
+	hisi,boardid = <1 8 8 2 >;
+	hisi,boardname = "PLK_AL10_VC";
+	hisi,sub_platform_info0 = "Kirin935";
+
+	target-cpu {
+		compatible = "hisi,targetcpu";
+		target_cpu = "Kirin 935";
+	};
+
+	anc_hs: anc_hs@0{
+		gpios = <&gpio19 4 0>, <&gpio31 1 0>;
+		//0 means soc gpios, 1 means codec gpios
+		gpio_type = <1>;
+		status = "ok";
+	};
+
+	panel_lcd_jdi_NT35695 {
+		lcd-bl-type = <8>;
+	};
+
+        viacbp82d_power:viacbp82d_power {
+                via_reset_ind = <&gpio23 4 0>;                          //reset indication is connected to gpio 188
+                via_reset_ind_connect_to_codec = <0x0>;         //reset_indication is connected to hi6402 codec?
+                via_agps = <&gpio4 1 0>;                        //apgs clk choose is connected to gpio 33
+                status = "ok";
+        };
+};
+

@@ -1,0 +1,32 @@
+
+/**
+ * Huawei Ltd.
+ * PhosphorV660
+ */
+
+
+/include/ "fastboot.dtsi"
+/include/ "PLK_L01_VB_config.dtsi"
+/include/ "PLK_L01_VC_pin.dtsi"
+/include/ "PLK_L01_VC_hi6402_pin.dtsi"
+/include/ "PLK_L01_VC_modem_pin.dtsi"
+///include/ "PLK_L01_VC_charger.dtsi"
+///include/ "PLK_L01_VC_pmic.dtsi"
+///include/ "PLK_L01_VC_gpio_logic.dtsi"
+
+/ {
+	hisi,boardid = <1 8 8 3 >;
+	hisi,boardname = "PLK_L01_VC";
+	hisi,sub_platform_info0 = "Kirin935";
+
+	target-cpu {
+		compatible = "hisi,targetcpu";
+		target_cpu = "Kirin 935";
+	};
+
+	panel_lcd_jdi_NT35695 {
+		lcd-bl-type = <8>;
+	};
+
+};
+

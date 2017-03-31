@@ -1,0 +1,54 @@
+
+/**
+ * Huawei Ltd.
+ * PhosphorV660
+ */
+
+
+/include/ "fastboot.dtsi"
+/include/ "PLK_UL00_VB_config.dtsi"
+/include/ "PLK_TL00_VC_pin.dtsi"
+/include/ "PLK_TL00_VC_hi6402_pin.dtsi"
+/include/ "PLK_TL00_VC_modem_pin.dtsi"
+///include/ "PLK_TL00_VC_charger.dtsi"
+///include/ "PLK_TL00_VC_pmic.dtsi"
+///include/ "PLK_TL00_VC_gpio_logic.dtsi"
+
+/ {
+	hisi,boardid = <1 8 8 0 >;
+	hisi,boardname = "PLK_TL00_VC";
+	hisi,sub_platform_info0 = "Kirin935";
+
+	target-cpu {
+		compatible = "hisi,targetcpu";
+		target_cpu = "Kirin 935";
+	};
+
+        hi6402_irq: hi6402_irq@e82b9000 {
+                gpio31: gpio@3{
+                        awake-gpio = <1>;
+                        status = "ok";        
+                };
+		pmx4: hi6402_pinctrl {
+		        pinctrl-names = "default", "idle";
+			pinctrl-0 = <&gpio249_pinctrl_func>;
+			pinctrl-1 = <&gpio249_pinctrl_idle>;
+		};
+        };
+	anc_hs: anc_hs@0{
+		gpios = <&gpio19 4 0>, <&gpio31 1 0>;
+		//0 means soc gpios, 1 means codec gpios
+		gpio_type = <1>;
+		status = "ok";
+	};
+	panel_lcd_jdi_NT35695 {
+		lcd-bl-type = <8>;
+	};
+
+	antenna_fpga{
+		compatible = "antenna_fpga";
+		antenna_fpga,pre-image-filename = "PLK-TL00-VA.bin";
+		status = "ok";
+	};
+};
+

@@ -1,0 +1,23 @@
+
+/**
+ * Huawei Ltd.
+ * PhosphorV660
+ */
+
+/dts-v1/;
+
+/include/ "fastboot.dtsi"
+/include/ "PLK_CL00_VC_config.dtsi"
+/include/ "PLK_CL00_VD_pin.dtsi"
+/include/ "PLK_CL00_VD_hi6402_pin.dtsi"
+/include/ "PLK_CL00_VD_modem_pin.dtsi"
+///include/ "PLK_CL00_VD_charger.dtsi"
+///include/ "PLK_CL00_VD_pmic.dtsi"
+///include/ "PLK_CL00_VD_gpio_logic.dtsi"
+
+/ {
+	hisi,boardid = <1 8 8 8 >;
+	hisi,boardname = "PLK_CL00_VD";
+	hisi,modem_id = <0x3EBE1980>;
+};
+

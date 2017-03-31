@@ -1,0 +1,72 @@
+
+/**
+ * Huawei Ltd.
+ * PhosphorV660
+ */
+
+/dts-v1/;
+
+/include/ "fastboot.dtsi"
+/include/ "PLK_UL00_VA_config.dtsi"
+/include/ "PLK_UL00_VB_pin.dtsi"
+/include/ "PLK_UL00_VB_hi6402_pin.dtsi"
+/include/ "PLK_UL00_VB_modem_pin.dtsi"
+///include/ "PLK_UL00_VB_charger.dtsi"
+///include/ "PLK_UL00_VB_pmic.dtsi"
+///include/ "PLK_UL00_VB_gpio_logic.dtsi"
+
+/ {
+	hisi,boardid = <1 8 9 2 >;
+	hisi,boardname = "PLK_UL00_VB";
+
+	panel_lcd_jdi_NT35695 {
+		lcd-bl-type = <2>;
+	};
+	bcm_wifi {
+		wlan_enable,gpio_vio = <&gpio2 4 0>;
+	};
+	bluetooth_power:bluetooth_power{
+		huawei,vio_en = <20>;
+        };
+
+	audio_hw_config {
+		product_name = "PLK_UL";
+	};
+	antenna_fpga{
+		compatible = "antenna_fpga";
+		antenna_fpga,gpio-exception = <&gpio31 5 0>;  //this is connected to hi6402 cs.
+		status = "ok";
+	};
+	amba {
+		spi0:spi@fdf07000 {
+			fingerprint: fingerprint@2 {
+				fpc1020,power_gpio = <0>;
+				fpc1020,moduleid_gpio = <&gpio31 6 0>;
+			};
+		};
+	};
+
+	amba {
+		spi0:spi@fdf07000 {
+			mini_isp: mini_isp@0 {
+				mini_isp,dvdd_gpio = <155>;
+			};
+		};
+	};
+
+	huawei,imx278 {
+		huawei,ldo-names = "dvdd", "avdd", "iopw", "vcm", "avdd2", "dvdd2";
+		gpios = <&gpio3 1 0  &gpio19 3 0>;
+		huawei,gpio-ctrl-types = "reset", "suspend";
+		status = "ok";
+	};
+
+	huawei,imx179 {
+		huawei,ldo-names = "avdd", "iopw", "dvdd", "dvdd2", "avdd2", "vcm2";
+		gpios = <&gpio3 2 0  &gpio19 3 0>;
+		huawei,gpio-ctrl-types = "reset", "suspend";
+		status = "ok";
+	};
+
+};
+
